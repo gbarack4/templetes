@@ -3,6 +3,7 @@
 :root {
   --background: #ffffff;
   --foreground: #0f172a;
+  --app-max-width: 28rem;
 }
 
 @theme inline {
@@ -10,9 +11,44 @@
   --color-foreground: var(--foreground);
 }
 
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 body {
   background-color: var(--background);
   color: var(--foreground);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+}
+
+.app-frame {
+  max-width: var(--app-max-width);
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+.instructor-list-scroll {
+  scroll-behavior: smooth;
+  scrollbar-width: thin;
+  scrollbar-color: rgb(203 213 225) transparent;
+}
+
+.instructor-list-scroll::-webkit-scrollbar {
+  width: 5px;
+}
+
+.instructor-list-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.instructor-list-scroll::-webkit-scrollbar-thumb {
+  background-color: rgb(203 213 225);
+  border-radius: 9999px;
+}
+
+.instructor-list-scroll::-webkit-scrollbar-thumb:hover {
+  background-color: rgb(148 163 184);
 }

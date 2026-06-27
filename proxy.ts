@@ -2,7 +2,16 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 const PUBLIC_FILE = /\.(.*)$/;
-const SYSTEM_PATHS = ["/api", "/_next", "/favicon.ico", "/robots.txt"];
+const SYSTEM_PATHS = [
+  "/api",
+  "/_next",
+  "/favicon.ico",
+  "/robots.txt",
+  "/dashboard",
+  "/login",
+  "/sign-up",
+  "/preview",
+];
 
 export default function proxy(req: NextRequest) {
   const url = req.nextUrl.clone();
@@ -21,7 +30,7 @@ export default function proxy(req: NextRequest) {
 
   const isLocalhost = hostname.includes("localhost");
   const baseDomain = isLocalhost
-    ? "localhost:3000"
+    ? `localhost:${url.port || "3002"}`
     : process.env.NEXT_PUBLIC_BASE_DOMAIN;
 
   if (hostname === baseDomain) {
@@ -32,9 +41,10 @@ export default function proxy(req: NextRequest) {
 
   if (isLocalhost) {
     const parts = hostname.split(".");
-    if (parts.length > 1) {
-      domain = parts[0];
+    if (parts.length <= 1) {
+      return NextResponse.next();
     }
+    domain = parts[0];
   }
 
   url.pathname = `/${domain}${url.pathname}`;
