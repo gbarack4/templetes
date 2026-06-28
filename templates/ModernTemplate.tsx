@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { TemplateProps } from "./types";
 
 export function ModernTemplate({ data }: Readonly<TemplateProps>) {
@@ -9,10 +10,18 @@ export function ModernTemplate({ data }: Readonly<TemplateProps>) {
         className="bg-white p-6 shadow-sm border-b-4"
         style={{ borderColor: primaryColor }}
       >
-        <div className="max-w-5xl mx-auto">
+        <div className="max-w-5xl mx-auto flex items-center justify-between">
           <h1 className="text-3xl font-bold text-slate-900">
             {data.schoolName}
           </h1>
+
+          <Link
+            href="/login"
+            className="px-6 py-2 text-white font-medium rounded-lg shadow-sm transition-opacity hover:opacity-90"
+            style={{ backgroundColor: primaryColor }}
+          >
+            Student Login
+          </Link>
         </div>
       </header>
 
