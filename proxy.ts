@@ -10,16 +10,13 @@ const SYSTEM_PATHS = [
   "/dashboard",
   "/login",
   "/sign-up",
-  "/preview",
 ];
 
-export default function proxy(req: NextRequest) {
+export default function middleware(req: NextRequest) {
   const url = req.nextUrl.clone();
   const hostname = req.headers.get("host");
 
-  if (!hostname) {
-    return NextResponse.next();
-  }
+  if (!hostname) return NextResponse.next();
 
   const isSystemPath = SYSTEM_PATHS.some((path) =>
     url.pathname.startsWith(path),
@@ -31,24 +28,26 @@ export default function proxy(req: NextRequest) {
   const isLocalhost = hostname.includes("localhost");
   const baseDomain = isLocalhost
     ? `localhost:${url.port || "3002"}`
-    : process.env.NEXT_PUBLIC_BASE_DOMAIN;
+    : process.env.NEXT_PUBLIC_BASE_DOMAIN || "driveinstructor.pro";
 
   if (hostname === baseDomain) {
     return NextResponse.next();
   }
 
-  let domain = hostname;
+  if (hostname === `preview.${baseDomain}`) {
+    url.pathname = `/preview${url.pathname}`;
+    return NextResponse.rewrite(url);
+  }
 
+  let domain = hostname;
   if (isLocalhost) {
     const parts = hostname.split(".");
-    if (parts.length <= 1) {
-      return NextResponse.next();
-    }
-    domain = parts[0];
+    if (parts.length > 1) domain = parts[0];
+  } else {
+    domain = hostname.replace(`.${baseDomain}`, "");
   }
 
   url.pathname = `/${domain}${url.pathname}`;
-
   return NextResponse.rewrite(url);
 }
 
