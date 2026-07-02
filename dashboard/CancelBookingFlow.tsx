@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { ButtonSpinner } from "@/components/ButtonSpinner";
 import type { Lesson } from "./types";
 import { markLessonCancelled } from "./cancel-booking";
 import { FlowPageContent } from "./components/FlowPageContent";
@@ -11,6 +12,8 @@ import { MapPinIcon, UserIcon } from "./components/icons";
 type CancelBookingFlowProps = Readonly<{
   lesson: Lesson;
 }>;
+
+const BUTTON_LOADING_MS = 2000;
 
 function LessonSummary({ lesson }: Readonly<{ lesson: Lesson }>) {
   return (
@@ -38,14 +41,19 @@ function LessonSummary({ lesson }: Readonly<{ lesson: Lesson }>) {
 export function CancelBookingFlow({ lesson }: CancelBookingFlowProps) {
   const router = useRouter();
   const [isConfirmed, setIsConfirmed] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
 
   function goBack() {
     router.push("/dashboard");
   }
 
   function handleConfirmCancel() {
-    markLessonCancelled(lesson.id);
-    setIsConfirmed(true);
+    if (isCancelling) return;
+    setIsCancelling(true);
+    window.setTimeout(() => {
+      markLessonCancelled(lesson.id);
+      setIsConfirmed(true);
+    }, BUTTON_LOADING_MS);
   }
 
   if (isConfirmed) {
@@ -101,10 +109,13 @@ export function CancelBookingFlow({ lesson }: CancelBookingFlowProps) {
         <div className="flex flex-col gap-3">
           <button
             type="button"
+            aria-busy={isCancelling}
             onClick={handleConfirmCancel}
-            className="w-full rounded-lg bg-red-500 py-3 text-sm font-medium text-white transition hover:bg-red-600"
+            className={`inline-flex h-11 w-full items-center justify-center rounded-lg bg-red-500 text-sm font-medium text-white transition hover:bg-red-600 ${
+              isCancelling ? "pointer-events-none" : ""
+            }`}
           >
-            Cancel booking
+            {isCancelling ? <ButtonSpinner inverse /> : "Cancel booking"}
           </button>
           <button
             type="button"

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type RefObject } from "react";
 import { useRouter } from "next/navigation";
+import { ButtonSpinner } from "@/components/ButtonSpinner";
 import type { Lesson } from "./types";
 import { markLessonBooked } from "./book-lesson";
 import {
@@ -33,6 +34,8 @@ type BookLessonFlowProps = Readonly<{
 }>;
 
 type FlowStep = "instructor" | "date" | "time" | "summary";
+
+const BUTTON_LOADING_MS = 2000;
 
 function scrollStepIntoView(element: HTMLElement | null) {
   element?.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -67,6 +70,7 @@ export function BookLessonFlow({
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [isConfirmed, setIsConfirmed] = useState(false);
   const [showPayment, setShowPayment] = useState(false);
+  const [isContinuingToPayment, setIsContinuingToPayment] = useState(false);
 
   const instructorStepRef = useRef<HTMLElement>(null);
   const dateStepRef = useRef<HTMLElement>(null);
@@ -168,8 +172,8 @@ export function BookLessonFlow({
 
   if (isConfirmed && selectedInstructor && selectedDate && selectedTime) {
     return (
-      <main className="flex flex-1 flex-col px-5 pb-24 pt-6 text-center">
-        <div className="flex flex-1 flex-col items-center py-6">
+      <main className="absolute inset-0 overflow-hidden bg-white px-5 pb-24 pt-6 text-center">
+        <div className="flex flex-col items-center py-6">
           <div className="flex h-16 w-16 items-center justify-center rounded-full bg-green-50 text-2xl text-green-600">
             ✓
           </div>
@@ -447,13 +451,24 @@ export function BookLessonFlow({
 
             <button
               type="button"
+              aria-busy={isContinuingToPayment}
               onClick={() => {
-                setShowPayment(true);
-                window.scrollTo({ top: 0, behavior: "smooth" });
+                if (isContinuingToPayment) return;
+                setIsContinuingToPayment(true);
+                window.setTimeout(() => {
+                  setShowPayment(true);
+                  window.scrollTo({ top: 0, behavior: "smooth" });
+                }, BUTTON_LOADING_MS);
               }}
-              className="w-full rounded-lg bg-blue-600 py-3 text-sm font-medium text-white transition hover:bg-blue-700"
+              className={`inline-flex h-11 w-full items-center justify-center rounded-lg bg-blue-600 text-sm font-medium text-white transition hover:bg-blue-700 ${
+                isContinuingToPayment ? "pointer-events-none" : ""
+              }`}
             >
-              Continue to payment
+              {isContinuingToPayment ? (
+                <ButtonSpinner inverse />
+              ) : (
+                "Continue to payment"
+              )}
             </button>
             </section>
           )}

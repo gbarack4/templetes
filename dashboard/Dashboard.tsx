@@ -7,6 +7,7 @@ import { mockDashboardData } from "./mock-data";
 import { consumeCancelledLessonId } from "./cancel-booking";
 import { consumeBookedLesson } from "./book-lesson";
 import { LessonCard } from "./components/LessonCard";
+import { NotificationsPanel } from "./components/NotificationsPanel";
 import { useStudentAvatar } from "./useStudentAvatar";
 import { useStudentCreditHours } from "./useStudentCreditHours";
 import {
@@ -107,9 +108,14 @@ export function Dashboard({ data = mockDashboardData }: DashboardProps) {
   const [reviewedLessonIds, setReviewedLessonIds] = useState<Set<string>>(
     () => new Set(),
   );
+  const [notifications, setNotifications] = useState(data.notifications);
+  const [showNotifications, setShowNotifications] = useState(false);
 
   const completedLessons = data.completedLessons;
   const avatarUrl = useStudentAvatar(data.avatarUrl);
+  const unreadNotificationCount = notifications.filter(
+    (notification) => !notification.read,
+  ).length;
   const activeLessons = getLessonsForTab(
     upcomingLessons,
     completedLessons,
@@ -139,7 +145,7 @@ export function Dashboard({ data = mockDashboardData }: DashboardProps) {
       if (!lesson) return current;
 
       setCancelledLessons((cancelled) => [
-        { ...lesson, status: "cancelled" },
+        { ...lesson, status: "cancelled", cancelledBy: "student" },
         ...cancelled,
       ]);
       setTabCounts((counts) => ({
@@ -150,6 +156,20 @@ export function Dashboard({ data = mockDashboardData }: DashboardProps) {
 
       return current.filter((item) => item.id !== lessonId);
     });
+  }
+
+  function handleMarkNotificationRead(id: string) {
+    setNotifications((current) =>
+      current.map((notification) =>
+        notification.id === id ? { ...notification, read: true } : notification,
+      ),
+    );
+  }
+
+  function handleMarkAllNotificationsRead() {
+    setNotifications((current) =>
+      current.map((notification) => ({ ...notification, read: true })),
+    );
   }
 
   useEffect(() => {
@@ -186,10 +206,15 @@ export function Dashboard({ data = mockDashboardData }: DashboardProps) {
           <button
             type="button"
             aria-label="Notifications"
+            onClick={() => setShowNotifications(true)}
             className="relative shrink-0 rounded-lg bg-slate-100 p-2 text-slate-500 hover:bg-slate-200"
           >
             <BellIcon className="h-6 w-6" />
-            <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-red-500" />
+            {unreadNotificationCount > 0 && (
+              <span className="absolute right-1.5 top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-semibold text-white">
+                {unreadNotificationCount > 9 ? "9+" : unreadNotificationCount}
+              </span>
+            )}
           </button>
         </section>
 
@@ -245,6 +270,15 @@ export function Dashboard({ data = mockDashboardData }: DashboardProps) {
           onReviewSubmit={handleReviewSubmit}
         />
       </main>
+
+      {showNotifications && (
+        <NotificationsPanel
+          notifications={notifications}
+          onClose={() => setShowNotifications(false)}
+          onMarkRead={handleMarkNotificationRead}
+          onMarkAllRead={handleMarkAllNotificationsRead}
+        />
+      )}
     </>
   );
 }

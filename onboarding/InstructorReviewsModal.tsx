@@ -10,7 +10,7 @@ type InstructorReviewsModalProps = Readonly<{
   onClose: () => void;
 }>;
 
-function ReviewStars({ rating }: Readonly<{ rating: number }>) {
+export function ReviewStars({ rating }: Readonly<{ rating: number }>) {
   return (
     <div className="flex gap-0.5" aria-label={`${rating} out of 5 stars`}>
       {[1, 2, 3, 4, 5].map((star) => (

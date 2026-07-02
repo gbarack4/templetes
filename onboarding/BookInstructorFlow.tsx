@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type RefObject } from "react";
 import { useRouter } from "next/navigation";
+import { ButtonSpinner } from "@/components/ButtonSpinner";
 import {
   buildLessonDurationOptions,
   formatCurrency,
@@ -30,6 +31,8 @@ type BookInstructorFlowProps = Readonly<{
 }>;
 
 type FlowStep = "duration" | "date" | "time" | "address" | "summary";
+
+const BUTTON_LOADING_MS = 2000;
 
 function scrollStepIntoView(element: HTMLElement | null) {
   element?.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -69,6 +72,8 @@ export function BookInstructorFlow({
   const [hasRegistered, setHasRegistered] = useState(false);
   const [isConfirmed, setIsConfirmed] = useState(false);
   const [showPayment, setShowPayment] = useState(false);
+  const [isContinuing, setIsContinuing] = useState(false);
+  const [isContinuingToPayment, setIsContinuingToPayment] = useState(false);
 
   const durationStepRef = useRef<HTMLElement>(null);
   const dateStepRef = useRef<HTMLElement>(null);
@@ -182,10 +187,10 @@ export function BookInstructorFlow({
           </div>
           <button
             type="button"
-            onClick={() => router.push(returnPath)}
+            onClick={() => router.push("/login")}
             className="mt-8 w-full rounded-lg bg-blue-600 py-3 text-sm font-medium text-white transition hover:bg-blue-700"
           >
-            Back to instructors
+            Log in
           </button>
         </div>
       </main>
@@ -433,13 +438,20 @@ export function BookInstructorFlow({
             {trimmedPickupAddress && !showSignUp && !showSummary && (
               <button
                 type="button"
+                aria-busy={isContinuing}
                 onClick={() => {
-                  setShowSignUp(true);
-                  window.scrollTo({ top: 0, behavior: "smooth" });
+                  if (isContinuing) return;
+                  setIsContinuing(true);
+                  window.setTimeout(() => {
+                    setShowSignUp(true);
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                  }, BUTTON_LOADING_MS);
                 }}
-                className="w-full rounded-lg bg-blue-600 py-3 text-sm font-medium text-white transition hover:bg-blue-700"
+                className={`inline-flex h-11 w-full items-center justify-center rounded-lg bg-blue-600 text-sm font-medium text-white transition hover:bg-blue-700 ${
+                  isContinuing ? "pointer-events-none" : ""
+                }`}
               >
-                Continue
+                {isContinuing ? <ButtonSpinner inverse /> : "Continue"}
               </button>
             )}
           </section>
@@ -472,13 +484,24 @@ export function BookInstructorFlow({
 
             <button
               type="button"
+              aria-busy={isContinuingToPayment}
               onClick={() => {
-                setShowPayment(true);
-                window.scrollTo({ top: 0, behavior: "smooth" });
+                if (isContinuingToPayment) return;
+                setIsContinuingToPayment(true);
+                window.setTimeout(() => {
+                  setShowPayment(true);
+                  window.scrollTo({ top: 0, behavior: "smooth" });
+                }, BUTTON_LOADING_MS);
               }}
-              className="w-full rounded-lg bg-blue-600 py-3 text-sm font-medium text-white transition hover:bg-blue-700"
+              className={`inline-flex h-11 w-full items-center justify-center rounded-lg bg-blue-600 text-sm font-medium text-white transition hover:bg-blue-700 ${
+                isContinuingToPayment ? "pointer-events-none" : ""
+              }`}
             >
-              Continue to payment
+              {isContinuingToPayment ? (
+                <ButtonSpinner inverse />
+              ) : (
+                "Continue to payment"
+              )}
             </button>
           </section>
         )}

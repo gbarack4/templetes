@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { ButtonSpinner } from "@/components/ButtonSpinner";
 import type { Lesson } from "./types";
 import type { InstructorOption } from "./mock-data";
 import {
@@ -24,6 +25,8 @@ import {
 type RescheduleFlowProps = Readonly<{
   lesson: Lesson;
 }>;
+
+const BUTTON_LOADING_MS = 2000;
 
 function CurrentLessonCard({
   lesson,
@@ -74,6 +77,7 @@ export function RescheduleFlow({ lesson }: RescheduleFlowProps) {
   const [selectedDateId, setSelectedDateId] = useState<string | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [isConfirmed, setIsConfirmed] = useState(false);
+  const [isConfirming, setIsConfirming] = useState(false);
 
   const selectedInstructor =
     mockInstructors.find((instructor) => instructor.id === selectedInstructorId) ??
@@ -96,8 +100,11 @@ export function RescheduleFlow({ lesson }: RescheduleFlowProps) {
   }
 
   function handleConfirm() {
-    if (!canConfirm) return;
-    setIsConfirmed(true);
+    if (!canConfirm || isConfirming) return;
+    setIsConfirming(true);
+    window.setTimeout(() => {
+      setIsConfirmed(true);
+    }, BUTTON_LOADING_MS);
   }
 
   function goBack() {
@@ -250,10 +257,13 @@ export function RescheduleFlow({ lesson }: RescheduleFlowProps) {
         {canConfirm && !showInstructorSearch && (
           <button
             type="button"
+            aria-busy={isConfirming}
             onClick={handleConfirm}
-            className="w-full rounded-lg bg-blue-600 py-3 text-sm font-medium text-white transition hover:bg-blue-700"
+            className={`inline-flex h-11 w-full items-center justify-center rounded-lg bg-blue-600 text-sm font-medium text-white transition hover:bg-blue-700 ${
+              isConfirming ? "pointer-events-none" : ""
+            }`}
           >
-            Confirm reschedule
+            {isConfirming ? <ButtonSpinner inverse /> : "Confirm reschedule"}
           </button>
         )}
       </FlowPageContent>
