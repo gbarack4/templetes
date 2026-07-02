@@ -202,6 +202,25 @@ function buildMockRescheduleDates(): RescheduleDateOption[] {
 
 export const mockRescheduleDates: RescheduleDateOption[] = buildMockRescheduleDates();
 
+export function buildFutureDates(monthsAhead = 12): RescheduleDateOption[] {
+  const dates: RescheduleDateOption[] = [];
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
+
+  const end = new Date(start);
+  end.setMonth(end.getMonth() + monthsAhead);
+
+  const cursor = new Date(start);
+  while (cursor < end) {
+    dates.push(
+      createRescheduleDate(cursor.getFullYear(), cursor.getMonth(), cursor.getDate()),
+    );
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  return dates;
+}
+
 export const mockRescheduleTimeSlots = [
   "9:00 AM",
   "10:00 AM",

@@ -103,9 +103,6 @@ export const suggestedInstructorsInArea: SuggestedInstructor[] = [
   },
 ];
 
-export const onboardingInstructorProfilePath = "/preview/onboarding/instructor";
-export const onboardingBookPath = "/preview/onboarding/book";
-
 export function getSuggestedInstructorById(id: string): SuggestedInstructor | undefined {
   return suggestedInstructorsInArea.find((instructor) => instructor.id === id);
 }

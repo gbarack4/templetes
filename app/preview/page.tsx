@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 const TEMPLATES = [
   {
     id: "classic",
@@ -18,6 +20,11 @@ const TEMPLATES = [
     color: "bg-slate-900",
   },
 ];
+
+const PREVIEW_PATHS: Record<string, string> = {
+  classic: "/preview/classic",
+  modern: "/preview/modern",
+};
 
 export default function PreviewPage() {
   return (
@@ -48,9 +55,12 @@ export default function PreviewPage() {
               </div>
             </div>
 
-            <button className="mt-4 w-full rounded-lg bg-slate-50 py-2.5 text-sm font-medium text-slate-700 transition-colors group-hover:bg-blue-50 group-hover:text-blue-700">
+            <Link
+              href={PREVIEW_PATHS[tpl.id] ?? "/preview"}
+              className="mt-4 block w-full rounded-lg bg-slate-50 py-2.5 text-center text-sm font-medium text-slate-700 transition-colors group-hover:bg-blue-50 group-hover:text-blue-700"
+            >
               Preview Theme
-            </button>
+            </Link>
           </div>
         ))}
       </div>

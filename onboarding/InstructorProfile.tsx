@@ -10,15 +10,18 @@ import { getInstructorReviews } from "./instructor-reviews";
 import { InstructorReviewsModal } from "./InstructorReviewsModal";
 import {
   instructorProfileDetails,
-  onboardingBookPath,
   type SuggestedInstructor,
 } from "./suggested-instructors";
 
 type InstructorProfileProps = Readonly<{
   instructor: SuggestedInstructor;
+  basePath?: string;
 }>;
 
-export function InstructorProfile({ instructor }: InstructorProfileProps) {
+export function InstructorProfile({
+  instructor,
+  basePath = "/preview/onboarding",
+}: InstructorProfileProps) {
   const router = useRouter();
   const [showReviews, setShowReviews] = useState(false);
   const details = instructorProfileDetails[instructor.id];
@@ -112,7 +115,7 @@ export function InstructorProfile({ instructor }: InstructorProfileProps) {
         )}
 
         <Link
-          href={`${onboardingBookPath}/${instructor.id}`}
+          href={`${basePath}/book/${instructor.id}`}
           className="mt-8 block w-full rounded-lg bg-blue-600 py-3 text-center text-sm font-medium text-white transition hover:bg-blue-700"
         >
           Book now
