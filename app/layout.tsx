@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Geist } from "next/font/google";
+import { SiteLoaderGate } from "@/components/SiteLoaderGate";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -26,7 +27,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${geistSans.variable} antialiased`}>
       <body className="min-h-screen bg-white text-slate-900 flex flex-col font-sans">
-        {children}
+        <SiteLoaderGate>{children}</SiteLoaderGate>
       </body>
     </html>
   );

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { ButtonSpinner } from "@/components/ButtonSpinner";
 import { getInstructorByName } from "../mock-data";
 import type { Lesson } from "../types";
 import { InstructorReviewModal } from "./InstructorReviewModal";
@@ -14,17 +15,17 @@ type LessonCardProps = Readonly<{
   onReviewSubmit?: (lessonId: string, rating: number, comment: string) => void;
 }>;
 
-const actionLabels: Record<Lesson["status"], string> = {
+const actionLabels = {
   upcoming: "Reschedule",
   completed: "Leave Review",
-  cancelled: "Rebook",
-};
+} as const;
 
-const actionButtonStyles: Record<Lesson["status"], string> = {
+const actionButtonStyles = {
   upcoming: "bg-blue-600 text-white hover:bg-blue-700",
   completed: "border border-slate-200 text-slate-700 hover:bg-slate-50",
-  cancelled: "bg-blue-600 text-white hover:bg-blue-700",
-};
+} as const;
+
+const BUTTON_LOADING_MS = 2000;
 
 const statusBadges: Record<
   Lesson["status"],
@@ -61,6 +62,8 @@ export function LessonCard({
 }: LessonCardProps) {
   const router = useRouter();
   const [showReviewModal, setShowReviewModal] = useState(false);
+  const [isRescheduling, setIsRescheduling] = useState(false);
+  const [isOpeningReview, setIsOpeningReview] = useState(false);
   const badge = statusBadges[lesson.status];
   const isUpcoming = lesson.status === "upcoming";
   const isCompleted = lesson.status === "completed";
@@ -72,62 +75,99 @@ export function LessonCard({
     setShowReviewModal(false);
   }
 
+  function handleReschedule() {
+    if (isRescheduling) return;
+    setIsRescheduling(true);
+    window.setTimeout(() => {
+      router.push(`/dashboard/reschedule/${lesson.id}`);
+    }, BUTTON_LOADING_MS);
+  }
+
+  function handleCancel() {
+    router.push(`/dashboard/cancel/${lesson.id}`);
+  }
+
+  function handleOpenReview() {
+    if (isReviewed || isOpeningReview) return;
+    setIsOpeningReview(true);
+    window.setTimeout(() => {
+      setShowReviewModal(true);
+      setIsOpeningReview(false);
+    }, BUTTON_LOADING_MS);
+  }
+
   return (
-    <article className="relative flex gap-4 rounded-2xl bg-slate-50 p-4">
+    <article className="relative rounded-2xl bg-slate-50 p-4">
+      <div className="flex gap-4">
+        <DateBlock month={lesson.month} day={lesson.day} weekday={lesson.weekday} />
+        <div className={`flex min-w-0 flex-1 flex-col justify-between gap-3 ${isUpcoming ? "pr-6" : ""}`}>
+          <div>
+            <div className="flex items-start justify-between gap-2">
+              <p className="font-semibold text-slate-900">{lesson.timeRange}</p>
+              <span
+                className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${badge.className}`}
+              >
+                {badge.label(lesson.hours)}
+              </span>
+            </div>
+            <div className="mt-2">
+              <InstructorProfileSummary instructor={instructor} />
+            </div>
+          </div>
+          {isCompleted && (
+            <button
+              type="button"
+              aria-busy={isOpeningReview}
+              disabled={isReviewed}
+              onClick={handleOpenReview}
+              className={`inline-flex h-8 min-w-[7.75rem] items-center justify-center self-end rounded-lg px-4 text-sm font-medium transition ${
+                isReviewed
+                  ? "cursor-default border border-green-200 bg-green-50 text-green-700"
+                  : isOpeningReview
+                    ? `${actionButtonStyles.completed} pointer-events-none`
+                    : actionButtonStyles.completed
+              }`}
+            >
+              {isOpeningReview ? (
+                <ButtonSpinner />
+              ) : isReviewed ? (
+                "Review submitted"
+              ) : (
+                actionLabels.completed
+              )}
+            </button>
+          )}
+          {isUpcoming && (
+            <button
+              type="button"
+              aria-busy={isRescheduling}
+              onClick={handleReschedule}
+              className={`inline-flex h-8 min-w-[6.875rem] items-center justify-center self-end rounded-lg px-4 text-sm font-medium transition ${
+                isRescheduling
+                  ? `${actionButtonStyles.upcoming} pointer-events-none`
+                  : actionButtonStyles.upcoming
+              }`}
+            >
+              {isRescheduling ? (
+                <ButtonSpinner inverse />
+              ) : (
+                actionLabels.upcoming
+              )}
+            </button>
+          )}
+        </div>
+      </div>
+
       {isUpcoming && (
         <button
           type="button"
           aria-label="Cancel booking"
-          onClick={() => router.push(`/dashboard/cancel/${lesson.id}`)}
+          onClick={handleCancel}
           className="absolute right-3 top-3 rounded-lg p-1 text-slate-400 transition hover:bg-white hover:text-slate-600"
         >
           <MoreVerticalIcon className="h-5 w-5" />
         </button>
       )}
-
-      <DateBlock month={lesson.month} day={lesson.day} weekday={lesson.weekday} />
-      <div className={`flex min-w-0 flex-1 flex-col justify-between gap-3 ${isUpcoming ? "pr-6" : ""}`}>
-        <div>
-          <div className="flex items-start justify-between gap-2">
-            <p className="font-semibold text-slate-900">{lesson.timeRange}</p>
-            <span
-              className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${badge.className}`}
-            >
-              {badge.label(lesson.hours)}
-            </span>
-          </div>
-          <div className="mt-2">
-            <InstructorProfileSummary instructor={instructor} />
-          </div>
-        </div>
-        {isCompleted && (
-          <button
-            type="button"
-            disabled={isReviewed}
-            onClick={() => setShowReviewModal(true)}
-            className={`self-end rounded-lg px-4 py-1.5 text-sm font-medium transition ${
-              isReviewed
-                ? "cursor-default border border-green-200 bg-green-50 text-green-700"
-                : actionButtonStyles.completed
-            }`}
-          >
-            {isReviewed ? "Review submitted" : actionLabels.completed}
-          </button>
-        )}
-        {!isCompleted && (
-          <button
-            type="button"
-            onClick={() => {
-              if (isUpcoming) {
-                router.push(`/dashboard/reschedule/${lesson.id}`);
-              }
-            }}
-            className={`self-end rounded-lg px-4 py-1.5 text-sm font-medium transition ${actionButtonStyles[lesson.status]}`}
-          >
-            {actionLabels[lesson.status]}
-          </button>
-        )}
-      </div>
 
       {showReviewModal && (
         <InstructorReviewModal

@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { ButtonSpinner } from "@/components/ButtonSpinner";
 import type { StudentAccount } from "./types";
 import { mockStudentAccount } from "./mock-data";
 import { useStudentAvatar } from "./useStudentAvatar";
@@ -10,6 +12,8 @@ import { ChevronRightIcon } from "./components/icons";
 type AccountSettingsProps = Readonly<{
   account?: StudentAccount;
 }>;
+
+const BUTTON_LOADING_MS = 2000;
 
 function SettingsSection({
   title,
@@ -37,12 +41,16 @@ function EditableField({
   value,
   initialValue,
   onChange,
+  onEditStart,
+  onEditEnd,
   type = "text",
 }: Readonly<{
   label: string;
   value: string;
   initialValue: string;
   onChange: (value: string) => void;
+  onEditStart?: () => void;
+  onEditEnd?: () => void;
   type?: "text" | "email" | "tel";
 }>) {
   const [isFocused, setIsFocused] = useState(false);
@@ -57,8 +65,14 @@ function EditableField({
           type={type}
           value={value}
           onChange={(event) => onChange(event.target.value)}
-          onFocus={() => setIsFocused(true)}
-          onBlur={() => setIsFocused(false)}
+          onFocus={() => {
+            setIsFocused(true);
+            onEditStart?.();
+          }}
+          onBlur={() => {
+            setIsFocused(false);
+            onEditEnd?.();
+          }}
           className={`w-full rounded-xl py-3 pl-4 pr-10 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 ${
             showBorder
               ? isFocused
@@ -149,20 +163,107 @@ function SettingsToggle({
   );
 }
 
-export function AccountSettings({ account = mockStudentAccount }: AccountSettingsProps) {
-  const [notifications, setNotifications] = useState(account.notifications);
-  const [showPhotoModal, setShowPhotoModal] = useState(false);
-  const initialPersonalInfo = {
+function buildPersonalInfo(account: StudentAccount) {
+  return {
     fullName: `${account.firstName} ${account.lastName}`,
     email: account.email,
     phone: account.phone,
     address: account.address,
   };
-  const [personalInfo, setPersonalInfo] = useState(initialPersonalInfo);
-  const avatarUrl = useStudentAvatar(account.avatarUrl);
+}
 
-  function updatePersonalInfo(field: keyof typeof personalInfo, value: string) {
-    setPersonalInfo((current) => ({ ...current, [field]: value }));
+function buildDrivingDetails(account: StudentAccount) {
+  return {
+    learnerPermitNumber: account.learnerPermitNumber,
+    dateOfBirth: account.dateOfBirth,
+  };
+}
+
+function buildEmergencyContact(account: StudentAccount) {
+  return {
+    name: account.emergencyContact.name,
+    phone: account.emergencyContact.phone,
+  };
+}
+
+function SaveSectionButton({
+  visible,
+  onClick,
+}: Readonly<{
+  visible: boolean;
+  onClick: () => void;
+}>) {
+  if (!visible) return null;
+
+  return (
+    <button
+      type="button"
+      onMouseDown={(event) => event.preventDefault()}
+      onClick={onClick}
+      className="w-full rounded-lg bg-blue-600 py-3 text-sm font-medium text-white transition hover:bg-blue-700"
+    >
+      Save
+    </button>
+  );
+}
+
+function useEditableSection<T extends Record<string, string>>(initial: T) {
+  const [saved, setSaved] = useState(() => ({ ...initial }));
+  const [values, setValues] = useState(() => ({ ...initial }));
+  const [editing, setEditing] = useState(false);
+  const blurTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const hasChanges = (Object.keys(saved) as (keyof T)[]).some(
+    (key) => values[key] !== saved[key],
+  );
+  const showSave = editing || hasChanges;
+
+  function handleFocus() {
+    if (blurTimeout.current) {
+      clearTimeout(blurTimeout.current);
+      blurTimeout.current = null;
+    }
+    setEditing(true);
+  }
+
+  function handleBlur() {
+    blurTimeout.current = setTimeout(() => {
+      setEditing(false);
+    }, 120);
+  }
+
+  function update(field: keyof T, value: string) {
+    setValues((current) => ({ ...current, [field]: value }));
+  }
+
+  function save() {
+    if (blurTimeout.current) {
+      clearTimeout(blurTimeout.current);
+      blurTimeout.current = null;
+    }
+    setSaved(values);
+    setEditing(false);
+  }
+
+  return { saved, values, showSave, handleFocus, handleBlur, update, save };
+}
+
+export function AccountSettings({ account = mockStudentAccount }: AccountSettingsProps) {
+  const router = useRouter();
+  const [notifications, setNotifications] = useState(account.notifications);
+  const [showPhotoModal, setShowPhotoModal] = useState(false);
+  const personalInfoSection = useEditableSection(buildPersonalInfo(account));
+  const drivingDetailsSection = useEditableSection(buildDrivingDetails(account));
+  const emergencyContactSection = useEditableSection(buildEmergencyContact(account));
+  const avatarUrl = useStudentAvatar(account.avatarUrl);
+  const [isSigningOut, setIsSigningOut] = useState(false);
+
+  function handleSignOut() {
+    if (isSigningOut) return;
+    setIsSigningOut(true);
+    window.setTimeout(() => {
+      router.push("/login");
+    }, BUTTON_LOADING_MS);
   }
 
   return (
@@ -178,12 +279,12 @@ export function AccountSettings({ account = mockStudentAccount }: AccountSetting
         <div className="flex items-center gap-4">
           <img
             src={avatarUrl}
-            alt={`${personalInfo.fullName}'s profile`}
+            alt={`${personalInfoSection.values.fullName}'s profile`}
             className="h-16 w-16 shrink-0 rounded-full object-cover ring-2 ring-white"
           />
           <div className="min-w-0 flex-1">
-            <p className="text-lg font-bold text-slate-900">{personalInfo.fullName}</p>
-            <p className="mt-0.5 truncate text-sm text-slate-500">{personalInfo.email}</p>
+            <p className="text-lg font-bold text-slate-900">{personalInfoSection.values.fullName}</p>
+            <p className="mt-0.5 truncate text-sm text-slate-500">{personalInfoSection.values.email}</p>
           </div>
         </div>
         <button
@@ -199,7 +300,7 @@ export function AccountSettings({ account = mockStudentAccount }: AccountSetting
         <EditProfilePhotoModal
           key={avatarUrl}
           currentAvatarUrl={avatarUrl}
-          userName={personalInfo.fullName}
+          userName={personalInfoSection.values.fullName}
           onClose={() => setShowPhotoModal(false)}
           onSave={() => setShowPhotoModal(false)}
         />
@@ -208,51 +309,88 @@ export function AccountSettings({ account = mockStudentAccount }: AccountSetting
       <SettingsSection title="Personal information" plain>
         <EditableField
           label="Full name"
-          value={personalInfo.fullName}
-          initialValue={initialPersonalInfo.fullName}
-          onChange={(value) => updatePersonalInfo("fullName", value)}
+          value={personalInfoSection.values.fullName}
+          initialValue={personalInfoSection.saved.fullName}
+          onChange={(value) => personalInfoSection.update("fullName", value)}
+          onEditStart={personalInfoSection.handleFocus}
+          onEditEnd={personalInfoSection.handleBlur}
         />
         <EditableField
           label="Email"
           type="email"
-          value={personalInfo.email}
-          initialValue={initialPersonalInfo.email}
-          onChange={(value) => updatePersonalInfo("email", value)}
+          value={personalInfoSection.values.email}
+          initialValue={personalInfoSection.saved.email}
+          onChange={(value) => personalInfoSection.update("email", value)}
+          onEditStart={personalInfoSection.handleFocus}
+          onEditEnd={personalInfoSection.handleBlur}
         />
         <EditableField
           label="Phone"
           type="tel"
-          value={personalInfo.phone}
-          initialValue={initialPersonalInfo.phone}
-          onChange={(value) => updatePersonalInfo("phone", value)}
+          value={personalInfoSection.values.phone}
+          initialValue={personalInfoSection.saved.phone}
+          onChange={(value) => personalInfoSection.update("phone", value)}
+          onEditStart={personalInfoSection.handleFocus}
+          onEditEnd={personalInfoSection.handleBlur}
         />
         <EditableField
           label="Address"
-          value={personalInfo.address}
-          initialValue={initialPersonalInfo.address}
-          onChange={(value) => updatePersonalInfo("address", value)}
+          value={personalInfoSection.values.address}
+          initialValue={personalInfoSection.saved.address}
+          onChange={(value) => personalInfoSection.update("address", value)}
+          onEditStart={personalInfoSection.handleFocus}
+          onEditEnd={personalInfoSection.handleBlur}
+        />
+        <SaveSectionButton
+          visible={personalInfoSection.showSave}
+          onClick={personalInfoSection.save}
         />
       </SettingsSection>
 
-      <SettingsSection title="Driving details">
-        <SettingsRow
+      <SettingsSection title="Driving details" plain>
+        <EditableField
           label="Learner permit"
-          value={account.learnerPermitNumber}
-          onClick={() => {}}
+          value={drivingDetailsSection.values.learnerPermitNumber}
+          initialValue={drivingDetailsSection.saved.learnerPermitNumber}
+          onChange={(value) => drivingDetailsSection.update("learnerPermitNumber", value)}
+          onEditStart={drivingDetailsSection.handleFocus}
+          onEditEnd={drivingDetailsSection.handleBlur}
         />
-        <SettingsRow label="Date of birth" value={account.dateOfBirth} onClick={() => {}} />
+        <EditableField
+          label="Date of birth"
+          value={drivingDetailsSection.values.dateOfBirth}
+          initialValue={drivingDetailsSection.saved.dateOfBirth}
+          onChange={(value) => drivingDetailsSection.update("dateOfBirth", value)}
+          onEditStart={drivingDetailsSection.handleFocus}
+          onEditEnd={drivingDetailsSection.handleBlur}
+        />
+        <SaveSectionButton
+          visible={drivingDetailsSection.showSave}
+          onClick={drivingDetailsSection.save}
+        />
       </SettingsSection>
 
-      <SettingsSection title="Emergency contact">
-        <SettingsRow
+      <SettingsSection title="Emergency contact" plain>
+        <EditableField
           label="Contact name"
-          value={account.emergencyContact.name}
-          onClick={() => {}}
+          value={emergencyContactSection.values.name}
+          initialValue={emergencyContactSection.saved.name}
+          onChange={(value) => emergencyContactSection.update("name", value)}
+          onEditStart={emergencyContactSection.handleFocus}
+          onEditEnd={emergencyContactSection.handleBlur}
         />
-        <SettingsRow
+        <EditableField
           label="Contact phone"
-          value={account.emergencyContact.phone}
-          onClick={() => {}}
+          type="tel"
+          value={emergencyContactSection.values.phone}
+          initialValue={emergencyContactSection.saved.phone}
+          onChange={(value) => emergencyContactSection.update("phone", value)}
+          onEditStart={emergencyContactSection.handleFocus}
+          onEditEnd={emergencyContactSection.handleBlur}
+        />
+        <SaveSectionButton
+          visible={emergencyContactSection.showSave}
+          onClick={emergencyContactSection.save}
         />
       </SettingsSection>
 
@@ -276,14 +414,25 @@ export function AccountSettings({ account = mockStudentAccount }: AccountSetting
       </SettingsSection>
 
       <SettingsSection title="Security">
-        <SettingsRow label="Change password" onClick={() => {}} />
+        <SettingsRow
+          label="Change password"
+          onClick={() => router.push("/dashboard/account/change-password")}
+        />
       </SettingsSection>
 
       <button
         type="button"
-        className="w-full rounded-lg bg-red-50 py-3 text-sm font-medium text-red-600 transition hover:bg-red-100"
+        aria-busy={isSigningOut}
+        onClick={handleSignOut}
+        className={`inline-flex h-11 w-full items-center justify-center rounded-lg bg-red-50 text-sm font-medium text-red-600 transition hover:bg-red-100 ${
+          isSigningOut ? "pointer-events-none" : ""
+        }`}
       >
-        Sign out
+        {isSigningOut ? (
+          <ButtonSpinner className="border-red-200 border-t-red-600" />
+        ) : (
+          "Sign out"
+        )}
       </button>
     </main>
   );

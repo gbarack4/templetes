@@ -2,35 +2,63 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { ButtonSpinner } from "@/components/ButtonSpinner";
 import { FlowPageHeader } from "@/dashboard/components/FlowPageHeader";
 import { formatCurrency } from "@/dashboard/mock-data";
 import { getInstructorReviews } from "./instructor-reviews";
-import { InstructorReviewsModal } from "./InstructorReviewsModal";
+import { InstructorReviewsModal, ReviewStars } from "./InstructorReviewsModal";
 import {
   instructorProfileDetails,
-  onboardingBookPath,
   type SuggestedInstructor,
 } from "./suggested-instructors";
 
 type InstructorProfileProps = Readonly<{
   instructor: SuggestedInstructor;
+  basePath?: string;
 }>;
 
-export function InstructorProfile({ instructor }: InstructorProfileProps) {
+const BUTTON_LOADING_MS = 2000;
+
+export function InstructorProfile({
+  instructor,
+  basePath = "/preview/onboarding",
+}: InstructorProfileProps) {
   const router = useRouter();
   const [showReviews, setShowReviews] = useState(false);
+  const [isBooking, setIsBooking] = useState(false);
   const details = instructorProfileDetails[instructor.id];
   const reviews = getInstructorReviews(instructor.id);
+
+  function handleBookLesson() {
+    if (isBooking) return;
+    setIsBooking(true);
+    window.setTimeout(() => {
+      router.push(`${basePath}/book/${instructor.id}`);
+    }, BUTTON_LOADING_MS);
+  }
 
   return (
     <>
       <FlowPageHeader title="Instructor profile" onBack={() => router.back()} />
-      <main className="flex flex-1 flex-col px-5 pb-8 pt-6">
+      <main className="flex min-h-0 flex-1 flex-col overflow-y-auto px-5 pb-8 pt-6">
         <div className="flex flex-col items-center text-center">
-          <div className="flex h-20 w-20 items-center justify-center rounded-full bg-slate-200 text-2xl font-semibold text-slate-600">
-            {instructor.initials}
+          <div className="flex items-center justify-center">
+            <div className="relative flex items-center">
+              <div className="relative z-0 flex h-20 w-20 items-center justify-center rounded-full border-2 border-slate-200 bg-slate-200 text-2xl font-semibold text-slate-600 ring-4 ring-white">
+                {instructor.initials}
+              </div>
+              {details?.car && (
+                <div className="relative z-10 -ml-5 h-20 w-20 shrink-0 overflow-hidden rounded-full border-2 border-slate-200 bg-white ring-4 ring-white shadow-sm">
+                  <Image
+                    src={details.car.imageUrl}
+                    alt={`${details.car.year} ${details.car.make} ${details.car.model}`}
+                    fill
+                    className="scale-125 object-contain p-0.5"
+                  />
+                </div>
+              )}
+            </div>
           </div>
           <h1 className="mt-4 text-xl font-bold text-slate-900">{instructor.name}</h1>
           <button
@@ -46,37 +74,29 @@ export function InstructorProfile({ instructor }: InstructorProfileProps) {
         </div>
 
         <div className="mt-6 grid grid-cols-2 gap-3">
-          <div className="rounded-xl bg-slate-50 p-3">
+          <div className="flex items-center justify-between rounded-xl bg-slate-50 p-3.5">
             <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Rate</p>
-            <p className="mt-1 text-sm font-semibold text-slate-900">
+            <p className="text-sm font-semibold text-slate-900">
               {formatCurrency(instructor.pricePerHour)}/hr
             </p>
           </div>
-          <div className="rounded-xl bg-slate-50 p-3">
-            <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Area</p>
-            <p className="mt-1 text-sm font-semibold text-slate-900">{instructor.location}</p>
-          </div>
+          <button
+            type="button"
+            aria-busy={isBooking}
+            onClick={handleBookLesson}
+            className={`inline-flex h-12 w-full items-center justify-center rounded-xl bg-blue-600 text-sm font-semibold text-white transition hover:bg-blue-700 ${
+              isBooking ? "pointer-events-none" : ""
+            }`}
+          >
+            {isBooking ? <ButtonSpinner inverse /> : "Book lesson"}
+          </button>
         </div>
 
         {details && (
           <>
             <section className="mt-6">
-              <h2 className="text-sm font-semibold text-slate-900">About</h2>
-              <p className="mt-2 text-sm leading-relaxed text-slate-600">{details.bio}</p>
-            </section>
-
-            <section className="mt-6">
               <h2 className="text-sm font-semibold text-slate-900">Lesson car</h2>
-              <div className="mt-3 overflow-hidden rounded-xl bg-slate-50">
-                <div className="relative aspect-[16/9] w-full bg-slate-100">
-                  <Image
-                    src={details.car.imageUrl}
-                    alt={`${details.car.year} ${details.car.make} ${details.car.model}`}
-                    fill
-                    className="object-contain p-4"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-3 p-4">
+              <div className="mt-3 grid grid-cols-2 gap-3 rounded-xl bg-slate-50 p-4">
                   <div>
                     <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
                       Make & model
@@ -105,18 +125,39 @@ export function InstructorProfile({ instructor }: InstructorProfileProps) {
                     </p>
                     <p className="mt-1 text-sm font-semibold text-slate-900">{details.car.fuel}</p>
                   </div>
-                </div>
               </div>
+            </section>
+
+            <section className="mt-6">
+              <h2 className="text-sm font-semibold text-slate-900">About</h2>
+              <p className="mt-2 text-sm leading-relaxed text-slate-600">{details.bio}</p>
             </section>
           </>
         )}
 
-        <Link
-          href={`${onboardingBookPath}/${instructor.id}`}
-          className="mt-8 block w-full rounded-lg bg-blue-600 py-3 text-center text-sm font-medium text-white transition hover:bg-blue-700"
-        >
-          Book now
-        </Link>
+        {reviews.length > 0 && (
+          <section className="mt-6">
+            <h2 className="text-sm font-semibold text-slate-900">Reviews</h2>
+            <div className="mt-3">
+              {reviews.map((review) => (
+                <article
+                  key={review.id}
+                  className="border-b border-slate-100 py-4 last:border-0"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold text-slate-900">{review.author}</p>
+                      <p className="mt-0.5 text-xs text-slate-400">{review.date}</p>
+                    </div>
+                    <ReviewStars rating={review.rating} />
+                  </div>
+                  <p className="mt-3 text-sm leading-relaxed text-slate-600">{review.comment}</p>
+                </article>
+              ))}
+            </div>
+          </section>
+        )}
+
       </main>
 
       {showReviews && (

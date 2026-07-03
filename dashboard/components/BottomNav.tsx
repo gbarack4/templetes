@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
   HomeIcon,
@@ -29,14 +30,47 @@ function getActiveNavIndex(pathname: string) {
   return 0;
 }
 
+const SCROLL_THRESHOLD = 8;
+const TOP_OFFSET = 24;
+
 export function BottomNav() {
   const router = useRouter();
   const pathname = usePathname();
   const activeIndex = getActiveNavIndex(pathname);
   const itemWidth = `calc((100% - 16px) / ${navItems.length})`;
+  const [visible, setVisible] = useState(true);
+  const lastScrollY = useRef(0);
+
+  useEffect(() => {
+    lastScrollY.current = window.scrollY;
+
+    function onScroll() {
+      const currentY = window.scrollY;
+      const delta = currentY - lastScrollY.current;
+
+      if (currentY <= TOP_OFFSET) {
+        setVisible(true);
+      } else if (delta > SCROLL_THRESHOLD) {
+        setVisible(false);
+      } else if (delta < -SCROLL_THRESHOLD) {
+        setVisible(true);
+      }
+
+      lastScrollY.current = currentY;
+    }
+
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   return (
-    <nav className="fixed bottom-0 left-1/2 z-40 w-full max-w-md -translate-x-1/2 border-t border-slate-100 bg-white">
+    <nav
+      className={`fixed bottom-0 left-1/2 z-40 w-full max-w-md border-t border-slate-100 bg-white transition-transform duration-300 ease-out ${
+        visible
+          ? "translate-x-[-50%] translate-y-0"
+          : "translate-x-[-50%] translate-y-full"
+      }`}
+    >
       <div className="relative flex px-2 py-2">
         <div
           aria-hidden

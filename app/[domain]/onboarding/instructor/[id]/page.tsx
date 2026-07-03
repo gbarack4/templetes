@@ -2,17 +2,19 @@ import { notFound } from "next/navigation";
 import { InstructorProfile } from "@/onboarding/InstructorProfile";
 import { getSuggestedInstructorById } from "@/onboarding/suggested-instructors";
 
-export default async function InstructorProfilePreviewPage({
+export default async function SchoolInstructorProfilePage({
   params,
 }: Readonly<{
-  params: Promise<{ id: string }>;
+  params: Promise<{ domain: string; id: string }>;
 }>) {
-  const { id } = await params;
+  const { domain, id } = await params;
   const instructor = getSuggestedInstructorById(id);
 
   if (!instructor) {
     notFound();
   }
 
-  return <InstructorProfile instructor={instructor} basePath="/preview/onboarding" />;
+  return (
+    <InstructorProfile instructor={instructor} basePath={`/${domain}/onboarding`} />
+  );
 }

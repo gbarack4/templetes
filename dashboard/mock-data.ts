@@ -112,6 +112,7 @@ export const mockDashboardData: DashboardData = {
       location: "123 Main Street, Downtown",
       hours: 1.5,
       status: "cancelled",
+      cancelledBy: "student",
     },
     {
       id: "cancelled-2",
@@ -123,6 +124,49 @@ export const mockDashboardData: DashboardData = {
       location: "789 Pine Road, Eastside",
       hours: 1.5,
       status: "cancelled",
+      cancelledBy: "instructor",
+    },
+  ],
+  notifications: [
+    {
+      id: "notification-1",
+      kind: "lesson_reminder",
+      title: "Lesson tomorrow",
+      message: "Your lesson with Sarah Johnson is tomorrow at 10:00 AM.",
+      timeLabel: "2h ago",
+      read: false,
+    },
+    {
+      id: "notification-2",
+      kind: "lesson_booked",
+      title: "Lesson confirmed",
+      message: "Your lesson on Jul 2 at 2:00 PM with Sarah Johnson is booked.",
+      timeLabel: "Yesterday",
+      read: false,
+    },
+    {
+      id: "notification-3",
+      kind: "review",
+      title: "Rate your lesson",
+      message: "How was your lesson with Mike Chen on Jun 14? Leave a quick review.",
+      timeLabel: "2 days ago",
+      read: false,
+    },
+    {
+      id: "notification-4",
+      kind: "payment",
+      title: "Payment received",
+      message: "Your 5-hour package purchase was successful.",
+      timeLabel: "3 days ago",
+      read: true,
+    },
+    {
+      id: "notification-5",
+      kind: "promo",
+      title: "Weekend availability",
+      message: "New Saturday morning slots are open with Sarah Johnson.",
+      timeLabel: "1 week ago",
+      read: true,
     },
   ],
 };
@@ -201,6 +245,25 @@ function buildMockRescheduleDates(): RescheduleDateOption[] {
 }
 
 export const mockRescheduleDates: RescheduleDateOption[] = buildMockRescheduleDates();
+
+export function buildFutureDates(monthsAhead = 12): RescheduleDateOption[] {
+  const dates: RescheduleDateOption[] = [];
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
+
+  const end = new Date(start);
+  end.setMonth(end.getMonth() + monthsAhead);
+
+  const cursor = new Date(start);
+  while (cursor < end) {
+    dates.push(
+      createRescheduleDate(cursor.getFullYear(), cursor.getMonth(), cursor.getDate()),
+    );
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  return dates;
+}
 
 export const mockRescheduleTimeSlots = [
   "9:00 AM",

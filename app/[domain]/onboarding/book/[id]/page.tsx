@@ -2,12 +2,12 @@ import { notFound } from "next/navigation";
 import { BookInstructorFlow } from "@/onboarding/BookInstructorFlow";
 import { getSuggestedInstructorById } from "@/onboarding/suggested-instructors";
 
-export default async function BookInstructorPreviewPage({
+export default async function SchoolBookInstructorPage({
   params,
 }: Readonly<{
-  params: Promise<{ id: string }>;
+  params: Promise<{ domain: string; id: string }>;
 }>) {
-  const { id } = await params;
+  const { domain, id } = await params;
   const instructor = getSuggestedInstructorById(id);
 
   if (!instructor) {
@@ -17,7 +17,7 @@ export default async function BookInstructorPreviewPage({
   return (
     <BookInstructorFlow
       instructor={instructor}
-      returnPath="/preview/onboarding"
+      returnPath={`/${domain}/onboarding`}
     />
   );
 }

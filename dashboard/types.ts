@@ -1,4 +1,5 @@
 export type LessonStatus = "upcoming" | "completed" | "cancelled";
+export type LessonCancelledBy = "student" | "instructor";
 
 export interface Lesson {
   id: string;
@@ -10,6 +11,7 @@ export interface Lesson {
   location: string;
   hours: number;
   status: LessonStatus;
+  cancelledBy?: LessonCancelledBy;
 }
 
 export interface DashboardData {
@@ -24,6 +26,23 @@ export interface DashboardData {
   upcomingLessons: Lesson[];
   completedLessons: Lesson[];
   cancelledLessons: Lesson[];
+  notifications: AppNotification[];
+}
+
+export type NotificationKind =
+  | "lesson_reminder"
+  | "lesson_booked"
+  | "payment"
+  | "review"
+  | "promo";
+
+export interface AppNotification {
+  id: string;
+  kind: NotificationKind;
+  title: string;
+  message: string;
+  timeLabel: string;
+  read: boolean;
 }
 
 export interface StudentAccount {

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { ButtonSpinner } from "@/components/ButtonSpinner";
 import {
   formatCurrency,
   formatLessonHoursLabel,
@@ -17,6 +18,8 @@ type BuyHoursFlowProps = Readonly<{
   initialCreditHours?: number;
 }>;
 
+const BUTTON_LOADING_MS = 2000;
+
 export function BuyHoursFlow({
   initialCreditHours = mockDashboardData.availableCreditHours,
 }: BuyHoursFlowProps) {
@@ -27,6 +30,7 @@ export function BuyHoursFlow({
   const [selectedPackageId, setSelectedPackageId] = useState<string | null>(null);
   const [showPayment, setShowPayment] = useState(false);
   const [isConfirmed, setIsConfirmed] = useState(false);
+  const [isContinuingToPayment, setIsContinuingToPayment] = useState(false);
 
   const selectedPackage = mockHourPackages.find(
     (pkg) => pkg.id === selectedPackageId,
@@ -44,8 +48,8 @@ export function BuyHoursFlow({
 
   if (isConfirmed && selectedPackage) {
     return (
-      <main className="flex flex-1 flex-col px-5 pb-24 pt-6 text-center">
-        <div className="flex flex-1 flex-col items-center py-6">
+      <main className="absolute inset-0 overflow-hidden bg-white px-5 pb-24 pt-6 text-center">
+        <div className="flex flex-col items-center py-6">
           <div className="flex h-16 w-16 items-center justify-center rounded-full bg-green-50 text-2xl text-green-600">
             ✓
           </div>
@@ -175,10 +179,23 @@ export function BuyHoursFlow({
         {selectedPackage && (
           <button
             type="button"
-            onClick={() => setShowPayment(true)}
-            className="w-full rounded-lg bg-blue-600 py-3 text-sm font-medium text-white transition hover:bg-blue-700"
+            aria-busy={isContinuingToPayment}
+            onClick={() => {
+              if (isContinuingToPayment) return;
+              setIsContinuingToPayment(true);
+              window.setTimeout(() => {
+                setShowPayment(true);
+              }, BUTTON_LOADING_MS);
+            }}
+            className={`inline-flex h-11 w-full items-center justify-center rounded-lg bg-blue-600 text-sm font-medium text-white transition hover:bg-blue-700 ${
+              isContinuingToPayment ? "pointer-events-none" : ""
+            }`}
           >
-            Continue to payment · {formatCurrency(selectedPackage.price)}
+            {isContinuingToPayment ? (
+              <ButtonSpinner inverse />
+            ) : (
+              <>Continue to payment · {formatCurrency(selectedPackage.price)}</>
+            )}
           </button>
         )}
       </main>
