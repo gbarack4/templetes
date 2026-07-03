@@ -4,6 +4,8 @@ export interface SiteConfig {
   config: {
     primaryColor?: string;
     welcomeText?: string;
+    seoDescription?: string;
+    logoUrl?: string;
   };
 }
 
