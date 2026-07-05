@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { ButtonSpinner } from "@/components/ButtonSpinner";
 import { FlowPageHeader } from "@/dashboard/components/FlowPageHeader";
+import { PhoneIcon } from "@/dashboard/components/icons";
 import { formatCurrency } from "@/dashboard/mock-data";
 import { getInstructorReviews } from "./instructor-reviews";
 import { InstructorReviewsModal, ReviewStars } from "./InstructorReviewsModal";
@@ -16,6 +17,7 @@ import {
 type InstructorProfileProps = Readonly<{
   instructor: SuggestedInstructor;
   basePath?: string;
+  bookHref?: string;
 }>;
 
 const BUTTON_LOADING_MS = 2000;
@@ -23,6 +25,7 @@ const BUTTON_LOADING_MS = 2000;
 export function InstructorProfile({
   instructor,
   basePath = "/preview/onboarding",
+  bookHref,
 }: InstructorProfileProps) {
   const router = useRouter();
   const [showReviews, setShowReviews] = useState(false);
@@ -34,7 +37,7 @@ export function InstructorProfile({
     if (isBooking) return;
     setIsBooking(true);
     window.setTimeout(() => {
-      router.push(`${basePath}/book/${instructor.id}`);
+      router.push(bookHref ?? `${basePath}/book/${instructor.id}`);
     }, BUTTON_LOADING_MS);
   }
 
@@ -73,23 +76,34 @@ export function InstructorProfile({
           </p>
         </div>
 
-        <div className="mt-6 grid grid-cols-2 gap-3">
+        <div className="mt-6 space-y-3">
           <div className="flex items-center justify-between rounded-xl bg-slate-50 p-3.5">
             <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Rate</p>
             <p className="text-sm font-semibold text-slate-900">
               {formatCurrency(instructor.pricePerHour)}/hr
             </p>
           </div>
-          <button
-            type="button"
-            aria-busy={isBooking}
-            onClick={handleBookLesson}
-            className={`inline-flex h-12 w-full items-center justify-center rounded-xl bg-blue-600 text-sm font-semibold text-white transition hover:bg-blue-700 ${
-              isBooking ? "pointer-events-none" : ""
-            }`}
-          >
-            {isBooking ? <ButtonSpinner inverse /> : "Book lesson"}
-          </button>
+          <div className="grid grid-cols-2 gap-3">
+            {details?.phone && (
+              <a
+                href={`tel:${details.phone}`}
+                className="inline-flex h-12 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-900 transition hover:bg-slate-50"
+              >
+                <PhoneIcon className="h-4 w-4" />
+                Call
+              </a>
+            )}
+            <button
+              type="button"
+              aria-busy={isBooking}
+              onClick={handleBookLesson}
+              className={`inline-flex h-12 w-full items-center justify-center rounded-xl bg-blue-600 text-sm font-semibold text-white transition hover:bg-blue-700 ${
+                isBooking ? "pointer-events-none" : ""
+              } ${details?.phone ? "" : "col-span-2"}`}
+            >
+              {isBooking ? <ButtonSpinner inverse /> : "Book lesson"}
+            </button>
+          </div>
         </div>
 
         {details && (

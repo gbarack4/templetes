@@ -8,6 +8,7 @@ const HIDDEN_NAV_PREFIXES = [
   "/dashboard/reschedule",
   "/dashboard/buy-hours",
   "/dashboard/book",
+  "/dashboard/instructor",
   "/dashboard/account/change-password",
 ];
 

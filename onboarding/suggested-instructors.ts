@@ -119,10 +119,11 @@ export type InstructorCar = Readonly<{
 
 export const instructorProfileDetails: Record<
   string,
-  Readonly<{ bio: string; car: InstructorCar }>
+  Readonly<{ bio: string; phone: string; car: InstructorCar }>
 > = {
   "sarah-johnson": {
     bio: "Calm, patient instructor with 8 years of experience helping nervous first-time drivers build confidence on city roads.",
+    phone: "+15551234567",
     car: {
       make: "Toyota",
       model: "Corolla",
@@ -135,6 +136,7 @@ export const instructorProfileDetails: Record<
   },
   "mike-chen": {
     bio: "Structured lessons focused on defensive driving and test preparation for busy urban routes.",
+    phone: "+15552345678",
     car: {
       make: "Honda",
       model: "Civic",
@@ -147,6 +149,7 @@ export const instructorProfileDetails: Record<
   },
   "emma-williams": {
     bio: "Friendly instructor known for clear explanations and flexible scheduling around school and work hours.",
+    phone: "+15553456789",
     car: {
       make: "Mazda",
       model: "3",
@@ -159,6 +162,7 @@ export const instructorProfileDetails: Record<
   },
   "james-rodriguez": {
     bio: "Experienced with suburban routes and merge lanes. Great for students preparing for longer commutes.",
+    phone: "+15554567890",
     car: {
       make: "Hyundai",
       model: "Elantra",
@@ -171,6 +175,7 @@ export const instructorProfileDetails: Record<
   },
   "lisa-patel": {
     bio: "Detail-oriented instructor who focuses on observation skills and safe decision-making in dense traffic.",
+    phone: "+15555678901",
     car: {
       make: "Volkswagen",
       model: "Golf",
@@ -183,6 +188,7 @@ export const instructorProfileDetails: Record<
   },
   "tom-anderson": {
     bio: "Relaxed teaching style with a strong emphasis on parking, tight streets, and neighborhood driving.",
+    phone: "+15556789012",
     car: {
       make: "Subaru",
       model: "Impreza",
@@ -195,6 +201,7 @@ export const instructorProfileDetails: Record<
   },
   "nina-brooks": {
     bio: "Top-rated for teen drivers and first-lesson confidence building on hills and busy intersections.",
+    phone: "+15557890123",
     car: {
       make: "Kia",
       model: "Cerato",
@@ -207,6 +214,7 @@ export const instructorProfileDetails: Record<
   },
   "david-kim": {
     bio: "Patient with beginners and fluent in explaining road rules for students from diverse driving backgrounds.",
+    phone: "+15558901234",
     car: {
       make: "Nissan",
       model: "Sentra",

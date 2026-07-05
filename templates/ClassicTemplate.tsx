@@ -49,6 +49,8 @@ function GoogleIcon() {
 const fieldClassName =
   "w-full rounded-2xl border border-transparent bg-slate-100 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-100";
 
+const SEARCH_LOADING_MS = 2000;
+
 export function ClassicTemplate({ data }: Readonly<TemplateProps>) {
   const router = useRouter();
   const pathname = usePathname();
@@ -56,6 +58,7 @@ export function ClassicTemplate({ data }: Readonly<TemplateProps>) {
   const [transmission, setTransmission] = useState("Auto");
   const [testDateId, setTestDateId] = useState<string | null>(null);
   const [showTestDatePicker, setShowTestDatePicker] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
   const futureDates = useMemo(() => buildFutureDates(), []);
   const selectedTestDate = getSelectedRescheduleDate(futureDates, testDateId);
   const school = resolveSchoolProfile(data);
@@ -64,19 +67,22 @@ export function ClassicTemplate({ data }: Readonly<TemplateProps>) {
 
   function handleSearch(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!canSearch) return;
+    if (!canSearch || isSearching) return;
 
     const testDate = selectedTestDate
       ? `${selectedTestDate.year}-${String(selectedTestDate.monthIndex + 1).padStart(2, "0")}-${String(selectedTestDate.day).padStart(2, "0")}`
       : undefined;
 
-    router.push(
-      buildOnboardingSearchPath(getOnboardingBasePath(pathname), {
-        suburb,
-        transmission,
-        testDate,
-      }),
-    );
+    setIsSearching(true);
+    window.setTimeout(() => {
+      router.push(
+        buildOnboardingSearchPath(getOnboardingBasePath(pathname), {
+          suburb,
+          transmission,
+          testDate,
+        }),
+      );
+    }, SEARCH_LOADING_MS);
   }
 
   return (
@@ -175,10 +181,13 @@ export function ClassicTemplate({ data }: Readonly<TemplateProps>) {
 
             <button
               type="submit"
+              aria-busy={isSearching}
               disabled={!canSearch}
-              className="w-full rounded-full bg-slate-900 py-4 text-sm font-bold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+              className={`w-full rounded-full bg-slate-900 py-4 text-sm font-bold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 ${
+                isSearching ? "pointer-events-none" : ""
+              }`}
             >
-              Search Instructors
+              {isSearching ? "Searching...." : "Search Instructors"}
             </button>
           </form>
         </section>

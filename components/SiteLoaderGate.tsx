@@ -3,7 +3,7 @@
 import { useLayoutEffect, useState } from "react";
 import { SiteLoader } from "./SiteLoader";
 
-const MIN_VISIBLE_MS = 700;
+const MIN_VISIBLE_MS = 2000;
 
 type SiteLoaderGateProps = Readonly<{
   children: React.ReactNode;

@@ -96,8 +96,23 @@ export function LessonCard({
     }, BUTTON_LOADING_MS);
   }
 
+  function handleCardClick() {
+    router.push(`/dashboard/instructor/${instructor.id}`);
+  }
+
   return (
-    <article className="relative rounded-2xl bg-slate-50 p-4">
+    <article
+      role="button"
+      tabIndex={0}
+      onClick={handleCardClick}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          handleCardClick();
+        }
+      }}
+      className="relative cursor-pointer rounded-2xl bg-slate-50 p-4 transition hover:bg-slate-100"
+    >
       <div className="flex gap-4">
         <DateBlock month={lesson.month} day={lesson.day} weekday={lesson.weekday} />
         <div className={`flex min-w-0 flex-1 flex-col justify-between gap-3 ${isUpcoming ? "pr-6" : ""}`}>
@@ -119,7 +134,10 @@ export function LessonCard({
               type="button"
               aria-busy={isOpeningReview}
               disabled={isReviewed}
-              onClick={handleOpenReview}
+              onClick={(event) => {
+                event.stopPropagation();
+                handleOpenReview();
+              }}
               className={`inline-flex h-8 min-w-[7.75rem] items-center justify-center self-end rounded-lg px-4 text-sm font-medium transition ${
                 isReviewed
                   ? "cursor-default border border-green-200 bg-green-50 text-green-700"
@@ -141,7 +159,10 @@ export function LessonCard({
             <button
               type="button"
               aria-busy={isRescheduling}
-              onClick={handleReschedule}
+              onClick={(event) => {
+                event.stopPropagation();
+                handleReschedule();
+              }}
               className={`inline-flex h-8 min-w-[6.875rem] items-center justify-center self-end rounded-lg px-4 text-sm font-medium transition ${
                 isRescheduling
                   ? `${actionButtonStyles.upcoming} pointer-events-none`
@@ -162,7 +183,10 @@ export function LessonCard({
         <button
           type="button"
           aria-label="Cancel booking"
-          onClick={handleCancel}
+          onClick={(event) => {
+            event.stopPropagation();
+            handleCancel();
+          }}
           className="absolute right-3 top-3 rounded-lg p-1 text-slate-400 transition hover:bg-white hover:text-slate-600"
         >
           <MoreVerticalIcon className="h-5 w-5" />
