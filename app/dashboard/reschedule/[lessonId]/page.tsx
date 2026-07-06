@@ -24,7 +24,7 @@ export default async function ReschedulePage({ params }: ReschedulePageProps) {
   const { lessonId } = await params;
   const lesson = getLessonById(lessonId);
 
-  if (!lesson || lesson.status !== "upcoming") {
+  if (lesson?.status !== "upcoming") {
     notFound();
   }
 

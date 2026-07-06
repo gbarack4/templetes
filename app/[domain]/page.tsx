@@ -70,7 +70,7 @@ export default async function SchoolPublicSite({ params }: Readonly<Props>) {
   type TemplateKey = keyof typeof TEMPLATE_REGISTRY;
   const TemplateComponent =
     TEMPLATE_REGISTRY[siteData.templateName as TemplateKey] ||
-    TEMPLATE_REGISTRY.modern;
+    TEMPLATE_REGISTRY.classic;
 
   return <TemplateComponent data={siteData} />;
 }
