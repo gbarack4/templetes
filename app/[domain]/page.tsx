@@ -2,11 +2,13 @@ import { notFound } from "next/navigation";
 import { Metadata } from "next";
 import { ModernTemplate } from "@/templates/ModernTemplate";
 import { ClassicTemplate } from "@/templates/ClassicTemplate";
+import { FormEmbedTemplate } from "@/templates/FormEmbedTemplate";
 import { getSchoolByDomain } from "@/lib/api";
 
 const TEMPLATE_REGISTRY = {
   modern: ModernTemplate,
   classic: ClassicTemplate,
+  "form-embed": FormEmbedTemplate,
 } as const;
 
 type Props = {
