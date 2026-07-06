@@ -63,15 +63,6 @@ function ClockIcon({ className, style }: IconProps) {
   );
 }
 
-function TagIcon({ className, style }: IconProps) {
-  return (
-    <svg className={className} style={style} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-      <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx="7.5" cy="7.5" r="1.5" fill="currentColor" stroke="none" />
-    </svg>
-  );
-}
-
 function SearchIcon({ className }: Readonly<{ className?: string }>) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
@@ -139,7 +130,6 @@ export function ModernTemplate({ data }: Readonly<TemplateProps>) {
   const [lessonDateId, setLessonDateId] = useState<string | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [lessonDuration, setLessonDuration] = useState(site.lessonDurations[0] ?? "1 Hour");
-  const [selectedPackage, setSelectedPackage] = useState("");
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
 
@@ -147,10 +137,6 @@ export function ModernTemplate({ data }: Readonly<TemplateProps>) {
   const canSearch = suburb.trim().length > 0 && selectedDate && selectedTime;
   const brandColorStyle = { color: site.primaryColor };
   const brandBgStyle = { backgroundColor: site.primaryColor };
-  const brandBorderStyle = {
-    borderColor: site.primaryColor,
-    boxShadow: `0 0 0 4px ${site.primaryColor}26`,
-  };
 
   function handleSearch(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -165,7 +151,6 @@ export function ModernTemplate({ data }: Readonly<TemplateProps>) {
         testDate: lessonDate,
         lessonTime: selectedTime,
         lessonDuration,
-        packageId: selectedPackage || undefined,
       }),
     );
   }
@@ -222,10 +207,7 @@ export function ModernTemplate({ data }: Readonly<TemplateProps>) {
       </header>
 
       <main className="flex-1 bg-white px-5 pb-8 pt-6">
-        <section
-          className="overflow-hidden rounded-3xl border bg-white"
-          style={brandBorderStyle}
-        >
+        <section className="overflow-hidden rounded-3xl bg-white">
           <form className="p-5" onSubmit={handleSearch}>
             <div className="space-y-5">
               <div className="space-y-2">
@@ -329,31 +311,6 @@ export function ModernTemplate({ data }: Readonly<TemplateProps>) {
                     ))}
                   </select>
                   <ChevronDownIcon className="h-4 w-4 shrink-0 text-slate-300" />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <label htmlFor="lesson-package" className="text-sm font-semibold text-slate-900">
-                  Package <span className="font-normal text-slate-400">(Optional)</span>
-                </label>
-                <div className={fieldClassName}>
-                  <TagIcon className="h-5 w-5 shrink-0" style={brandColorStyle} />
-                  <select
-                    id="lesson-package"
-                    value={selectedPackage}
-                    onChange={(event) => setSelectedPackage(event.target.value)}
-                    className={`min-w-0 flex-1 appearance-none bg-transparent outline-none ${
-                      selectedPackage ? "text-slate-900" : "text-slate-400"
-                    }`}
-                  >
-                    <option value="">Select a package</option>
-                    {site.lessonPackages.map((pkg) => (
-                      <option key={pkg.id} value={pkg.id}>
-                        {pkg.label}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronRightIcon className="h-4 w-4 shrink-0 text-slate-300" />
                 </div>
               </div>
             </div>
