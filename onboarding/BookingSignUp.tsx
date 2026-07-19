@@ -7,9 +7,14 @@ import { FlowPageHeader } from "@/dashboard/components/FlowPageHeader";
 type BookingSignUpProps = Readonly<{
   onBack: () => void;
   onComplete: () => void;
+  description?: string;
 }>;
 
-export function BookingSignUp({ onBack, onComplete }: BookingSignUpProps) {
+export function BookingSignUp({
+  onBack,
+  onComplete,
+  description = "Create an account to finish booking your lesson.",
+}: BookingSignUpProps) {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
@@ -39,9 +44,7 @@ export function BookingSignUp({ onBack, onComplete }: BookingSignUpProps) {
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
       <FlowPageHeader title="Create account" onBack={onBack} />
       <main className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-y-contain px-5 pb-8 pt-6 [-webkit-overflow-scrolling:touch]">
-        <p className="mb-6 text-sm text-slate-500">
-          Create an account to finish booking your lesson.
-        </p>
+        <p className="mb-6 text-sm text-slate-500">{description}</p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
