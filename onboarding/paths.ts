@@ -47,3 +47,28 @@ export function buildOnboardingSearchPath(
 
   return `${basePath}?${params.toString()}`;
 }
+
+const BOOKING_QUERY_KEYS = [
+  "suburb",
+  "transmission",
+  "testDate",
+  "lessonTime",
+  "lessonDuration",
+  "packageId",
+] as const;
+
+/** Keep Classic/search filters when moving through onboarding → book. */
+export function withOnboardingQuery(
+  path: string,
+  searchParams: URLSearchParams | { get: (key: string) => string | null },
+): string {
+  const params = new URLSearchParams();
+
+  for (const key of BOOKING_QUERY_KEYS) {
+    const value = searchParams.get(key);
+    if (value) params.set(key, value);
+  }
+
+  const query = params.toString();
+  return query ? `${path}?${query}` : path;
+}

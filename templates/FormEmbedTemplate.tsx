@@ -1,16 +1,14 @@
 "use client";
 
-import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { SiteLoader } from "@/components/SiteLoader";
 import { CalendarPickerModal } from "@/dashboard/components/CalendarPickerModal";
 import { getSelectedRescheduleDate } from "@/dashboard/components/RescheduleCalendar";
 import { buildFutureDates } from "@/dashboard/mock-data";
-import { resolveSchoolProfile } from "@/login/school-profile";
 import { buildOnboardingSearchPath, getOnboardingBasePath } from "@/onboarding/paths";
 import { submitFormEmbedSearch } from "./form-embed-search";
 import { mockModernTransmissionOptions } from "./resolve-modern-site";
+import { SuburbAutocomplete } from "./SuburbAutocomplete";
 import type { TemplateProps } from "./types";
 
 function ChevronDownIcon({ className }: Readonly<{ className?: string }>) {
@@ -43,12 +41,9 @@ function HelpIcon({ className }: Readonly<{ className?: string }>) {
 const fieldClassName =
   "flex w-full items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 transition focus-within:border-slate-400 focus-within:ring-2 focus-within:ring-slate-100";
 
-const SITE_LOADER_MS = 2000;
-
 export function FormEmbedTemplate({ data }: Readonly<TemplateProps>) {
   const router = useRouter();
   const pathname = usePathname();
-  const school = resolveSchoolProfile(data);
   const transmissionOptions =
     data.config?.transmissionOptions ?? [...mockModernTransmissionOptions];
 
@@ -57,9 +52,7 @@ export function FormEmbedTemplate({ data }: Readonly<TemplateProps>) {
   const [testDateId, setTestDateId] = useState<string | null>(null);
   const [showTestDatePicker, setShowTestDatePicker] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
-  const [isSigningIn, setIsSigningIn] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const loginPath = data.config?.loginPath ?? "/login";
 
   const futureDates = useMemo(() => buildFutureDates(), []);
   const selectedTestDate = getSelectedRescheduleDate(futureDates, testDateId);
@@ -102,61 +95,25 @@ export function FormEmbedTemplate({ data }: Readonly<TemplateProps>) {
     }
   }
 
-  function handleSignIn() {
-    if (isSigningIn) return;
-    setIsSigningIn(true);
-    document.body.classList.add("site-is-loading");
-    window.setTimeout(() => {
-      document.body.classList.remove("site-is-loading");
-      router.push(loginPath);
-    }, SITE_LOADER_MS);
-  }
-
   return (
     <div className="relative flex min-h-0 flex-1 flex-col bg-white">
-      {isSigningIn && <SiteLoader />}
-      <header className="flex shrink-0 items-center justify-between border-b border-slate-100 px-5 py-4">
-        <div className="flex min-w-0 items-center gap-2.5">
-          <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-lg bg-slate-50 ring-1 ring-slate-100">
-            <Image
-              src={school.logoUrl}
-              alt={`${school.name} logo`}
-              width={32}
-              height={32}
-              className="h-full w-full object-cover"
-            />
-          </div>
-          <p className="truncate text-base font-bold text-slate-900">{school.name}</p>
-        </div>
-        <button
-          type="button"
-          aria-busy={isSigningIn}
-          onClick={handleSignIn}
-          className={`shrink-0 rounded-full bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-slate-800 ${
-            isSigningIn ? "pointer-events-none" : ""
-          }`}
-        >
-          Sign in
-        </button>
-      </header>
-
       <main className="flex-1 px-5 pb-24 pt-6">
         <form className="space-y-5" onSubmit={handleSearch}>
           <div className="space-y-2">
             <label htmlFor="embed-pickup" className="text-sm font-semibold text-slate-900">
               Pick-up Location <span className="text-amber-500">*</span>
             </label>
-            <div className={fieldClassName}>
-              <input
-                id="embed-pickup"
-                type="text"
-                value={suburb}
-                onChange={(event) => setSuburb(event.target.value)}
-                placeholder="Enter your suburb"
-                className="min-w-0 flex-1 bg-transparent outline-none placeholder:text-slate-400"
-              />
-              <ChevronDownIcon className="h-4 w-4 shrink-0 text-slate-300" />
-            </div>
+            <SuburbAutocomplete
+              id="embed-pickup"
+              value={suburb}
+              onChange={setSuburb}
+              placeholder="Enter your suburb"
+              className={`${fieldClassName} relative`}
+              inputClassName="min-w-0 flex-1 bg-transparent outline-none placeholder:text-slate-400"
+              trailing={
+                <ChevronDownIcon className="h-4 w-4 shrink-0 text-slate-300" />
+              }
+            />
           </div>
 
           <div className="space-y-2">
@@ -227,7 +184,7 @@ export function FormEmbedTemplate({ data }: Readonly<TemplateProps>) {
 
       {showTestDatePicker && (
         <CalendarPickerModal
-          title="Test date"
+          title="Choose date"
           availableDates={futureDates}
           selectedDateId={testDateId}
           onSelectDate={setTestDateId}

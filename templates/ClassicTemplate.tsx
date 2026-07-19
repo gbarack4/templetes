@@ -16,6 +16,7 @@ import {
   resolveGoogleReviews,
   resolveSchoolProfile,
 } from "@/login/school-profile";
+import { SuburbAutocomplete } from "./SuburbAutocomplete";
 import type { TemplateProps } from "./types";
 
 function SearchIcon({ className }: Readonly<{ className?: string }>) {
@@ -166,17 +167,16 @@ export function ClassicTemplate({ data }: Readonly<TemplateProps>) {
               >
                 Pick-up Location <span className="text-orange-500">*</span>
               </label>
-              <div className="relative">
-                <SearchIcon className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                <input
-                  id="pickup-suburb"
-                  type="text"
-                  value={suburb}
-                  onChange={(event) => setSuburb(event.target.value)}
-                  placeholder="Enter your suburb"
-                  className={`${fieldClassName} py-3.5 pl-11 pr-4 placeholder:text-slate-400`}
-                />
-              </div>
+              <SuburbAutocomplete
+                id="pickup-suburb"
+                value={suburb}
+                onChange={setSuburb}
+                placeholder="Enter your suburb"
+                inputClassName={`${fieldClassName} py-3.5 pl-11 pr-4 placeholder:text-slate-400`}
+                icon={
+                  <SearchIcon className="pointer-events-none absolute left-4 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                }
+              />
             </div>
 
             <div className="space-y-2">
@@ -257,7 +257,7 @@ export function ClassicTemplate({ data }: Readonly<TemplateProps>) {
 
       {showTestDatePicker && (
         <CalendarPickerModal
-          title="Test date"
+          title="Choose date"
           availableDates={futureDates}
           selectedDateId={testDateId}
           onSelectDate={setTestDateId}

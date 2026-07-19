@@ -36,9 +36,9 @@ export function BookingSignUp({ onBack, onComplete }: BookingSignUpProps) {
   }
 
   return (
-    <>
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
       <FlowPageHeader title="Create account" onBack={onBack} />
-      <main className="flex flex-1 flex-col px-5 pb-8 pt-6">
+      <main className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-y-contain px-5 pb-8 pt-6 [-webkit-overflow-scrolling:touch]">
         <p className="mb-6 text-sm text-slate-500">
           Create an account to finish booking your lesson.
         </p>
@@ -136,6 +136,6 @@ export function BookingSignUp({ onBack, onComplete }: BookingSignUpProps) {
           </Link>
         </p>
       </main>
-    </>
+    </div>
   );
 }

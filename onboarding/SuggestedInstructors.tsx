@@ -1,13 +1,18 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { InstructorProfileSummary } from "@/dashboard/components/InstructorSearch";
-import { formatCurrency } from "@/dashboard/mock-data";
 import {
+  formatCurrency,
+  resolveRescheduleDateFromIso,
+} from "@/dashboard/mock-data";
+import { SuburbAutocomplete } from "@/templates/SuburbAutocomplete";
+import { withOnboardingQuery } from "./paths";
+import {
+  getInstructorsForSuburb,
   instructorProfileDetails,
-  mockStudentArea,
   suggestedInstructorsInArea,
   type SuggestedInstructor,
 } from "./suggested-instructors";
@@ -19,13 +24,24 @@ type SuggestedInstructorsProps = Readonly<{
 function SuggestedInstructorCard({
   instructor,
   basePath,
+  queryString,
 }: Readonly<{
   instructor: SuggestedInstructor;
   basePath: string;
+  queryString: URLSearchParams;
 }>) {
+  const profileHref = withOnboardingQuery(
+    `${basePath}/instructor/${instructor.id}`,
+    queryString,
+  );
+  const bookHref = withOnboardingQuery(
+    `${basePath}/book/${instructor.id}`,
+    queryString,
+  );
+
   return (
     <article className="w-full rounded-xl bg-slate-50 p-3 transition hover:bg-slate-100">
-      <Link href={`${basePath}/instructor/${instructor.id}`} className="block">
+      <Link href={profileHref} className="block">
         <div className="flex items-start justify-between gap-3">
           <InstructorProfileSummary instructor={instructor} />
           <span className="shrink-0 rounded-full bg-white px-2.5 py-1 text-xs font-medium text-slate-600 ring-1 ring-slate-200">
@@ -37,7 +53,7 @@ function SuggestedInstructorCard({
         </p>
       </Link>
       <Link
-        href={`${basePath}/book/${instructor.id}`}
+        href={bookHref}
         className="mt-3 inline-block rounded-lg border border-slate-200 bg-white px-4 py-1.5 text-xs font-medium text-slate-900 transition hover:bg-slate-50"
       >
         Book now
@@ -68,42 +84,70 @@ export function SuggestedInstructors({
   const searchParams = useSearchParams();
   const suburbParam = searchParams.get("suburb") ?? "";
   const transmissionParam = searchParams.get("transmission");
+  const testDateParam = searchParams.get("testDate");
+  const lessonTimeParam = searchParams.get("lessonTime");
+  const lessonDurationParam = searchParams.get("lessonDuration");
+  // Modern template carries lesson time/duration; Classic only sends optional test date.
+  const showModernLessonPrefs = Boolean(lessonTimeParam || lessonDurationParam);
+  const selectedDateLabel = testDateParam
+    ? resolveRescheduleDateFromIso(testDateParam)?.label ?? testDateParam
+    : null;
   const [query, setQuery] = useState(suburbParam);
 
+  useEffect(() => {
+    setQuery(suburbParam);
+  }, [suburbParam]);
+
   const filteredInstructors = useMemo(() => {
-    const trimmed = query.trim().toLowerCase();
-    const normalizedPostcode = query.replace(/\s/g, "").toLowerCase();
-
-    return suggestedInstructorsInArea.filter((instructor) => {
-      if (!matchesTransmission(instructor.id, transmissionParam)) {
-        return false;
-      }
-
-      if (!trimmed) return true;
-
-      return (
-        instructor.suburb.toLowerCase().includes(trimmed) ||
-        instructor.postcode.toLowerCase().includes(normalizedPostcode) ||
-        mockStudentArea.suburb.toLowerCase().includes(trimmed) ||
-        mockStudentArea.postcode.toLowerCase().includes(normalizedPostcode)
-      );
-    });
+    return getInstructorsForSuburb(query, suggestedInstructorsInArea).filter(
+      (instructor) => matchesTransmission(instructor.id, transmissionParam),
+    );
   }, [query, transmissionParam]);
 
   return (
     <main className="flex min-h-0 flex-1 flex-col overflow-hidden px-5 pb-4 pt-10">
       <section className="shrink-0 pb-4">
-        <input
-          type="search"
+        <SuburbAutocomplete
+          id="onboarding-suburb-search"
           value={query}
-          onChange={(event) => setQuery(event.target.value)}
+          onChange={setQuery}
           placeholder="Search by suburb or postcode"
-          className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+          inputClassName="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
         />
         <p className="mt-2 text-xs text-slate-500">
           {filteredInstructors.length} instructor
           {filteredInstructors.length === 1 ? "" : "s"} available nearby
+          {query.trim() ? (
+            <>
+              {" "}
+              in <span className="font-medium text-slate-700">{query.trim()}</span>
+            </>
+          ) : null}
         </p>
+        {showModernLessonPrefs ? (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {selectedDateLabel ? (
+              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
+                {selectedDateLabel}
+              </span>
+            ) : null}
+            {lessonTimeParam ? (
+              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
+                {lessonTimeParam}
+              </span>
+            ) : null}
+            {lessonDurationParam ? (
+              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
+                {lessonDurationParam}
+              </span>
+            ) : null}
+            {transmissionParam ? (
+              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
+                {transmissionParam}
+              </span>
+            ) : null}
+          </div>
+        ) : null}
       </section>
 
       <section className="flex min-h-0 flex-1 flex-col">
@@ -117,10 +161,13 @@ export function SuggestedInstructors({
                 key={instructor.id}
                 instructor={instructor}
                 basePath={basePath}
+                queryString={searchParams}
               />
             ))
           ) : (
-            <p className="py-4 text-center text-sm text-slate-400">No instructors found</p>
+            <p className="py-4 text-center text-sm text-slate-400">
+              No instructors found{query.trim() ? ` for ${query.trim()}` : ""}
+            </p>
           )}
         </div>
       </section>

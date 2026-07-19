@@ -1,15 +1,19 @@
 "use client";
 
-import { useEffect, useRef, useState, type RefObject } from "react";
+import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { useRouter } from "next/navigation";
 import { ButtonSpinner } from "@/components/ButtonSpinner";
+import { GoogleAddressAutocomplete } from "@/components/GoogleAddressAutocomplete";
 import {
   buildLessonDurationOptions,
   formatCurrency,
   formatLessonHoursLabel,
   formatLessonTimeRange,
+  mergeRescheduleDates,
   mockRescheduleDates,
   mockRescheduleTimeSlots,
+  parseLessonDurationLabel,
+  resolveRescheduleDateFromIso,
 } from "@/dashboard/mock-data";
 import { FlowPageHeader } from "@/dashboard/components/FlowPageHeader";
 import { LessonPayment } from "@/dashboard/components/LessonPayment";
@@ -28,9 +32,13 @@ import type { SuggestedInstructor } from "./suggested-instructors";
 type BookInstructorFlowProps = Readonly<{
   instructor: SuggestedInstructor;
   returnPath?: string;
+  initialSuburb?: string | null;
+  initialDate?: string | null;
+  initialTime?: string | null;
+  initialDuration?: string | null;
 }>;
 
-type FlowStep = "duration" | "date" | "time" | "address" | "summary";
+type FlowStep = "duration" | "date" | "time" | "summary";
 
 const BUTTON_LOADING_MS = 2000;
 
@@ -44,12 +52,10 @@ function getStepRef(
     duration: RefObject<HTMLElement | null>;
     date: RefObject<HTMLElement | null>;
     time: RefObject<HTMLElement | null>;
-    address: RefObject<HTMLElement | null>;
     summary: RefObject<HTMLElement | null>;
   },
 ) {
   if (step === "summary") return refs.summary;
-  if (step === "address") return refs.address;
   if (step === "time") return refs.time;
   if (step === "date") return refs.date;
   return refs.duration;
@@ -58,15 +64,35 @@ function getStepRef(
 export function BookInstructorFlow({
   instructor,
   returnPath = "/preview/onboarding",
+  initialSuburb = null,
+  initialDate = null,
+  initialTime = null,
+  initialDuration = null,
 }: BookInstructorFlowProps) {
   const router = useRouter();
+  const preselectedDate = useMemo(
+    () => resolveRescheduleDateFromIso(initialDate),
+    [initialDate],
+  );
+  const availableDates = useMemo(
+    () => mergeRescheduleDates(mockRescheduleDates, preselectedDate),
+    [preselectedDate],
+  );
+  const preselectedTime =
+    initialTime && mockRescheduleTimeSlots.includes(initialTime) ? initialTime : null;
+  const preselectedHours = parseLessonDurationLabel(initialDuration) ?? 1.5;
+  const preselectedSuburb = initialSuburb?.trim() ?? "";
+
   const [availableCreditHours] = useStudentCreditHours(mockDashboardData.availableCreditHours);
-  const [selectedHours, setSelectedHours] = useState<number>(1.5);
+  const [selectedHours, setSelectedHours] = useState<number>(preselectedHours);
   const [showDurationPicker, setShowDurationPicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
-  const [selectedDateId, setSelectedDateId] = useState<string | null>(null);
-  const [selectedTime, setSelectedTime] = useState<string | null>(null);
-  const [pickupAddress, setPickupAddress] = useState("");
+  const [selectedDateId, setSelectedDateId] = useState<string | null>(
+    preselectedDate?.id ?? null,
+  );
+  const [showDatePicker, setShowDatePicker] = useState(!preselectedDate);
+  const [selectedTime, setSelectedTime] = useState<string | null>(preselectedTime);
+  const [pickupAddress, setPickupAddress] = useState(preselectedSuburb);
   const [showSignUp, setShowSignUp] = useState(false);
   const [showSummary, setShowSummary] = useState(false);
   const [hasRegistered, setHasRegistered] = useState(false);
@@ -75,15 +101,19 @@ export function BookInstructorFlow({
   const [isContinuing, setIsContinuing] = useState(false);
   const [isContinuingToPayment, setIsContinuingToPayment] = useState(false);
 
+  const mainScrollRef = useRef<HTMLDivElement>(null);
   const durationStepRef = useRef<HTMLElement>(null);
   const dateStepRef = useRef<HTMLElement>(null);
   const timeStepRef = useRef<HTMLElement>(null);
-  const addressStepRef = useRef<HTMLElement>(null);
   const summaryStepRef = useRef<HTMLElement>(null);
   const skipInitialScroll = useRef(true);
   const previousFlowStep = useRef<FlowStep | null>(null);
 
-  const selectedDate = getSelectedRescheduleDate(mockRescheduleDates, selectedDateId);
+  function scrollMainToTop() {
+    mainScrollRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  const selectedDate = getSelectedRescheduleDate(availableDates, selectedDateId);
   const trimmedPickupAddress = pickupAddress.trim();
   const durationOptions = buildLessonDurationOptions(Math.max(availableCreditHours, 4));
   const payment = calculateOnboardingLessonPayment(
@@ -95,11 +125,9 @@ export function BookInstructorFlow({
 
   const flowStep: FlowStep = showSummary && canConfirm && hasRegistered
     ? "summary"
-    : selectedTime
-      ? "address"
-      : selectedDate
-        ? "time"
-        : "duration";
+    : selectedDate
+      ? "time"
+      : "duration";
 
   useEffect(() => {
     if (skipInitialScroll.current) {
@@ -115,7 +143,6 @@ export function BookInstructorFlow({
       duration: durationStepRef,
       date: dateStepRef,
       time: timeStepRef,
-      address: addressStepRef,
       summary: summaryStepRef,
     });
 
@@ -127,7 +154,6 @@ export function BookInstructorFlow({
   function handleHoursChange(hours: number) {
     setSelectedHours(hours);
     setSelectedTime(null);
-    setPickupAddress("");
     setShowSignUp(false);
     setShowSummary(false);
     setHasRegistered(false);
@@ -136,7 +162,6 @@ export function BookInstructorFlow({
 
   function handleTimeChange(time: string) {
     setSelectedTime(time);
-    setPickupAddress("");
     setShowSignUp(false);
     setShowSummary(false);
     setHasRegistered(false);
@@ -147,7 +172,7 @@ export function BookInstructorFlow({
     if (!canConfirm || !selectedDate || !selectedTime || !trimmedPickupAddress) return;
     setShowPayment(false);
     setIsConfirmed(true);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    scrollMainToTop();
   }
 
   const paymentForLesson = {
@@ -159,7 +184,7 @@ export function BookInstructorFlow({
 
   if (isConfirmed && selectedDate && selectedTime && trimmedPickupAddress) {
     return (
-      <main className="flex flex-1 flex-col px-5 pb-24 pt-6 text-center">
+      <main className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-y-contain px-5 pb-24 pt-6 text-center [-webkit-overflow-scrolling:touch]">
         <div className="flex flex-1 flex-col items-center py-6">
           <div className="flex h-16 w-16 items-center justify-center rounded-full bg-green-50 text-2xl text-green-600">
             ✓
@@ -205,7 +230,7 @@ export function BookInstructorFlow({
           setHasRegistered(true);
           setShowSignUp(false);
           setShowSummary(true);
-          window.scrollTo({ top: 0, behavior: "smooth" });
+          scrollMainToTop();
         }}
       />
     );
@@ -213,25 +238,30 @@ export function BookInstructorFlow({
 
   if (showPayment && canConfirm && hasRegistered && selectedDate && selectedTime && trimmedPickupAddress) {
     return (
-      <>
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         <FlowPageHeader title="Payment" onBack={() => setShowPayment(false)} />
-        <LessonPayment
-          instructor={instructor}
-          dateLabel={`${selectedDate.month} ${selectedDate.day} · ${selectedDate.weekday}`}
-          timeLabel={formatLessonTimeRange(selectedTime, selectedHours)}
-          hours={selectedHours}
-          payment={paymentForLesson}
-          hourRate={instructor.pricePerHour}
-          onBack={() => setShowPayment(false)}
-          onComplete={handleConfirm}
-        />
-      </>
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain [-webkit-overflow-scrolling:touch]">
+          <LessonPayment
+            instructor={instructor}
+            dateLabel={`${selectedDate.month} ${selectedDate.day} · ${selectedDate.weekday}`}
+            timeLabel={formatLessonTimeRange(selectedTime, selectedHours)}
+            hours={selectedHours}
+            payment={paymentForLesson}
+            hourRate={instructor.pricePerHour}
+            onBack={() => setShowPayment(false)}
+            onComplete={handleConfirm}
+          />
+        </div>
+      </div>
     );
   }
 
   return (
-    <>
-      <header className="flex shrink-0 items-center px-5 pt-4">
+    <div
+      ref={mainScrollRef}
+      className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain [-webkit-overflow-scrolling:touch]"
+    >
+      <header className="flex items-center px-5 pt-4">
         <button
           type="button"
           onClick={() => router.back()}
@@ -241,7 +271,7 @@ export function BookInstructorFlow({
           <CloseIcon className="h-5 w-5" />
         </button>
       </header>
-      <main className="flex-1 space-y-6 px-5 pb-24 pt-2">
+      <main className="space-y-6 px-5 pb-24 pt-2">
         <section>
           <h1 className="text-xl font-bold text-slate-900">Book a lesson</h1>
           <p className="mt-0.5 text-xs text-slate-500">
@@ -259,6 +289,30 @@ export function BookInstructorFlow({
           <p className="mt-3 text-sm font-medium text-slate-900">
             {formatCurrency(instructor.pricePerHour)}/hr
           </p>
+        </section>
+
+        <section className="space-y-3">
+          <h2 className="text-sm font-semibold text-slate-900">Pick up address</h2>
+          <GoogleAddressAutocomplete
+            id="pickup-address"
+            value={pickupAddress}
+            biasSuburb={preselectedSuburb || instructor.suburb}
+            biasPostcode={instructor.postcode}
+            onChange={(address) => {
+              setPickupAddress(address);
+              setShowSignUp(false);
+              setShowSummary(false);
+              setHasRegistered(false);
+            }}
+            onSelect={(address) => {
+              setPickupAddress(address);
+              setShowSignUp(false);
+              setShowSummary(false);
+              setHasRegistered(false);
+            }}
+            placeholder="Enter pick up address"
+            inputClassName="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+          />
         </section>
 
         <section ref={durationStepRef} className="space-y-3">
@@ -309,25 +363,36 @@ export function BookInstructorFlow({
           )}
         </section>
 
-        {!selectedDate && (
+        {showDatePicker && (
           <section ref={dateStepRef} className="space-y-3">
-            <h2 className="text-sm font-semibold text-slate-900">Pick a date</h2>
+            <h2 className="text-sm font-semibold text-slate-900">
+              {selectedDate ? "Change date" : "Pick a date"}
+            </h2>
             <RescheduleCalendar
-              availableDates={mockRescheduleDates}
+              availableDates={availableDates}
               selectedDateId={selectedDateId}
               onSelectDate={(dateId) => {
                 setSelectedDateId(dateId);
+                setShowDatePicker(false);
                 setSelectedTime(null);
-                setPickupAddress("");
                 setShowSignUp(false);
                 setShowSummary(false);
                 setHasRegistered(false);
               }}
             />
+            {selectedDate && (
+              <button
+                type="button"
+                onClick={() => setShowDatePicker(false)}
+                className="text-sm font-medium text-blue-600 hover:text-blue-700"
+              >
+                Keep current date
+              </button>
+            )}
           </section>
         )}
 
-        {selectedDate && (
+        {selectedDate && !showDatePicker && (
           <section ref={timeStepRef} className="space-y-3">
             <div className="rounded-2xl bg-slate-50 p-4">
               <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
@@ -340,9 +405,7 @@ export function BookInstructorFlow({
               <button
                 type="button"
                 onClick={() => {
-                  setSelectedDateId(null);
-                  setSelectedTime(null);
-                  setPickupAddress("");
+                  setShowDatePicker(true);
                   setShowSignUp(false);
                   setShowSummary(false);
                   setHasRegistered(false);
@@ -399,7 +462,7 @@ export function BookInstructorFlow({
         )}
 
         {selectedTime && (
-          <section ref={addressStepRef} className="space-y-3">
+          <section className="space-y-3">
             <div className="rounded-2xl bg-slate-50 p-4">
               <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
                 Selected time
@@ -411,7 +474,6 @@ export function BookInstructorFlow({
                 type="button"
                 onClick={() => {
                   setSelectedTime(null);
-                  setPickupAddress("");
                   setShowSignUp(false);
                   setShowSummary(false);
                   setHasRegistered(false);
@@ -422,20 +484,7 @@ export function BookInstructorFlow({
               </button>
             </div>
 
-            <h2 className="text-sm font-semibold text-slate-900">Pick up address</h2>
-            <input
-              type="text"
-              value={pickupAddress}
-              onChange={(event) => {
-                setPickupAddress(event.target.value);
-                setShowSignUp(false);
-                setShowSummary(false);
-                setHasRegistered(false);
-              }}
-              placeholder="Enter pick up address"
-              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-            />
-            {trimmedPickupAddress && !showSignUp && !showSummary && (
+            {canConfirm && !showSignUp && !showSummary && (
               <button
                 type="button"
                 aria-busy={isContinuing}
@@ -444,7 +493,7 @@ export function BookInstructorFlow({
                   setIsContinuing(true);
                   window.setTimeout(() => {
                     setShowSignUp(true);
-                    window.scrollTo({ top: 0, behavior: "smooth" });
+                    scrollMainToTop();
                   }, BUTTON_LOADING_MS);
                 }}
                 className={`inline-flex h-11 w-full items-center justify-center rounded-lg bg-blue-600 text-sm font-medium text-white transition hover:bg-blue-700 ${
@@ -490,7 +539,7 @@ export function BookInstructorFlow({
                 setIsContinuingToPayment(true);
                 window.setTimeout(() => {
                   setShowPayment(true);
-                  window.scrollTo({ top: 0, behavior: "smooth" });
+                  scrollMainToTop();
                 }, BUTTON_LOADING_MS);
               }}
               className={`inline-flex h-11 w-full items-center justify-center rounded-lg bg-blue-600 text-sm font-medium text-white transition hover:bg-blue-700 ${
@@ -506,6 +555,6 @@ export function BookInstructorFlow({
           </section>
         )}
       </main>
-    </>
+    </div>
   );
 }

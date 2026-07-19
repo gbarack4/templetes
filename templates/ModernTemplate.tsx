@@ -8,6 +8,7 @@ import { CalendarPickerModal } from "@/dashboard/components/CalendarPickerModal"
 import { getSelectedRescheduleDate } from "@/dashboard/components/RescheduleCalendar";
 import { buildOnboardingSearchPath, getOnboardingBasePath } from "@/onboarding/paths";
 import { resolveAvailableDates, resolveModernSite } from "@/templates/resolve-modern-site";
+import { SuburbAutocomplete } from "./SuburbAutocomplete";
 import type { TemplateProps } from "./types";
 
 type IconProps = Readonly<{ className?: string; style?: React.CSSProperties }>;
@@ -214,18 +215,20 @@ export function ModernTemplate({ data }: Readonly<TemplateProps>) {
                 <label htmlFor="pickup-location" className="text-sm font-semibold text-slate-900">
                   Pick-up Location <span className="text-red-500">*</span>
                 </label>
-                <div className={fieldClassName}>
-                  <PinIcon className="h-5 w-5 shrink-0" style={brandColorStyle} />
-                  <input
-                    id="pickup-location"
-                    type="text"
-                    value={suburb}
-                    onChange={(event) => setSuburb(event.target.value)}
-                    placeholder="Enter your suburb or address"
-                    className="min-w-0 flex-1 bg-transparent text-slate-900 outline-none placeholder:text-slate-400"
-                  />
-                  <ChevronRightIcon className="h-4 w-4 shrink-0 text-slate-300" />
-                </div>
+                <SuburbAutocomplete
+                  id="pickup-location"
+                  value={suburb}
+                  onChange={setSuburb}
+                  placeholder="Enter your suburb or address"
+                  className={`${fieldClassName} relative`}
+                  inputClassName="min-w-0 flex-1 bg-transparent text-slate-900 outline-none placeholder:text-slate-400"
+                  icon={
+                    <PinIcon className="h-5 w-5 shrink-0" style={brandColorStyle} />
+                  }
+                  trailing={
+                    <ChevronRightIcon className="h-4 w-4 shrink-0 text-slate-300" />
+                  }
+                />
                 <p className="text-xs text-slate-400">{site.pickupHint}</p>
               </div>
 

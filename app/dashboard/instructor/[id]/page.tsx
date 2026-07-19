@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { InstructorProfile } from "@/onboarding/InstructorProfile";
 import { getSuggestedInstructorById } from "@/onboarding/suggested-instructors";
@@ -14,5 +15,9 @@ export default async function DashboardInstructorProfilePage({
     notFound();
   }
 
-  return <InstructorProfile instructor={instructor} bookHref="/dashboard/book" />;
+  return (
+    <Suspense>
+      <InstructorProfile instructor={instructor} bookHref="/dashboard/book" />
+    </Suspense>
+  );
 }

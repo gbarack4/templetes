@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { InstructorProfile } from "@/onboarding/InstructorProfile";
 import { getSuggestedInstructorById } from "@/onboarding/suggested-instructors";
@@ -15,6 +16,11 @@ export default async function SchoolInstructorProfilePage({
   }
 
   return (
-    <InstructorProfile instructor={instructor} basePath={`/${domain}/onboarding`} />
+    <Suspense>
+      <InstructorProfile
+        instructor={instructor}
+        basePath={`/${domain}/onboarding`}
+      />
+    </Suspense>
   );
 }

@@ -2,13 +2,14 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ButtonSpinner } from "@/components/ButtonSpinner";
 import { FlowPageHeader } from "@/dashboard/components/FlowPageHeader";
 import { PhoneIcon } from "@/dashboard/components/icons";
 import { formatCurrency } from "@/dashboard/mock-data";
 import { getInstructorReviews } from "./instructor-reviews";
 import { InstructorReviewsModal, ReviewStars } from "./InstructorReviewsModal";
+import { withOnboardingQuery } from "./paths";
 import {
   instructorProfileDetails,
   type SuggestedInstructor,
@@ -28,6 +29,7 @@ export function InstructorProfile({
   bookHref,
 }: InstructorProfileProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [showReviews, setShowReviews] = useState(false);
   const [isBooking, setIsBooking] = useState(false);
   const details = instructorProfileDetails[instructor.id];
@@ -36,8 +38,11 @@ export function InstructorProfile({
   function handleBookLesson() {
     if (isBooking) return;
     setIsBooking(true);
+    const destination =
+      bookHref ??
+      withOnboardingQuery(`${basePath}/book/${instructor.id}`, searchParams);
     window.setTimeout(() => {
-      router.push(bookHref ?? `${basePath}/book/${instructor.id}`);
+      router.push(destination);
     }, BUTTON_LOADING_MS);
   }
 

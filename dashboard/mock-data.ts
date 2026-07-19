@@ -246,6 +246,52 @@ function buildMockRescheduleDates(): RescheduleDateOption[] {
 
 export const mockRescheduleDates: RescheduleDateOption[] = buildMockRescheduleDates();
 
+/** Resolve a YYYY-MM-DD value from Classic/search into a calendar date option. */
+export function resolveRescheduleDateFromIso(
+  isoDate: string | null | undefined,
+  availableDates: readonly RescheduleDateOption[] = mockRescheduleDates,
+): RescheduleDateOption | null {
+  if (!isoDate) return null;
+
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(isoDate.trim());
+  if (!match) return null;
+
+  const year = Number(match[1]);
+  const monthIndex = Number(match[2]) - 1;
+  const day = Number(match[3]);
+
+  if (
+    !Number.isInteger(year) ||
+    !Number.isInteger(monthIndex) ||
+    !Number.isInteger(day) ||
+    monthIndex < 0 ||
+    monthIndex > 11 ||
+    day < 1 ||
+    day > 31
+  ) {
+    return null;
+  }
+
+  const id = `date-${year}-${monthIndex}-${day}`;
+  return availableDates.find((date) => date.id === id) ?? createRescheduleDate(year, monthIndex, day);
+}
+
+export function mergeRescheduleDates(
+  availableDates: readonly RescheduleDateOption[],
+  extraDate: RescheduleDateOption | null,
+): RescheduleDateOption[] {
+  if (!extraDate) return [...availableDates];
+  if (availableDates.some((date) => date.id === extraDate.id)) {
+    return [...availableDates];
+  }
+
+  return [...availableDates, extraDate].sort((a, b) => {
+    if (a.year !== b.year) return a.year - b.year;
+    if (a.monthIndex !== b.monthIndex) return a.monthIndex - b.monthIndex;
+    return a.day - b.day;
+  });
+}
+
 export function buildFutureDates(monthsAhead = 12): RescheduleDateOption[] {
   const dates: RescheduleDateOption[] = [];
   const start = new Date();
@@ -286,6 +332,19 @@ export function buildLessonDurationOptions(maxHours: number): number[] {
 
 export function formatLessonHoursLabel(hours: number): string {
   return `${hours} ${hours === 1 ? "Hour" : "Hours"}`;
+}
+
+/** Parse labels like "1 Hour" / "1.5 Hours" from Modern template search. */
+export function parseLessonDurationLabel(
+  label: string | null | undefined,
+): number | null {
+  if (!label) return null;
+
+  const match = label.trim().match(/^(\d+(?:\.\d+)?)\s*hours?$/i);
+  if (!match) return null;
+
+  const hours = Number(match[1]);
+  return Number.isFinite(hours) && hours > 0 ? hours : null;
 }
 
 export const LESSON_HOUR_RATE = 60;

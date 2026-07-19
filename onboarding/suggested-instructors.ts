@@ -107,6 +107,57 @@ export function getSuggestedInstructorById(id: string): SuggestedInstructor | un
   return suggestedInstructorsInArea.find((instructor) => instructor.id === id);
 }
 
+/** Suburbs each instructor covers beyond their home suburb. */
+const instructorServiceSuburbs: Record<string, readonly string[]> = {
+  "sarah-johnson": ["Downtown", "Belltown", "SoDo"],
+  "mike-chen": ["Westside", "Queen Anne"],
+  "emma-williams": ["Eastside", "Capitol Hill"],
+  "james-rodriguez": ["Northgate", "University District", "Green Lake"],
+  "lisa-patel": ["Capitol Hill", "Eastside", "Beacon Hill"],
+  "tom-anderson": ["Ballard", "Fremont", "Wallingford"],
+  "nina-brooks": ["Queen Anne", "Westside", "Downtown"],
+  "david-kim": ["Rainier Valley", "Beacon Hill", "Georgetown"],
+};
+
+function normalizeLocationQuery(query: string): string {
+  return query.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+export function instructorMatchesSuburb(
+  instructor: SuggestedInstructor,
+  query: string,
+): boolean {
+  const trimmed = normalizeLocationQuery(query);
+  if (!trimmed) return true;
+
+  const normalizedPostcode = trimmed.replace(/\s/g, "");
+  const homeSuburb = instructor.suburb.toLowerCase();
+  const homePostcode = instructor.postcode.toLowerCase();
+
+  if (
+    homeSuburb === trimmed ||
+    homeSuburb.includes(trimmed) ||
+    homePostcode.includes(normalizedPostcode)
+  ) {
+    return true;
+  }
+
+  const serviceAreas = instructorServiceSuburbs[instructor.id] ?? [instructor.suburb];
+  return serviceAreas.some((suburb) => {
+    const normalizedSuburb = suburb.toLowerCase();
+    return normalizedSuburb === trimmed || normalizedSuburb.includes(trimmed);
+  });
+}
+
+export function getInstructorsForSuburb(
+  query: string,
+  instructors: readonly SuggestedInstructor[] = suggestedInstructorsInArea,
+): SuggestedInstructor[] {
+  return instructors.filter((instructor) =>
+    instructorMatchesSuburb(instructor, query),
+  );
+}
+
 export type InstructorCar = Readonly<{
   make: string;
   model: string;
