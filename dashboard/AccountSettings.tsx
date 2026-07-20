@@ -267,7 +267,7 @@ export function AccountSettings({ account = mockStudentAccount }: AccountSetting
   }
 
   return (
-    <main className="flex-1 space-y-6 px-5 pb-24 pt-6">
+    <main className="flex-1 space-y-6 px-5 pb-6 pt-6">
       <section>
         <h1 className="text-xl font-bold text-slate-900">Account</h1>
         <p className="mt-0.5 text-xs text-slate-500">
@@ -292,7 +292,7 @@ export function AccountSettings({ account = mockStudentAccount }: AccountSetting
           onClick={() => setShowPhotoModal(true)}
           className="mt-4 w-full rounded-lg border border-slate-200 bg-white py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
         >
-          Edit profile photo
+          Add avatar
         </button>
       </section>
 

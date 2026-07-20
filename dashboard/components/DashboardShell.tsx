@@ -21,9 +21,14 @@ export function DashboardShell({
   const hideNav = HIDDEN_NAV_PREFIXES.some((prefix) => pathname.startsWith(prefix));
 
   return (
-    <>
-      {children}
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+      <div
+        data-dashboard-scroll
+        className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain [-webkit-overflow-scrolling:touch]"
+      >
+        {children}
+      </div>
       {!hideNav && <BottomNav />}
-    </>
+    </div>
   );
 }

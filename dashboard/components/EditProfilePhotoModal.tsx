@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   clearStudentAvatarUrl,
-  compressProfilePhoto,
   DEFAULT_STUDENT_AVATAR,
+  PRESET_AVATARS,
   setStudentAvatarUrl,
 } from "../student-avatar";
 
@@ -21,47 +22,35 @@ export function EditProfilePhotoModal({
   onClose,
   onSave,
 }: EditProfilePhotoModalProps) {
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [previewUrl, setPreviewUrl] = useState(currentAvatarUrl);
-  const [error, setError] = useState<string | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
+  const [selectedUrl, setSelectedUrl] = useState(currentAvatarUrl);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") onClose();
     }
 
+    const scroller = document.querySelector<HTMLElement>("[data-dashboard-scroll]");
+    const previousOverflow = scroller?.style.overflow ?? "";
+
     document.addEventListener("keydown", handleKeyDown);
     document.body.style.overflow = "hidden";
+    if (scroller) scroller.style.overflow = "hidden";
 
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
       document.body.style.overflow = "";
+      if (scroller) scroller.style.overflow = previousOverflow;
     };
   }, [onClose]);
 
-  async function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    event.target.value = "";
-
-    if (!file) return;
-
-    setError(null);
-    setIsSaving(true);
-
-    try {
-      const dataUrl = await compressProfilePhoto(file);
-      setPreviewUrl(dataUrl);
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Could not load this image.");
-    } finally {
-      setIsSaving(false);
-    }
-  }
-
   function handleSave() {
-    setStudentAvatarUrl(previewUrl);
-    onSave(previewUrl);
+    setStudentAvatarUrl(selectedUrl);
+    onSave(selectedUrl);
     onClose();
   }
 
@@ -71,11 +60,13 @@ export function EditProfilePhotoModal({
     onClose();
   }
 
-  const hasChanges = previewUrl !== currentAvatarUrl;
-  const isCustomPhoto = previewUrl !== DEFAULT_STUDENT_AVATAR;
+  const hasChanges = selectedUrl !== currentAvatarUrl;
+  const isCustomPhoto = currentAvatarUrl !== DEFAULT_STUDENT_AVATAR;
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center">
+  if (!mounted) return null;
+
+  return createPortal(
+    <div className="fixed inset-0 z-[100]">
       <button
         type="button"
         aria-label="Close photo editor"
@@ -86,9 +77,9 @@ export function EditProfilePhotoModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby="edit-photo-title"
-        className="relative z-10 w-full max-w-md rounded-t-2xl bg-white px-5 pb-8 pt-5 shadow-xl"
+        className="absolute inset-x-0 bottom-0 z-10 mx-auto flex h-[85dvh] w-full max-w-md flex-col rounded-t-2xl bg-white pb-[env(safe-area-inset-bottom,0px)] shadow-xl"
       >
-        <div className="mb-5 flex items-center justify-between">
+        <div className="flex shrink-0 items-center justify-between px-5 pb-3 pt-5">
           <h2 id="edit-photo-title" className="text-lg font-bold text-slate-900">
             Edit profile photo
           </h2>
@@ -111,50 +102,60 @@ export function EditProfilePhotoModal({
           </button>
         </div>
 
-        <div className="flex flex-col items-center">
-          <img
-            src={previewUrl}
-            alt={`${userName}'s profile preview`}
-            className="h-32 w-32 rounded-full object-cover ring-4 ring-slate-100"
-          />
-          <p className="mt-4 text-sm text-slate-500">
-            Choose a clear photo of yourself for your student profile.
-          </p>
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-5 pb-6 [-webkit-overflow-scrolling:touch]">
+          <div className="flex flex-col items-center">
+            <img
+              src={selectedUrl}
+              alt={`${userName}'s profile preview`}
+              className="h-24 w-24 rounded-full bg-slate-100 object-cover ring-4 ring-slate-100"
+            />
+            <p className="mt-3 text-center text-sm text-slate-500">
+              Choose an avatar for your student profile.
+            </p>
+          </div>
+
+          <div
+            role="listbox"
+            aria-label="Avatar options"
+            className="mt-5 grid grid-cols-4 gap-3"
+          >
+            {PRESET_AVATARS.map((avatarUrl, index) => {
+              const isSelected = selectedUrl === avatarUrl;
+
+              return (
+                <button
+                  key={avatarUrl}
+                  type="button"
+                  role="option"
+                  aria-selected={isSelected}
+                  aria-label={`Avatar option ${index + 1}`}
+                  onClick={() => setSelectedUrl(avatarUrl)}
+                  className={`relative aspect-square overflow-hidden rounded-full bg-slate-100 transition ${
+                    isSelected
+                      ? "ring-2 ring-blue-600 ring-offset-2"
+                      : "ring-1 ring-slate-200 hover:ring-slate-300"
+                  }`}
+                >
+                  <img
+                    src={avatarUrl}
+                    alt=""
+                    className="h-full w-full object-cover"
+                  />
+                </button>
+              );
+            })}
+          </div>
         </div>
 
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/jpeg,image/png,image/webp"
-          onChange={handleFileChange}
-          className="hidden"
-        />
-
-        {error && (
-          <p className="mt-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">
-            {error}
-          </p>
-        )}
-
-        <div className="mt-6 space-y-2">
+        <div className="shrink-0 space-y-2 border-t border-slate-100 px-5 py-4">
           <button
             type="button"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={isSaving}
+            onClick={handleSave}
+            disabled={!hasChanges}
             className="w-full rounded-lg bg-blue-600 py-3 text-sm font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
           >
-            {isSaving ? "Processing..." : "Choose photo"}
+            Save photo
           </button>
-
-          {hasChanges && (
-            <button
-              type="button"
-              onClick={handleSave}
-              className="w-full rounded-lg border border-blue-200 bg-blue-50 py-3 text-sm font-medium text-blue-700 transition hover:bg-blue-100"
-            >
-              Save photo
-            </button>
-          )}
 
           {isCustomPhoto && (
             <button
@@ -162,11 +163,12 @@ export function EditProfilePhotoModal({
               onClick={handleRemove}
               className="w-full rounded-lg py-3 text-sm font-medium text-red-600 transition hover:bg-red-50"
             >
-              Remove photo
+              Reset to default
             </button>
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

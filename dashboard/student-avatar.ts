@@ -2,6 +2,29 @@ const STORAGE_KEY = "student-avatar-url";
 export const DEFAULT_STUDENT_AVATAR = "/avatars/george.jpg";
 export const AVATAR_UPDATED_EVENT = "student-avatar-updated";
 
+export const PRESET_AVATARS = [
+  "/avatars/presets/avatar-01.png",
+  "/avatars/presets/avatar-02.png",
+  "/avatars/presets/avatar-03.png",
+  "/avatars/presets/avatar-04.png",
+  "/avatars/presets/avatar-05.png",
+  "/avatars/presets/avatar-06.png",
+  "/avatars/presets/avatar-07.png",
+  "/avatars/presets/avatar-08.png",
+  "/avatars/presets/avatar-09.png",
+  "/avatars/presets/avatar-10.png",
+  "/avatars/presets/avatar-11.png",
+  "/avatars/presets/avatar-12.png",
+  "/avatars/presets/avatar-13.png",
+  "/avatars/presets/avatar-14.png",
+  "/avatars/presets/avatar-15.png",
+  "/avatars/presets/avatar-16.png",
+  "/avatars/presets/avatar-17.png",
+  "/avatars/presets/avatar-18.png",
+  "/avatars/presets/avatar-19.png",
+  "/avatars/presets/avatar-20.png",
+] as const;
+
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
 const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
 

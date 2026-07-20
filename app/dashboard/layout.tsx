@@ -6,8 +6,8 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <div className="min-h-screen bg-slate-100">
-      <div className="app-frame relative mx-auto flex min-h-screen w-full max-w-md flex-col bg-white">
+    <div className="h-dvh bg-slate-100">
+      <div className="app-frame relative mx-auto flex h-dvh w-full max-w-md flex-col overflow-hidden bg-white">
         <DashboardShell>{children}</DashboardShell>
       </div>
     </div>

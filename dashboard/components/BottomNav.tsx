@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
   HomeIcon,
@@ -42,10 +42,14 @@ export function BottomNav() {
   const lastScrollY = useRef(0);
 
   useEffect(() => {
-    lastScrollY.current = window.scrollY;
+    const scroller = document.querySelector<HTMLElement>("[data-dashboard-scroll]");
+    if (!scroller) return;
+
+    lastScrollY.current = scroller.scrollTop;
 
     function onScroll() {
-      const currentY = window.scrollY;
+      if (!scroller) return;
+      const currentY = scroller.scrollTop;
       const delta = currentY - lastScrollY.current;
 
       if (currentY <= TOP_OFFSET) {
@@ -59,19 +63,27 @@ export function BottomNav() {
       lastScrollY.current = currentY;
     }
 
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
+    scroller.addEventListener("scroll", onScroll, { passive: true });
+    return () => scroller.removeEventListener("scroll", onScroll);
+  }, [pathname]);
 
   return (
     <nav
-      className={`fixed bottom-0 left-1/2 z-40 w-full max-w-md border-t border-slate-100 bg-white transition-transform duration-300 ease-out ${
-        visible
-          ? "translate-x-[-50%] translate-y-0"
-          : "translate-x-[-50%] translate-y-full"
+      className={`shrink-0 border-t border-slate-100 bg-white transition-[margin] duration-300 ease-out ${
+        visible ? "mb-0" : "-mb-[var(--bottom-nav-height,4.25rem)]"
       }`}
+      style={
+        {
+          "--bottom-nav-height": "4.25rem",
+          paddingBottom: "env(safe-area-inset-bottom, 0px)",
+        } as CSSProperties
+      }
     >
-      <div className="relative flex px-2 py-2">
+      <div
+        className={`relative flex px-2 py-2 transition-transform duration-300 ease-out ${
+          visible ? "translate-y-0" : "translate-y-full"
+        }`}
+      >
         <div
           aria-hidden
           className="absolute inset-y-2 rounded-xl bg-slate-100 transition-transform duration-200 ease-out"

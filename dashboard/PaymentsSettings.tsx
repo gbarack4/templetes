@@ -57,7 +57,7 @@ export function PaymentsSettings() {
   }
 
   return (
-    <main className="flex-1 space-y-6 px-5 pb-24 pt-6">
+    <main className="flex-1 space-y-6 px-5 pb-6 pt-6">
       <section>
         <h1 className="text-xl font-bold text-slate-900">Payments</h1>
         <p className="mt-0.5 text-xs text-slate-500">

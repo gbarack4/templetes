@@ -186,7 +186,7 @@ export function Dashboard({ data = mockDashboardData }: DashboardProps) {
 
   return (
     <>
-      <main className="flex-1 space-y-6 px-5 pb-24 pt-6">
+      <main className="flex-1 space-y-6 px-5 pb-6 pt-6">
         <section className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-3">
             <img
