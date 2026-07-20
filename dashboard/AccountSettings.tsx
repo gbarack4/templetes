@@ -163,22 +163,6 @@ function SettingsToggle({
   );
 }
 
-function buildPersonalInfo(account: StudentAccount) {
-  return {
-    fullName: `${account.firstName} ${account.lastName}`,
-    email: account.email,
-    phone: account.phone,
-    address: account.address,
-  };
-}
-
-function buildDrivingDetails(account: StudentAccount) {
-  return {
-    learnerPermitNumber: account.learnerPermitNumber,
-    dateOfBirth: account.dateOfBirth,
-  };
-}
-
 function buildEmergencyContact(account: StudentAccount) {
   return {
     name: account.emergencyContact.name,
@@ -252,11 +236,10 @@ export function AccountSettings({ account = mockStudentAccount }: AccountSetting
   const router = useRouter();
   const [notifications, setNotifications] = useState(account.notifications);
   const [showPhotoModal, setShowPhotoModal] = useState(false);
-  const personalInfoSection = useEditableSection(buildPersonalInfo(account));
-  const drivingDetailsSection = useEditableSection(buildDrivingDetails(account));
   const emergencyContactSection = useEditableSection(buildEmergencyContact(account));
   const avatarUrl = useStudentAvatar(account.avatarUrl);
   const [isSigningOut, setIsSigningOut] = useState(false);
+  const displayName = `${account.firstName} ${account.lastName}`;
 
   function handleSignOut() {
     if (isSigningOut) return;
@@ -279,12 +262,12 @@ export function AccountSettings({ account = mockStudentAccount }: AccountSetting
         <div className="flex items-center gap-4">
           <img
             src={avatarUrl}
-            alt={`${personalInfoSection.values.fullName}'s profile`}
+            alt={`${displayName}'s profile`}
             className="h-16 w-16 shrink-0 rounded-full object-cover ring-2 ring-white"
           />
           <div className="min-w-0 flex-1">
-            <p className="text-lg font-bold text-slate-900">{personalInfoSection.values.fullName}</p>
-            <p className="mt-0.5 truncate text-sm text-slate-500">{personalInfoSection.values.email}</p>
+            <p className="text-lg font-bold text-slate-900">{displayName}</p>
+            <p className="mt-0.5 truncate text-sm text-slate-500">{account.email}</p>
           </div>
         </div>
         <button
@@ -300,73 +283,22 @@ export function AccountSettings({ account = mockStudentAccount }: AccountSetting
         <EditProfilePhotoModal
           key={avatarUrl}
           currentAvatarUrl={avatarUrl}
-          userName={personalInfoSection.values.fullName}
+          userName={displayName}
           onClose={() => setShowPhotoModal(false)}
           onSave={() => setShowPhotoModal(false)}
         />
       )}
 
-      <SettingsSection title="Personal information" plain>
-        <EditableField
-          label="Full name"
-          value={personalInfoSection.values.fullName}
-          initialValue={personalInfoSection.saved.fullName}
-          onChange={(value) => personalInfoSection.update("fullName", value)}
-          onEditStart={personalInfoSection.handleFocus}
-          onEditEnd={personalInfoSection.handleBlur}
+      <SettingsSection title="Profile">
+        <SettingsRow
+          label="Personal information"
+          value={`${account.firstName} ${account.lastName}`}
+          onClick={() => router.push("/dashboard/account/personal-information")}
         />
-        <EditableField
-          label="Email"
-          type="email"
-          value={personalInfoSection.values.email}
-          initialValue={personalInfoSection.saved.email}
-          onChange={(value) => personalInfoSection.update("email", value)}
-          onEditStart={personalInfoSection.handleFocus}
-          onEditEnd={personalInfoSection.handleBlur}
-        />
-        <EditableField
-          label="Phone"
-          type="tel"
-          value={personalInfoSection.values.phone}
-          initialValue={personalInfoSection.saved.phone}
-          onChange={(value) => personalInfoSection.update("phone", value)}
-          onEditStart={personalInfoSection.handleFocus}
-          onEditEnd={personalInfoSection.handleBlur}
-        />
-        <EditableField
-          label="Address"
-          value={personalInfoSection.values.address}
-          initialValue={personalInfoSection.saved.address}
-          onChange={(value) => personalInfoSection.update("address", value)}
-          onEditStart={personalInfoSection.handleFocus}
-          onEditEnd={personalInfoSection.handleBlur}
-        />
-        <SaveSectionButton
-          visible={personalInfoSection.showSave}
-          onClick={personalInfoSection.save}
-        />
-      </SettingsSection>
-
-      <SettingsSection title="Driving details" plain>
-        <EditableField
-          label="Learner permit"
-          value={drivingDetailsSection.values.learnerPermitNumber}
-          initialValue={drivingDetailsSection.saved.learnerPermitNumber}
-          onChange={(value) => drivingDetailsSection.update("learnerPermitNumber", value)}
-          onEditStart={drivingDetailsSection.handleFocus}
-          onEditEnd={drivingDetailsSection.handleBlur}
-        />
-        <EditableField
-          label="Date of birth"
-          value={drivingDetailsSection.values.dateOfBirth}
-          initialValue={drivingDetailsSection.saved.dateOfBirth}
-          onChange={(value) => drivingDetailsSection.update("dateOfBirth", value)}
-          onEditStart={drivingDetailsSection.handleFocus}
-          onEditEnd={drivingDetailsSection.handleBlur}
-        />
-        <SaveSectionButton
-          visible={drivingDetailsSection.showSave}
-          onClick={drivingDetailsSection.save}
+        <SettingsRow
+          label="Driving details"
+          value={account.learnerPermitNumber}
+          onClick={() => router.push("/dashboard/account/driving-details")}
         />
       </SettingsSection>
 
@@ -413,10 +345,21 @@ export function AccountSettings({ account = mockStudentAccount }: AccountSetting
         />
       </SettingsSection>
 
+      <SettingsSection title="Links">
+        <SettingsRow
+          label="Connect sign in links"
+          onClick={() => router.push("/dashboard/account/sign-in-links")}
+        />
+      </SettingsSection>
+
       <SettingsSection title="Security">
         <SettingsRow
           label="Change password"
           onClick={() => router.push("/dashboard/account/change-password")}
+        />
+        <SettingsRow
+          label="Privacy and data"
+          onClick={() => router.push("/dashboard/account/privacy-and-data")}
         />
       </SettingsSection>
 
