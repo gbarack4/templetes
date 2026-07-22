@@ -1,37 +1,86 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useAuth, useClerk } from "@clerk/nextjs";
 import { DrivingSchoolProfile } from "./DrivingSchoolProfile";
 import { mockDrivingSchool } from "./school-profile";
 
 export function SignIn() {
   const router = useRouter();
+  const clerk = useClerk();
+  const { isLoaded: isAuthLoaded, isSignedIn } = useAuth();
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
 
-  const canSubmit = email.trim().length > 0 && password.length >= 6 && !isSubmitting && !isGoogleSubmitting;
+  useEffect(() => {
+    if (isAuthLoaded && isSignedIn) {
+      router.push("/dashboard");
+    }
+  }, [isAuthLoaded, isSignedIn, router]);
 
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  if (!isAuthLoaded || isSignedIn) {
+    return null;
+  }
+
+  const canSubmit =
+    email.trim().length > 0 &&
+    password.length >= 6 &&
+    !isSubmitting &&
+    !isGoogleSubmitting;
+
+  async function handleSubmit(event: React.SyntheticEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!canSubmit) return;
+    if (!clerk.loaded || !canSubmit) return;
 
     setIsSubmitting(true);
-    await new Promise((resolve) => setTimeout(resolve, 800));
-    setIsSubmitting(false);
-    router.push("/dashboard");
+    setErrorMsg("");
+
+    try {
+      const result = await clerk.client.signIn.create({
+        identifier: email,
+        password,
+      });
+
+      if (result.status === "complete") {
+        await clerk.setActive({ session: result.createdSessionId });
+        router.push("/dashboard");
+      } else {
+        console.warn("Additional steps required for login:", result);
+      }
+    } catch (err: unknown) {
+      console.error("Login error:", err);
+      const clerkError = err as { errors?: Array<{ longMessage?: string }> };
+      setErrorMsg(
+        clerkError.errors?.[0]?.longMessage || "Invalid email or password.",
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   async function handleGoogleSignIn() {
-    if (isGoogleSubmitting || isSubmitting) return;
+    if (!clerk.loaded || isGoogleSubmitting || isSubmitting) return;
 
     setIsGoogleSubmitting(true);
-    await new Promise((resolve) => setTimeout(resolve, 800));
-    setIsGoogleSubmitting(false);
-    router.push("/dashboard");
+    setErrorMsg("");
+
+    try {
+      await clerk.client.signIn.authenticateWithRedirect({
+        strategy: "oauth_google",
+        redirectUrl: "/sso-callback",
+        redirectUrlComplete: "/dashboard",
+      });
+    } catch (err: unknown) {
+      console.error("Google SSO error:", err);
+      setErrorMsg("Failed to initialize Google Sign In.");
+      setIsGoogleSubmitting(false);
+    }
   }
 
   return (
@@ -43,6 +92,12 @@ export function SignIn() {
           Access your lessons, bookings, and account.
         </p>
       </section>
+
+      {errorMsg && (
+        <div className="mb-4 rounded-xl bg-red-50 p-3 text-sm text-red-600">
+          {errorMsg}
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="space-y-1.5">
@@ -61,7 +116,10 @@ export function SignIn() {
         </div>
 
         <div className="space-y-1.5">
-          <label htmlFor="password" className="text-sm font-medium text-slate-900">
+          <label
+            htmlFor="password"
+            className="text-sm font-medium text-slate-900"
+          >
             Password
           </label>
           <input
@@ -84,7 +142,7 @@ export function SignIn() {
 
         <button
           type="submit"
-          disabled={!canSubmit}
+          disabled={!canSubmit || !clerk.loaded}
           className="w-full rounded-lg bg-blue-600 py-3 text-sm font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
         >
           {isSubmitting ? "Signing in..." : "Sign in"}
@@ -105,8 +163,8 @@ export function SignIn() {
       <button
         type="button"
         onClick={handleGoogleSignIn}
-        disabled={isGoogleSubmitting || isSubmitting}
-        className="flex w-full items-center justify-center gap-3 rounded-lg border border-slate-200 bg-white py-3 text-sm font-medium text-slate-900 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+        disabled={isGoogleSubmitting || isSubmitting || !clerk.loaded}
+        className="cursor-pointer flex w-full items-center justify-center gap-3 rounded-lg border border-slate-200 bg-white py-3 text-sm font-medium text-slate-900 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
       >
         <GoogleIcon className="h-5 w-5" />
         {isGoogleSubmitting ? "Signing in..." : "Sign in with Google"}
@@ -114,7 +172,10 @@ export function SignIn() {
 
       <p className="mt-8 text-center text-sm text-slate-500">
         Don&apos;t have an account?{" "}
-        <Link href="/sign-up" className="font-medium text-blue-600 hover:text-blue-700">
+        <Link
+          href="/sign-up"
+          className="font-medium text-blue-600 hover:text-blue-700"
+        >
           Create account
         </Link>
       </p>

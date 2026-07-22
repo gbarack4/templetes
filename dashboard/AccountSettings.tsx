@@ -2,18 +2,18 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { ButtonSpinner } from "@/components/ButtonSpinner";
 import type { StudentAccount } from "./types";
 import { mockStudentAccount } from "./mock-data";
 import { useStudentAvatar } from "./useStudentAvatar";
 import { EditProfilePhotoModal } from "./components/EditProfilePhotoModal";
 import { ChevronRightIcon } from "./components/icons";
+import { useClerk } from "@clerk/nextjs";
 
 type AccountSettingsProps = Readonly<{
   account?: StudentAccount;
 }>;
-
-const BUTTON_LOADING_MS = 2000;
 
 function SettingsSection({
   title,
@@ -29,7 +29,11 @@ function SettingsSection({
       <h2 className="px-1 text-xs font-medium uppercase tracking-wide text-slate-400">
         {title}
       </h2>
-      <div className={plain ? "space-y-4" : "overflow-hidden rounded-2xl bg-slate-50"}>
+      <div
+        className={
+          plain ? "space-y-4" : "overflow-hidden rounded-2xl bg-slate-50"
+        }
+      >
         {children}
       </div>
     </section>
@@ -100,7 +104,9 @@ function SettingsRow({
     <>
       <div className="min-w-0 flex-1">
         <p className="text-sm font-medium text-slate-900">{label}</p>
-        {value && <p className="mt-0.5 truncate text-sm text-slate-500">{value}</p>}
+        {value && (
+          <p className="mt-0.5 truncate text-sm text-slate-500">{value}</p>
+        )}
       </div>
       {onClick && (
         <ChevronRightIcon className="h-4 w-4 shrink-0 text-slate-400" />
@@ -232,21 +238,32 @@ function useEditableSection<T extends Record<string, string>>(initial: T) {
   return { saved, values, showSave, handleFocus, handleBlur, update, save };
 }
 
-export function AccountSettings({ account = mockStudentAccount }: AccountSettingsProps) {
+export function AccountSettings({
+  account = mockStudentAccount,
+}: AccountSettingsProps) {
   const router = useRouter();
+  const { signOut } = useClerk();
   const [notifications, setNotifications] = useState(account.notifications);
   const [showPhotoModal, setShowPhotoModal] = useState(false);
-  const emergencyContactSection = useEditableSection(buildEmergencyContact(account));
+  const emergencyContactSection = useEditableSection(
+    buildEmergencyContact(account),
+  );
   const avatarUrl = useStudentAvatar(account.avatarUrl);
   const [isSigningOut, setIsSigningOut] = useState(false);
+  const [imageError, setImageError] = useState(false);
+
   const displayName = `${account.firstName} ${account.lastName}`;
 
-  function handleSignOut() {
+  async function handleSignOut() {
     if (isSigningOut) return;
     setIsSigningOut(true);
-    window.setTimeout(() => {
+    try {
+      await signOut();
       router.push("/login");
-    }, BUTTON_LOADING_MS);
+    } catch (err) {
+      console.error("Sign out failed:", err);
+      setIsSigningOut(false);
+    }
   }
 
   return (
@@ -260,14 +277,26 @@ export function AccountSettings({ account = mockStudentAccount }: AccountSetting
 
       <section className="rounded-2xl bg-slate-50 p-4">
         <div className="flex items-center gap-4">
-          <img
-            src={avatarUrl}
+          <Image
+            src={
+              imageError
+                ? `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                    displayName,
+                  )}&background=random`
+                : avatarUrl
+            }
             alt={`${displayName}'s profile`}
+            width={64}
+            height={64}
             className="h-16 w-16 shrink-0 rounded-full object-cover ring-2 ring-white"
+            onError={() => setImageError(true)}
+            unoptimized // Щоб уникнути проблем із конфігурацією зовнішніх доменів
           />
           <div className="min-w-0 flex-1">
             <p className="text-lg font-bold text-slate-900">{displayName}</p>
-            <p className="mt-0.5 truncate text-sm text-slate-500">{account.email}</p>
+            <p className="mt-0.5 truncate text-sm text-slate-500">
+              {account.email}
+            </p>
           </div>
         </div>
         <button

@@ -8,6 +8,7 @@ import {
   PRESET_AVATARS,
   setStudentAvatarUrl,
 } from "../student-avatar";
+import { useIsClient } from "@/shared/hooks/useIsClient";
 
 type EditProfilePhotoModalProps = Readonly<{
   currentAvatarUrl: string;
@@ -23,18 +24,17 @@ export function EditProfilePhotoModal({
   onSave,
 }: EditProfilePhotoModalProps) {
   const [selectedUrl, setSelectedUrl] = useState(currentAvatarUrl);
-  const [mounted, setMounted] = useState(false);
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const isClient = useIsClient();
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") onClose();
     }
 
-    const scroller = document.querySelector<HTMLElement>("[data-dashboard-scroll]");
+    const scroller = document.querySelector<HTMLElement>(
+      "[data-dashboard-scroll]",
+    );
     const previousOverflow = scroller?.style.overflow ?? "";
 
     document.addEventListener("keydown", handleKeyDown);
@@ -63,10 +63,10 @@ export function EditProfilePhotoModal({
   const hasChanges = selectedUrl !== currentAvatarUrl;
   const isCustomPhoto = currentAvatarUrl !== DEFAULT_STUDENT_AVATAR;
 
-  if (!mounted) return null;
+  if (!isClient) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[100]">
+    <div className="fixed inset-0 z-100">
       <button
         type="button"
         aria-label="Close photo editor"
@@ -80,7 +80,10 @@ export function EditProfilePhotoModal({
         className="absolute inset-x-0 bottom-0 z-10 mx-auto flex h-[85dvh] w-full max-w-md flex-col rounded-t-2xl bg-white pb-[env(safe-area-inset-bottom,0px)] shadow-xl"
       >
         <div className="flex shrink-0 items-center justify-between px-5 pb-3 pt-5">
-          <h2 id="edit-photo-title" className="text-lg font-bold text-slate-900">
+          <h2
+            id="edit-photo-title"
+            className="text-lg font-bold text-slate-900"
+          >
             Edit profile photo
           </h2>
           <button

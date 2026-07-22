@@ -1,8 +1,9 @@
+import { DEFAULT_STUDENT_AVATAR } from "./student-avatar";
 import type { DashboardData, StudentAccount } from "./types";
 
 export const mockDashboardData: DashboardData = {
   userName: "George",
-  avatarUrl: "/avatars/george.jpg",
+  avatarUrl: DEFAULT_STUDENT_AVATAR,
   availableCreditHours: 0,
   tabCounts: {
     upcoming: 2,
@@ -148,7 +149,8 @@ export const mockDashboardData: DashboardData = {
       id: "notification-3",
       kind: "review",
       title: "Rate your lesson",
-      message: "How was your lesson with Mike Chen on Jun 14? Leave a quick review.",
+      message:
+        "How was your lesson with Mike Chen on Jun 14? Leave a quick review.",
       timeLabel: "2 days ago",
       read: false,
     },
@@ -201,13 +203,27 @@ export interface RescheduleDateOption {
 }
 
 const MONTH_ABBR = [
-  "JAN", "FEB", "MAR", "APR", "MAY", "JUN",
-  "JUL", "AUG", "SEP", "OCT", "NOV", "DEC",
+  "JAN",
+  "FEB",
+  "MAR",
+  "APR",
+  "MAY",
+  "JUN",
+  "JUL",
+  "AUG",
+  "SEP",
+  "OCT",
+  "NOV",
+  "DEC",
 ] as const;
 
 const WEEKDAY_ABBR = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"] as const;
 
-function createRescheduleDate(year: number, monthIndex: number, day: number): RescheduleDateOption {
+function createRescheduleDate(
+  year: number,
+  monthIndex: number,
+  day: number,
+): RescheduleDateOption {
   const date = new Date(year, monthIndex, day);
 
   return {
@@ -244,7 +260,8 @@ function buildMockRescheduleDates(): RescheduleDateOption[] {
   return dates;
 }
 
-export const mockRescheduleDates: RescheduleDateOption[] = buildMockRescheduleDates();
+export const mockRescheduleDates: RescheduleDateOption[] =
+  buildMockRescheduleDates();
 
 /** Resolve a YYYY-MM-DD value from Classic/search into a calendar date option. */
 export function resolveRescheduleDateFromIso(
@@ -273,7 +290,10 @@ export function resolveRescheduleDateFromIso(
   }
 
   const id = `date-${year}-${monthIndex}-${day}`;
-  return availableDates.find((date) => date.id === id) ?? createRescheduleDate(year, monthIndex, day);
+  return (
+    availableDates.find((date) => date.id === id) ??
+    createRescheduleDate(year, monthIndex, day)
+  );
 }
 
 export function mergeRescheduleDates(
@@ -303,7 +323,11 @@ export function buildFutureDates(monthsAhead = 12): RescheduleDateOption[] {
   const cursor = new Date(start);
   while (cursor < end) {
     dates.push(
-      createRescheduleDate(cursor.getFullYear(), cursor.getMonth(), cursor.getDate()),
+      createRescheduleDate(
+        cursor.getFullYear(),
+        cursor.getMonth(),
+        cursor.getDate(),
+      ),
     );
     cursor.setDate(cursor.getDate() + 1);
   }
@@ -414,7 +438,10 @@ export const mockHourPackages: HourPackage[] = [
   },
 ];
 
-export function formatLessonTimeRange(startTime: string, hours: number): string {
+export function formatLessonTimeRange(
+  startTime: string,
+  hours: number,
+): string {
   const match = startTime.match(/^(\d+):(\d+)\s*(AM|PM)$/i);
   if (!match) return startTime;
 

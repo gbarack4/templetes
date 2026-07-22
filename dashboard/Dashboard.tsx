@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import Image from "next/image";
 import type { DashboardData, Lesson } from "./types";
 import { mockDashboardData } from "./mock-data";
 import { consumeCancelledLessonId } from "./cancel-booking";
@@ -10,10 +11,7 @@ import { LessonCard } from "./components/LessonCard";
 import { NotificationsPanel } from "./components/NotificationsPanel";
 import { useStudentAvatar } from "./useStudentAvatar";
 import { useStudentCreditHours } from "./useStudentCreditHours";
-import {
-  BellIcon,
-  CalendarIcon,
-} from "./components/icons";
+import { BellIcon, CalendarIcon } from "./components/icons";
 
 type DashboardProps = Readonly<{
   data?: DashboardData;
@@ -100,7 +98,9 @@ export function Dashboard({ data = mockDashboardData }: DashboardProps) {
   const pathname = usePathname();
   const [activeTab, setActiveTab] = useState<TabKey>("upcoming");
   const [upcomingLessons, setUpcomingLessons] = useState(data.upcomingLessons);
-  const [cancelledLessons, setCancelledLessons] = useState(data.cancelledLessons);
+  const [cancelledLessons, setCancelledLessons] = useState(
+    data.cancelledLessons,
+  );
   const [tabCounts, setTabCounts] = useState(data.tabCounts);
   const [availableCreditHours, setAvailableCreditHours] = useStudentCreditHours(
     data.availableCreditHours,
@@ -110,6 +110,7 @@ export function Dashboard({ data = mockDashboardData }: DashboardProps) {
   );
   const [notifications, setNotifications] = useState(data.notifications);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [imageError, setImageError] = useState(false);
 
   const completedLessons = data.completedLessons;
   const avatarUrl = useStudentAvatar(data.avatarUrl);
@@ -123,23 +124,26 @@ export function Dashboard({ data = mockDashboardData }: DashboardProps) {
     activeTab,
   );
 
-  function handleReviewSubmit(lessonId: string, _rating: number, _comment: string) {
+  function handleReviewSubmit(lessonId: string) {
     setReviewedLessonIds((current) => new Set(current).add(lessonId));
   }
 
-  function handleBookLesson(lesson: Lesson) {
-    setUpcomingLessons((current) => [lesson, ...current]);
-    setAvailableCreditHours((hours) =>
-      Math.max(0, hours - Math.min(lesson.hours, hours)),
-    );
-    setTabCounts((counts) => ({
-      ...counts,
-      upcoming: counts.upcoming + 1,
-    }));
-    setActiveTab("upcoming");
-  }
+  const handleBookLesson = useCallback(
+    (lesson: Lesson) => {
+      setUpcomingLessons((current) => [lesson, ...current]);
+      setAvailableCreditHours((hours) =>
+        Math.max(0, hours - Math.min(lesson.hours, hours)),
+      );
+      setTabCounts((counts) => ({
+        ...counts,
+        upcoming: counts.upcoming + 1,
+      }));
+      setActiveTab("upcoming");
+    },
+    [setAvailableCreditHours],
+  );
 
-  function handleCancelLesson(lessonId: string) {
+  const handleCancelLesson = useCallback((lessonId: string) => {
     setUpcomingLessons((current) => {
       const lesson = current.find((item) => item.id === lessonId);
       if (!lesson) return current;
@@ -156,7 +160,7 @@ export function Dashboard({ data = mockDashboardData }: DashboardProps) {
 
       return current.filter((item) => item.id !== lessonId);
     });
-  }
+  }, []);
 
   function handleMarkNotificationRead(id: string) {
     setNotifications((current) =>
@@ -173,26 +177,40 @@ export function Dashboard({ data = mockDashboardData }: DashboardProps) {
   }
 
   useEffect(() => {
-    const cancelledLessonId = consumeCancelledLessonId();
-    if (cancelledLessonId) {
-      handleCancelLesson(cancelledLessonId);
-    }
+    const timeoutId = setTimeout(() => {
+      const cancelledLessonId = consumeCancelledLessonId();
+      if (cancelledLessonId) {
+        handleCancelLesson(cancelledLessonId);
+      }
 
-    const bookedLesson = consumeBookedLesson();
-    if (bookedLesson) {
-      handleBookLesson(bookedLesson);
-    }
-  }, [pathname]);
+      const bookedLesson = consumeBookedLesson();
+      if (bookedLesson) {
+        handleBookLesson(bookedLesson);
+      }
+    }, 0);
+
+    return () => clearTimeout(timeoutId);
+  }, [pathname, handleCancelLesson, handleBookLesson]);
 
   return (
     <>
       <main className="flex-1 space-y-6 px-5 pb-6 pt-6">
         <section className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-3">
-            <img
-              src={avatarUrl}
+            <Image
+              src={
+                imageError
+                  ? `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                      data.userName,
+                    )}&background=random`
+                  : avatarUrl
+              }
               alt={`${data.userName}'s profile`}
+              width={48}
+              height={48}
               className="h-12 w-12 shrink-0 rounded-full object-cover ring-2 ring-white"
+              onError={() => setImageError(true)}
+              unoptimized
             />
             <div>
               <h1 className="text-xl font-bold text-slate-900">
