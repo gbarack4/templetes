@@ -12,6 +12,7 @@ import { NotificationsPanel } from "./components/NotificationsPanel";
 import { useStudentAvatar } from "./useStudentAvatar";
 import { useStudentCreditHours } from "./useStudentCreditHours";
 import { BellIcon, CalendarIcon } from "./components/icons";
+import { useStudent } from "@/shared/hooks/useStudent";
 
 type DashboardProps = Readonly<{
   data?: DashboardData;
@@ -96,6 +97,7 @@ function LessonSection({
 export function Dashboard({ data = mockDashboardData }: DashboardProps) {
   const router = useRouter();
   const pathname = usePathname();
+  const { student, loading: studentLoading } = useStudent();
   const [activeTab, setActiveTab] = useState<TabKey>("upcoming");
   const [upcomingLessons, setUpcomingLessons] = useState(data.upcomingLessons);
   const [cancelledLessons, setCancelledLessons] = useState(
@@ -112,8 +114,16 @@ export function Dashboard({ data = mockDashboardData }: DashboardProps) {
   const [showNotifications, setShowNotifications] = useState(false);
   const [imageError, setImageError] = useState(false);
 
+  const userName =
+    student?.name ||
+    [student?.user?.firstName, student?.user?.lastName]
+      .filter(Boolean)
+      .join(" ") ||
+    "User";
+  const rawAvatarUrl = student?.user?.avatarUrl || data.avatarUrl;
+
   const completedLessons = data.completedLessons;
-  const avatarUrl = useStudentAvatar(data.avatarUrl);
+  const avatarUrl = useStudentAvatar(rawAvatarUrl);
   const unreadNotificationCount = notifications.filter(
     (notification) => !notification.read,
   ).length;
@@ -201,11 +211,11 @@ export function Dashboard({ data = mockDashboardData }: DashboardProps) {
               src={
                 imageError
                   ? `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                      data.userName,
+                      userName,
                     )}&background=random`
                   : avatarUrl
               }
-              alt={`${data.userName}'s profile`}
+              alt={`${userName}'s profile`}
               width={48}
               height={48}
               className="h-12 w-12 shrink-0 rounded-full object-cover ring-2 ring-white"
@@ -214,7 +224,7 @@ export function Dashboard({ data = mockDashboardData }: DashboardProps) {
             />
             <div>
               <h1 className="text-xl font-bold text-slate-900">
-                Hi, {data.userName}!
+                {studentLoading ? "Loading..." : `Hi, ${userName}!`}
               </h1>
               <p className="mt-0.5 text-xs text-slate-500">
                 Here&apos;s your lesson overview.

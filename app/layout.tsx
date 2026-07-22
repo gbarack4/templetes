@@ -5,6 +5,7 @@ import { SiteLoaderGate } from "@/components/SiteLoaderGate";
 import { SchoolProvider } from "@/dashboard/SchoolContext";
 import "./globals.css";
 import { ClerkProvider } from "@clerk/nextjs";
+import { QueryProvider } from "@/shared/providers/QueryProvider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -52,7 +53,9 @@ export default async function RootLayout({
       <html lang="en" className={`${geistSans.variable} antialiased`}>
         <body className="min-h-screen bg-white text-slate-900 flex flex-col font-sans">
           <SchoolProvider schoolId={schoolId}>
-            <SiteLoaderGate>{children}</SiteLoaderGate>
+            <QueryProvider>
+              <SiteLoaderGate>{children}</SiteLoaderGate>
+            </QueryProvider>
           </SchoolProvider>
         </body>
       </html>

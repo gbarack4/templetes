@@ -4,16 +4,11 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { ButtonSpinner } from "@/components/ButtonSpinner";
-import type { StudentAccount } from "./types";
-import { mockStudentAccount } from "./mock-data";
 import { useStudentAvatar } from "./useStudentAvatar";
 import { EditProfilePhotoModal } from "./components/EditProfilePhotoModal";
 import { ChevronRightIcon } from "./components/icons";
 import { useClerk } from "@clerk/nextjs";
-
-type AccountSettingsProps = Readonly<{
-  account?: StudentAccount;
-}>;
+import { useStudent } from "@/shared/hooks/useStudent";
 
 function SettingsSection({
   title,
@@ -169,13 +164,6 @@ function SettingsToggle({
   );
 }
 
-function buildEmergencyContact(account: StudentAccount) {
-  return {
-    name: account.emergencyContact.name,
-    phone: account.emergencyContact.phone,
-  };
-}
-
 function SaveSectionButton({
   visible,
   onClick,
@@ -238,21 +226,39 @@ function useEditableSection<T extends Record<string, string>>(initial: T) {
   return { saved, values, showSave, handleFocus, handleBlur, update, save };
 }
 
-export function AccountSettings({
-  account = mockStudentAccount,
-}: AccountSettingsProps) {
+export function AccountSettings() {
   const router = useRouter();
   const { signOut } = useClerk();
-  const [notifications, setNotifications] = useState(account.notifications);
+  const {
+    student,
+    loading: studentLoading,
+    error: studentError,
+  } = useStudent();
+
+  const [notifications, setNotifications] = useState({
+    lessonReminders: true,
+    emailUpdates: false,
+  });
   const [showPhotoModal, setShowPhotoModal] = useState(false);
-  const emergencyContactSection = useEditableSection(
-    buildEmergencyContact(account),
-  );
-  const avatarUrl = useStudentAvatar(account.avatarUrl);
+
+  const emergencyContactSection = useEditableSection({
+    name: "",
+    phone: "",
+  });
+
+  const rawAvatarUrl = student?.user?.avatarUrl || "";
+  const avatarUrl = useStudentAvatar(rawAvatarUrl);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [imageError, setImageError] = useState(false);
 
-  const displayName = `${account.firstName} ${account.lastName}`;
+  const displayName =
+    student?.name ||
+    [student?.user?.firstName, student?.user?.lastName]
+      .filter(Boolean)
+      .join(" ") ||
+    "User";
+
+  const email = student?.email || student?.user?.email || "";
 
   async function handleSignOut() {
     if (isSigningOut) return;
@@ -264,6 +270,18 @@ export function AccountSettings({
       console.error("Sign out failed:", err);
       setIsSigningOut(false);
     }
+  }
+
+  if (studentLoading) {
+    return (
+      <div className="p-8 text-center text-slate-500">Loading account...</div>
+    );
+  }
+
+  if (studentError) {
+    return (
+      <div className="p-8 text-center text-red-500">Error: {studentError}</div>
+    );
   }
 
   return (
@@ -279,7 +297,7 @@ export function AccountSettings({
         <div className="flex items-center gap-4">
           <Image
             src={
-              imageError
+              imageError || !avatarUrl
                 ? `https://ui-avatars.com/api/?name=${encodeURIComponent(
                     displayName,
                   )}&background=random`
@@ -290,13 +308,11 @@ export function AccountSettings({
             height={64}
             className="h-16 w-16 shrink-0 rounded-full object-cover ring-2 ring-white"
             onError={() => setImageError(true)}
-            unoptimized // Щоб уникнути проблем із конфігурацією зовнішніх доменів
+            unoptimized
           />
           <div className="min-w-0 flex-1">
             <p className="text-lg font-bold text-slate-900">{displayName}</p>
-            <p className="mt-0.5 truncate text-sm text-slate-500">
-              {account.email}
-            </p>
+            <p className="mt-0.5 truncate text-sm text-slate-500">{email}</p>
           </div>
         </div>
         <button
@@ -321,12 +337,11 @@ export function AccountSettings({
       <SettingsSection title="Profile">
         <SettingsRow
           label="Personal information"
-          value={`${account.firstName} ${account.lastName}`}
+          value={displayName}
           onClick={() => router.push("/dashboard/account/personal-information")}
         />
         <SettingsRow
           label="Driving details"
-          value={account.learnerPermitNumber}
           onClick={() => router.push("/dashboard/account/driving-details")}
         />
       </SettingsSection>

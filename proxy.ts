@@ -10,6 +10,7 @@ const SYSTEM_PATHS = [
   "/dashboard",
   "/login",
   "/sign-up",
+  "/sso-callback",
 ];
 
 export default function middleware(req: NextRequest) {
