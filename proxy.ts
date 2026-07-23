@@ -15,6 +15,11 @@ const SYSTEM_PATHS = [
   "/__clerk",
 ];
 
+function isLocalDev(req: NextRequest) {
+  const host = req.headers.get("host") || "";
+  return host.includes("localhost") || host.startsWith("127.0.0.1");
+}
+
 function isProtectedPath(pathname: string) {
   return pathname.startsWith("/dashboard");
 }
@@ -60,7 +65,8 @@ function applyDomainRewrite(req: NextRequest) {
 
 export default clerkMiddleware(
   async (auth, req) => {
-    if (isProtectedPath(req.nextUrl.pathname)) {
+    // Skip auth on localhost so dashboard UI can be edited without signing in.
+    if (isProtectedPath(req.nextUrl.pathname) && !isLocalDev(req)) {
       const { userId } = await auth();
       if (!userId) {
         const loginUrl = new URL("/login", req.url);

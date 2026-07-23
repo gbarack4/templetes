@@ -109,17 +109,49 @@ export function DrivingDetailsFlow({
   account = mockStudentAccount,
 }: DrivingDetailsFlowProps) {
   const router = useRouter();
+  const [isSaved, setIsSaved] = useState(false);
   const section = useEditableSection({
     learnerPermitNumber: account.learnerPermitNumber,
     dateOfBirth: account.dateOfBirth,
   });
 
+  function goBack() {
+    router.push("/dashboard/account");
+  }
+
+  function handleSave() {
+    section.save();
+    setIsSaved(true);
+  }
+
+  if (isSaved) {
+    return (
+      <FlowPageContent className="text-center">
+        <div className="flex flex-col items-center py-6">
+          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-green-50 text-2xl text-green-600">
+            ✓
+          </div>
+          <h1 className="mt-6 text-xl font-bold text-slate-900">
+            Details updated
+          </h1>
+          <p className="mt-2 text-sm text-slate-500">
+            Your driving details have been saved successfully.
+          </p>
+          <button
+            type="button"
+            onClick={goBack}
+            className="mt-8 w-full rounded-lg bg-blue-600 py-3 text-sm font-medium text-white transition hover:bg-blue-700"
+          >
+            Back to Account
+          </button>
+        </div>
+      </FlowPageContent>
+    );
+  }
+
   return (
     <>
-      <FlowPageHeader
-        title="Driving details"
-        onBack={() => router.push("/dashboard/account")}
-      />
+      <FlowPageHeader title="Driving details" onBack={goBack} />
       <FlowPageContent>
         <p className="text-sm text-slate-500">
           Keep your learner permit and date of birth up to date.
@@ -148,7 +180,7 @@ export function DrivingDetailsFlow({
           <button
             type="button"
             onMouseDown={(event) => event.preventDefault()}
-            onClick={section.save}
+            onClick={handleSave}
             className="mt-6 w-full rounded-lg bg-blue-600 py-3 text-sm font-medium text-white transition hover:bg-blue-700"
           >
             Save

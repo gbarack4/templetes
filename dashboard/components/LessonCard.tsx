@@ -72,7 +72,6 @@ export function LessonCard({
 
   function handleReviewSubmit(rating: number, comment: string) {
     onReviewSubmit?.(lesson.id, rating, comment);
-    setShowReviewModal(false);
   }
 
   function handleReschedule() {

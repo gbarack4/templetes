@@ -21,6 +21,7 @@ import {
   getSelectedRescheduleDate,
   RescheduleCalendar,
 } from "./components/RescheduleCalendar";
+import { ChevronRightIcon } from "./components/icons";
 
 type RescheduleFlowProps = Readonly<{
   lesson: Lesson;
@@ -76,6 +77,7 @@ export function RescheduleFlow({ lesson }: RescheduleFlowProps) {
   const [selectedInstructorId, setSelectedInstructorId] = useState(defaultInstructor.id);
   const [selectedDateId, setSelectedDateId] = useState<string | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
+  const [showTimePicker, setShowTimePicker] = useState(true);
   const [isConfirmed, setIsConfirmed] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
 
@@ -91,12 +93,19 @@ export function RescheduleFlow({ lesson }: RescheduleFlowProps) {
     setInstructorConfirmed(true);
     setSelectedDateId(null);
     setSelectedTime(null);
+    setShowTimePicker(true);
   }
 
   function handleChangeInstructorClick() {
     setShowInstructorSearch(true);
     setSelectedDateId(null);
     setSelectedTime(null);
+    setShowTimePicker(true);
+  }
+
+  function handleTimeChange(time: string) {
+    setSelectedTime(time);
+    setShowTimePicker(false);
   }
 
   function handleConfirm() {
@@ -190,6 +199,7 @@ export function RescheduleFlow({ lesson }: RescheduleFlowProps) {
               onSelectDate={(dateId) => {
                 setSelectedDateId(dateId);
                 setSelectedTime(null);
+                setShowTimePicker(true);
               }}
             />
           </section>
@@ -209,6 +219,7 @@ export function RescheduleFlow({ lesson }: RescheduleFlowProps) {
               onClick={() => {
                 setSelectedDateId(null);
                 setSelectedTime(null);
+                setShowTimePicker(true);
               }}
               className="mt-3 text-sm font-medium text-blue-600 hover:text-blue-700"
             >
@@ -220,22 +231,43 @@ export function RescheduleFlow({ lesson }: RescheduleFlowProps) {
         {instructorConfirmed && selectedDate && !showInstructorSearch && (
           <section className="space-y-3">
             <h2 className="text-sm font-semibold text-slate-900">Pick a time</h2>
-            <div className="grid grid-cols-2 gap-2">
-              {mockRescheduleTimeSlots.map((time) => (
-                <button
-                  key={time}
-                  type="button"
-                  onClick={() => setSelectedTime(time)}
-                  className={`rounded-xl px-3 py-3 text-sm font-medium transition ${
-                    selectedTime === time
-                      ? "bg-blue-600 text-white"
-                      : "bg-slate-50 text-slate-700 hover:bg-slate-100"
-                  }`}
-                >
-                  {time}
-                </button>
-              ))}
-            </div>
+            <button
+              type="button"
+              onClick={() => setShowTimePicker((open) => !open)}
+              className="flex w-full items-center justify-between rounded-xl bg-slate-50 px-4 py-3 text-left transition hover:bg-slate-100"
+            >
+              <span
+                className={`text-sm font-medium ${
+                  selectedTime ? "text-slate-900" : "text-slate-400"
+                }`}
+              >
+                {selectedTime ?? "Select time"}
+              </span>
+              <ChevronRightIcon
+                className={`h-4 w-4 shrink-0 text-slate-400 transition ${
+                  showTimePicker ? "rotate-90" : ""
+                }`}
+              />
+            </button>
+
+            {showTimePicker && (
+              <div className="grid max-h-48 grid-cols-4 gap-1.5 overflow-y-auto overscroll-y-contain rounded-xl border border-slate-200 bg-white p-2">
+                {mockRescheduleTimeSlots.map((time) => (
+                  <button
+                    key={time}
+                    type="button"
+                    onClick={() => handleTimeChange(time)}
+                    className={`rounded-md px-1 py-1.5 text-center text-[11px] font-medium leading-tight transition ${
+                      selectedTime === time
+                        ? "bg-blue-600 text-white"
+                        : "bg-slate-50 text-slate-700 hover:bg-slate-100"
+                    }`}
+                  >
+                    {time}
+                  </button>
+                ))}
+              </div>
+            )}
           </section>
         )}
 

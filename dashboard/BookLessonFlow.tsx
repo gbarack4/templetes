@@ -399,7 +399,7 @@ export function BookLessonFlow({
               </button>
 
               {showTimePicker && (
-                <div className="flex max-h-44 flex-col gap-2 overflow-y-auto overscroll-y-contain rounded-xl border border-slate-200 bg-white p-2">
+                <div className="grid max-h-48 grid-cols-4 gap-1.5 overflow-y-auto overscroll-y-contain rounded-xl border border-slate-200 bg-white p-2">
                   {mockRescheduleTimeSlots.map((time) => {
                     const isSelected = selectedTime === time;
 
@@ -408,10 +408,10 @@ export function BookLessonFlow({
                         key={time}
                         type="button"
                         onClick={() => handleTimeChange(time)}
-                        className={`w-full shrink-0 rounded-lg px-3 py-2.5 text-left text-sm font-medium transition ${
+                        className={`rounded-md px-1 py-1.5 text-center text-[11px] font-medium leading-tight transition ${
                           isSelected
                             ? "bg-blue-600 text-white"
-                            : "text-slate-700 hover:bg-slate-50"
+                            : "bg-slate-50 text-slate-700 hover:bg-slate-100"
                         }`}
                       >
                         {time}

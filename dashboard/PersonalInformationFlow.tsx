@@ -117,7 +117,8 @@ function useEditableSection(initial: {
 
 function PersonalInformationForm({
   student,
-}: Readonly<{ student: StudentData }>) {
+  onSaved,
+}: Readonly<{ student: StudentData; onSaved: () => void }>) {
   const fullName =
     student.name ||
     [student.user?.firstName, student.user?.lastName]
@@ -143,7 +144,10 @@ function PersonalInformationForm({
         address: section.values.address || null,
       },
       {
-        onSuccess: () => section.commit(),
+        onSuccess: () => {
+          section.commit();
+          onSaved();
+        },
         onError: () =>
           setError("Couldn't save your changes. Please try again."),
       },
@@ -209,13 +213,40 @@ function PersonalInformationForm({
 export function PersonalInformationFlow() {
   const router = useRouter();
   const { student, loading, error } = useStudent();
+  const [isSaved, setIsSaved] = useState(false);
+
+  function goBack() {
+    router.push("/dashboard/account");
+  }
+
+  if (isSaved) {
+    return (
+      <FlowPageContent className="text-center">
+        <div className="flex flex-col items-center py-6">
+          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-green-50 text-2xl text-green-600">
+            ✓
+          </div>
+          <h1 className="mt-6 text-xl font-bold text-slate-900">
+            Details updated
+          </h1>
+          <p className="mt-2 text-sm text-slate-500">
+            Your personal information has been saved successfully.
+          </p>
+          <button
+            type="button"
+            onClick={goBack}
+            className="mt-8 w-full rounded-lg bg-blue-600 py-3 text-sm font-medium text-white transition hover:bg-blue-700"
+          >
+            Back to Account
+          </button>
+        </div>
+      </FlowPageContent>
+    );
+  }
 
   return (
     <>
-      <FlowPageHeader
-        title="Personal information"
-        onBack={() => router.push("/dashboard/account")}
-      />
+      <FlowPageHeader title="Personal information" onBack={goBack} />
       <FlowPageContent>
         <p className="text-sm text-slate-500">
           Update your contact details used for lessons and account access.
@@ -230,7 +261,10 @@ export function PersonalInformationFlow() {
             Error: {error}
           </div>
         ) : student ? (
-          <PersonalInformationForm student={student} />
+          <PersonalInformationForm
+            student={student}
+            onSaved={() => setIsSaved(true)}
+          />
         ) : null}
       </FlowPageContent>
     </>

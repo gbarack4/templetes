@@ -60,21 +60,27 @@ function LessonSection({
   lessons,
   reviewedLessonIds,
   onReviewSubmit,
+  onViewAll,
 }: Readonly<{
   title: string;
   lessons: Lesson[];
   reviewedLessonIds: Set<string>;
   onReviewSubmit: (lessonId: string, rating: number, comment: string) => void;
+  onViewAll: () => void;
 }>) {
   return (
-    <section className="space-y-3">
-      <div className="flex items-center justify-between">
+    <section className="flex min-h-0 flex-1 flex-col">
+      <div className="flex shrink-0 items-center justify-between">
         <h2 className="text-lg font-bold text-slate-900">{title}</h2>
-        <button type="button" className="text-sm font-medium text-blue-600">
+        <button
+          type="button"
+          onClick={onViewAll}
+          className="text-sm font-medium text-blue-600"
+        >
           View all
         </button>
       </div>
-      <div className="space-y-3">
+      <div className="mt-3 min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-y-contain pb-1 [-webkit-overflow-scrolling:touch]">
         {lessons.length > 0 ? (
           lessons.map((lesson) => (
             <LessonCard
@@ -208,8 +214,8 @@ export function Dashboard({ data = mockDashboardData }: DashboardProps) {
 
   return (
     <>
-      <main className="flex-1 space-y-6 px-5 pb-6 pt-6">
-        <section className="flex items-start justify-between gap-3">
+      <main className="flex min-h-0 flex-1 flex-col overflow-hidden px-5 pb-6 pt-6">
+        <section className="flex shrink-0 items-start justify-between gap-3">
           <div className="flex items-center gap-3">
             <Image
               src={
@@ -250,7 +256,7 @@ export function Dashboard({ data = mockDashboardData }: DashboardProps) {
           </button>
         </section>
 
-        <section className="flex items-center gap-3 rounded-2xl bg-slate-50 px-4 py-4">
+        <section className="mt-6 flex shrink-0 items-center gap-3 rounded-2xl bg-slate-50 px-4 py-4">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-blue-600">
             <CalendarIcon className="h-5 w-5" />
           </div>
@@ -270,7 +276,7 @@ export function Dashboard({ data = mockDashboardData }: DashboardProps) {
           </button>
         </section>
 
-        <nav className="flex border-b border-slate-100">
+        <nav className="mt-6 flex shrink-0 border-b border-slate-100">
           {tabs.map(({ key, label }) => {
             const isActive = key === activeTab;
             return (
@@ -295,12 +301,17 @@ export function Dashboard({ data = mockDashboardData }: DashboardProps) {
           })}
         </nav>
 
-        <LessonSection
-          title={sectionTitles[activeTab]}
-          lessons={activeLessons}
-          reviewedLessonIds={reviewedLessonIds}
-          onReviewSubmit={handleReviewSubmit}
-        />
+        <div className="mt-6 flex min-h-0 flex-1 flex-col">
+          <LessonSection
+            title={sectionTitles[activeTab]}
+            lessons={activeLessons}
+            reviewedLessonIds={reviewedLessonIds}
+            onReviewSubmit={handleReviewSubmit}
+            onViewAll={() =>
+              router.push(`/dashboard/bookings?tab=${activeTab}`)
+            }
+          />
+        </div>
       </main>
 
       {showNotifications && (
