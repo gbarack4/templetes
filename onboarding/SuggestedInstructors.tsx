@@ -44,13 +44,15 @@ function SuggestedInstructorCard({
       <Link href={profileHref} className="block">
         <div className="flex items-start justify-between gap-3">
           <InstructorProfileSummary instructor={instructor} />
-          <span className="shrink-0 rounded-full bg-white px-2.5 py-1 text-xs font-medium text-slate-600 ring-1 ring-slate-200">
-            {formatCurrency(instructor.pricePerHour)}/hr
-          </span>
+          <div className="flex shrink-0 flex-col items-end gap-1.5">
+            <span className="rounded-full bg-white px-2.5 py-1 text-xs font-medium text-slate-600 ring-1 ring-slate-200">
+              {formatCurrency(instructor.pricePerHour)}/hr
+            </span>
+            <p className="text-xs text-slate-500">
+              {instructor.suburb} · {instructor.postcode}
+            </p>
+          </div>
         </div>
-        <p className="mt-2 text-xs text-slate-500">
-          {instructor.suburb} · {instructor.postcode}
-        </p>
       </Link>
       <Link
         href={bookHref}

@@ -27,8 +27,12 @@ export const mockModernTrustBadges = [
 
 export const mockModernTransmissionOptions = ["Auto", "Manual"] as const;
 
-export function resolveModernSite(data: SiteConfig) {
-  const school = resolveSchoolProfile(data);
+export function resolveModernSite(
+  data: SiteConfig,
+  branding?: Readonly<{ schoolName?: string; logoUrl?: string }>,
+  options?: Readonly<{ fallbackToMock?: boolean }>,
+) {
+  const school = resolveSchoolProfile(data, branding, options);
 
   return {
     school,

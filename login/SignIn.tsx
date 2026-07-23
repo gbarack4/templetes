@@ -2,15 +2,31 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth, useClerk } from "@clerk/nextjs";
+import { useSchool } from "@/dashboard/SchoolContext";
 import { DrivingSchoolProfile } from "./DrivingSchoolProfile";
 import { mockDrivingSchool } from "./school-profile";
 
+function getSafeRedirect(redirectUrl: string | null) {
+  if (!redirectUrl) return "/dashboard";
+  if (!redirectUrl.startsWith("/") || redirectUrl.startsWith("//")) {
+    return "/dashboard";
+  }
+  return redirectUrl;
+}
+
 export function SignIn() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const clerk = useClerk();
   const { isLoaded: isAuthLoaded, isSignedIn } = useAuth();
+  const school = useSchool();
+  const afterSignInUrl = getSafeRedirect(searchParams.get("redirect_url"));
+  const schoolProfile = {
+    name: school.schoolName || mockDrivingSchool.name,
+    logoUrl: school.logoUrl || mockDrivingSchool.logoUrl,
+  };
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -20,9 +36,9 @@ export function SignIn() {
 
   useEffect(() => {
     if (isAuthLoaded && isSignedIn) {
-      router.push("/dashboard");
+      router.push(afterSignInUrl);
     }
-  }, [isAuthLoaded, isSignedIn, router]);
+  }, [isAuthLoaded, isSignedIn, router, afterSignInUrl]);
 
   if (!isAuthLoaded || isSignedIn) {
     return null;
@@ -49,7 +65,7 @@ export function SignIn() {
 
       if (result.status === "complete") {
         await clerk.setActive({ session: result.createdSessionId });
-        router.push("/dashboard");
+        router.push(afterSignInUrl);
       } else {
         console.warn("Additional steps required for login:", result);
       }
@@ -74,7 +90,7 @@ export function SignIn() {
       await clerk.client.signIn.authenticateWithRedirect({
         strategy: "oauth_google",
         redirectUrl: "/sso-callback",
-        redirectUrlComplete: "/dashboard",
+        redirectUrlComplete: afterSignInUrl,
       });
     } catch (err: unknown) {
       console.error("Google SSO error:", err);
@@ -86,7 +102,7 @@ export function SignIn() {
   return (
     <main className="flex flex-1 flex-col px-5 pb-8 pt-10">
       <section className="mb-8 text-center">
-        <DrivingSchoolProfile school={mockDrivingSchool} />
+        <DrivingSchoolProfile school={schoolProfile} />
         <h1 className="mt-6 text-2xl font-bold text-slate-900">Sign in</h1>
         <p className="mt-1 text-sm text-slate-500">
           Access your lessons, bookings, and account.

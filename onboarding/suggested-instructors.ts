@@ -137,7 +137,9 @@ export function instructorMatchesSuburb(
   if (
     homeSuburb === trimmed ||
     homeSuburb.includes(trimmed) ||
-    homePostcode.includes(normalizedPostcode)
+    trimmed.includes(homeSuburb) ||
+    homePostcode.includes(normalizedPostcode) ||
+    normalizedPostcode.includes(homePostcode)
   ) {
     return true;
   }
@@ -145,7 +147,11 @@ export function instructorMatchesSuburb(
   const serviceAreas = instructorServiceSuburbs[instructor.id] ?? [instructor.suburb];
   return serviceAreas.some((suburb) => {
     const normalizedSuburb = suburb.toLowerCase();
-    return normalizedSuburb === trimmed || normalizedSuburb.includes(trimmed);
+    return (
+      normalizedSuburb === trimmed ||
+      normalizedSuburb.includes(trimmed) ||
+      trimmed.includes(normalizedSuburb)
+    );
   });
 }
 

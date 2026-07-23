@@ -18,6 +18,7 @@ export const mockModernSiteConfig = {
       "Welcome to our driving school! Book lessons online and learn with certified instructors.",
     pickupHint: "We'll use this to find instructors near you.",
     loginPath: "/login",
+    logoUrl: "/schools/drive-right-logo.svg",
     navLinks: [...mockModernNavLinks],
     transmissionOptions: [...mockModernTransmissionOptions],
     lessonDurations: [...mockModernLessonDurations],

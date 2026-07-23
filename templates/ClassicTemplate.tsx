@@ -16,7 +16,8 @@ import {
   resolveGoogleReviews,
   resolveSchoolProfile,
 } from "@/login/school-profile";
-import { SuburbAutocomplete } from "./SuburbAutocomplete";
+import { useSchool } from "@/dashboard/SchoolContext";
+import { GoogleAddressAutocomplete } from "@/components/GoogleAddressAutocomplete";
 import type { TemplateProps } from "./types";
 
 function SearchIcon({ className }: Readonly<{ className?: string }>) {
@@ -89,7 +90,12 @@ export function ClassicTemplate({ data }: Readonly<TemplateProps>) {
   const [isSearching, setIsSearching] = useState(false);
   const futureDates = useMemo(() => buildFutureDates(), []);
   const selectedTestDate = getSelectedRescheduleDate(futureDates, testDateId);
-  const school = resolveSchoolProfile(data);
+  const { schoolName, logoUrl } = useSchool();
+  const school = resolveSchoolProfile(
+    data,
+    { schoolName, logoUrl },
+    { fallbackToMock: true },
+  );
   const googleReviews = resolveGoogleReviews(data);
   const canSearch = suburb.trim().length > 0;
 
@@ -162,16 +168,17 @@ export function ClassicTemplate({ data }: Readonly<TemplateProps>) {
           <form className="mt-5 space-y-5" onSubmit={handleSearch}>
             <div className="space-y-2">
               <label
-                htmlFor="pickup-suburb"
+                htmlFor="pickup-address"
                 className="text-sm font-semibold text-slate-900"
               >
                 Pick-up Location <span className="text-orange-500">*</span>
               </label>
-              <SuburbAutocomplete
-                id="pickup-suburb"
+              <GoogleAddressAutocomplete
+                id="pickup-address"
                 value={suburb}
                 onChange={setSuburb}
-                placeholder="Enter your suburb"
+                onSelect={setSuburb}
+                placeholder="Enter pick up address"
                 inputClassName={`${fieldClassName} py-3.5 pl-11 pr-4 placeholder:text-slate-400`}
                 icon={
                   <SearchIcon className="pointer-events-none absolute left-4 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -203,7 +210,7 @@ export function ClassicTemplate({ data }: Readonly<TemplateProps>) {
                   htmlFor="test-date"
                   className="text-sm font-semibold text-slate-900"
                 >
-                  Test pre-booked?
+                  Pick date
                 </label>
                 <p className="text-xs text-slate-400">
                   Optional, helps match availability

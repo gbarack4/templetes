@@ -8,6 +8,7 @@ import { CalendarPickerModal } from "@/dashboard/components/CalendarPickerModal"
 import { getSelectedRescheduleDate } from "@/dashboard/components/RescheduleCalendar";
 import { buildOnboardingSearchPath, getOnboardingBasePath } from "@/onboarding/paths";
 import { resolveAvailableDates, resolveModernSite } from "@/templates/resolve-modern-site";
+import { useSchool } from "@/dashboard/SchoolContext";
 import { SuburbAutocomplete } from "./SuburbAutocomplete";
 import type { TemplateProps } from "./types";
 
@@ -120,7 +121,12 @@ const fieldClassName =
 export function ModernTemplate({ data }: Readonly<TemplateProps>) {
   const router = useRouter();
   const pathname = usePathname();
-  const site = useMemo(() => resolveModernSite(data), [data]);
+  const { schoolName, logoUrl } = useSchool();
+  const site = useMemo(
+    () =>
+      resolveModernSite(data, { schoolName, logoUrl }, { fallbackToMock: true }),
+    [data, schoolName, logoUrl],
+  );
   const availableDates = useMemo(
     () => resolveAvailableDates(data, site.availableDates),
     [data, site.availableDates],
@@ -161,18 +167,25 @@ export function ModernTemplate({ data }: Readonly<TemplateProps>) {
       <header className="shrink-0 border-b border-slate-100 bg-white px-5 py-4">
         <div className="flex items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
-            <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-full bg-blue-50 ring-1 ring-blue-100">
-              <Image
-                src={site.school.logoUrl}
-                alt={`${site.school.name} logo`}
-                width={32}
-                height={32}
-                className="h-full w-full object-cover"
-              />
-            </div>
-            <div className="min-w-0">
-              <p className="truncate text-base font-bold text-slate-900">{site.brandName}</p>
-            </div>
+            {site.school.logoUrl ? (
+              <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-full bg-blue-50 ring-1 ring-blue-100">
+                <Image
+                  src={site.school.logoUrl}
+                  alt={`${site.school.name} logo`}
+                  width={32}
+                  height={32}
+                  className="h-full w-full object-cover"
+                  unoptimized={/^https?:\/\//i.test(site.school.logoUrl)}
+                />
+              </div>
+            ) : null}
+            {site.school.name ? (
+              <div className="min-w-0">
+                <p className="truncate text-base font-bold text-slate-900">
+                  {site.brandName}
+                </p>
+              </div>
+            ) : null}
           </div>
 
           <div className="flex shrink-0 items-center gap-2">

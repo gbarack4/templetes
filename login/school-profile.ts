@@ -15,11 +15,23 @@ export const mockGoogleReviews = {
   reviewCount: 2400,
 } as const;
 
-export function resolveSchoolProfile(data: SiteConfig): DrivingSchoolProfile {
-  return {
-    name: data.schoolName || mockDrivingSchool.name,
-    logoUrl: data.logoUrl || mockDrivingSchool.logoUrl,
-  };
+export function resolveSchoolProfile(
+  data: SiteConfig,
+  branding?: Readonly<{ schoolName?: string; logoUrl?: string }>,
+  options?: Readonly<{ fallbackToMock?: boolean }>,
+): DrivingSchoolProfile {
+  const fallbackToMock = options?.fallbackToMock ?? false;
+  const name =
+    branding?.schoolName?.trim() ||
+    data.schoolName?.trim() ||
+    (fallbackToMock ? mockDrivingSchool.name : "");
+  const logoUrl =
+    branding?.logoUrl?.trim() ||
+    data.config?.logoUrl?.trim() ||
+    data.logoUrl?.trim() ||
+    (fallbackToMock ? mockDrivingSchool.logoUrl : "");
+
+  return { name, logoUrl };
 }
 
 export function resolveGoogleReviews(data: SiteConfig) {

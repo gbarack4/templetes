@@ -9,11 +9,7 @@ const HIDDEN_NAV_PREFIXES = [
   "/dashboard/buy-hours",
   "/dashboard/book",
   "/dashboard/instructor",
-  "/dashboard/account/change-password",
-  "/dashboard/account/sign-in-links",
-  "/dashboard/account/personal-information",
-  "/dashboard/account/driving-details",
-  "/dashboard/account/privacy-and-data",
+  "/dashboard/account",
 ];
 
 export function DashboardShell({

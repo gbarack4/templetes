@@ -25,6 +25,7 @@ type GoogleAddressAutocompleteProps = Readonly<{
   inputClassName?: string;
   biasSuburb?: string;
   biasPostcode?: string;
+  icon?: ReactNode;
 }>;
 
 const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
@@ -287,6 +288,7 @@ export function GoogleAddressAutocomplete({
   inputClassName,
   biasSuburb,
   biasPostcode,
+  icon,
 }: GoogleAddressAutocompleteProps) {
   const listId = useId();
   const inputId = id ?? listId;
@@ -353,6 +355,7 @@ export function GoogleAddressAutocomplete({
 
   return (
     <div ref={containerRef} className="relative">
+      {icon}
       <input
         id={inputId}
         type="text"

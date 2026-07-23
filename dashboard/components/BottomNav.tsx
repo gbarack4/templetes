@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
   HomeIcon,
@@ -30,60 +29,18 @@ function getActiveNavIndex(pathname: string) {
   return 0;
 }
 
-const SCROLL_THRESHOLD = 8;
-const TOP_OFFSET = 24;
-
 export function BottomNav() {
   const router = useRouter();
   const pathname = usePathname();
   const activeIndex = getActiveNavIndex(pathname);
   const itemWidth = `calc((100% - 16px) / ${navItems.length})`;
-  const [visible, setVisible] = useState(true);
-  const lastScrollY = useRef(0);
-
-  useEffect(() => {
-    const scroller = document.querySelector<HTMLElement>("[data-dashboard-scroll]");
-    if (!scroller) return;
-
-    lastScrollY.current = scroller.scrollTop;
-
-    function onScroll() {
-      if (!scroller) return;
-      const currentY = scroller.scrollTop;
-      const delta = currentY - lastScrollY.current;
-
-      if (currentY <= TOP_OFFSET) {
-        setVisible(true);
-      } else if (delta > SCROLL_THRESHOLD) {
-        setVisible(false);
-      } else if (delta < -SCROLL_THRESHOLD) {
-        setVisible(true);
-      }
-
-      lastScrollY.current = currentY;
-    }
-
-    scroller.addEventListener("scroll", onScroll, { passive: true });
-    return () => scroller.removeEventListener("scroll", onScroll);
-  }, [pathname]);
 
   return (
     <nav
-      className={`shrink-0 border-t border-slate-100 bg-white transition-[margin] duration-300 ease-out ${
-        visible ? "mb-0" : "-mb-[var(--bottom-nav-height,4.25rem)]"
-      }`}
-      style={
-        {
-          "--bottom-nav-height": "4.25rem",
-          paddingBottom: "env(safe-area-inset-bottom, 0px)",
-        } as CSSProperties
-      }
+      className="shrink-0 border-t border-slate-100 bg-white"
+      style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
     >
-      <div
-        className={`relative flex px-2 py-2 transition-transform duration-300 ease-out ${
-          visible ? "translate-y-0" : "translate-y-full"
-        }`}
-      >
+      <div className="relative flex px-2 py-2">
         <div
           aria-hidden
           className="absolute inset-y-2 rounded-xl bg-slate-100 transition-transform duration-200 ease-out"

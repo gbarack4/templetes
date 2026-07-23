@@ -47,9 +47,9 @@ const statusBadges: Record<
 
 function DateBlock({ month, day, weekday }: Pick<Lesson, "month" | "day" | "weekday">) {
   return (
-    <div className="flex h-16 w-16 shrink-0 flex-col items-center justify-center rounded-xl bg-white">
-      <span className="text-xs font-semibold tracking-wide text-blue-600">{month}</span>
-      <span className="text-2xl font-bold leading-none text-slate-900">{day}</span>
+    <div className="flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-lg bg-white">
+      <span className="text-[10px] font-semibold tracking-wide text-blue-600">{month}</span>
+      <span className="text-xl font-bold leading-none text-slate-900">{day}</span>
       <span className="text-[10px] font-medium text-slate-900">{weekday}</span>
     </div>
   );
@@ -111,22 +111,22 @@ export function LessonCard({
           handleCardClick();
         }
       }}
-      className="relative cursor-pointer rounded-2xl bg-slate-50 p-4 transition hover:bg-slate-100"
+      className="relative cursor-pointer rounded-2xl bg-slate-50 p-3 transition hover:bg-slate-100"
     >
-      <div className="flex gap-4">
+      <div className="flex gap-3">
         <DateBlock month={lesson.month} day={lesson.day} weekday={lesson.weekday} />
-        <div className={`flex min-w-0 flex-1 flex-col justify-between gap-3 ${isUpcoming ? "pr-6" : ""}`}>
+        <div className={`flex min-w-0 flex-1 flex-col justify-between gap-2 ${isUpcoming ? "pr-5" : ""}`}>
           <div>
             <div className="flex items-start justify-between gap-2">
-              <p className="font-semibold text-slate-900">{lesson.timeRange}</p>
+              <p className="text-sm font-semibold text-slate-900">{lesson.timeRange}</p>
               <span
-                className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${badge.className}`}
+                className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${badge.className}`}
               >
                 {badge.label(lesson.hours)}
               </span>
             </div>
-            <div className="mt-2">
-              <InstructorProfileSummary instructor={instructor} />
+            <div className="mt-1.5">
+              <InstructorProfileSummary instructor={instructor} compact />
             </div>
           </div>
           {isCompleted && (
@@ -138,7 +138,7 @@ export function LessonCard({
                 event.stopPropagation();
                 handleOpenReview();
               }}
-              className={`inline-flex h-8 min-w-[7.75rem] items-center justify-center self-end rounded-lg px-4 text-sm font-medium transition ${
+              className={`inline-flex h-7 min-w-[7.25rem] items-center justify-center self-end rounded-lg px-3 text-xs font-medium transition ${
                 isReviewed
                   ? "cursor-default border border-green-200 bg-green-50 text-green-700"
                   : isOpeningReview
@@ -163,7 +163,7 @@ export function LessonCard({
                 event.stopPropagation();
                 handleReschedule();
               }}
-              className={`inline-flex h-8 min-w-[6.875rem] items-center justify-center self-end rounded-lg px-4 text-sm font-medium transition ${
+              className={`inline-flex h-7 min-w-[6.5rem] items-center justify-center self-end rounded-lg px-3 text-xs font-medium transition ${
                 isRescheduling
                   ? `${actionButtonStyles.upcoming} pointer-events-none`
                   : actionButtonStyles.upcoming
@@ -187,9 +187,9 @@ export function LessonCard({
             event.stopPropagation();
             handleCancel();
           }}
-          className="absolute right-3 top-3 rounded-lg p-1 text-slate-400 transition hover:bg-white hover:text-slate-600"
+          className="absolute right-2 top-2 rounded-lg p-1 text-slate-400 transition hover:bg-white hover:text-slate-600"
         >
-          <MoreVerticalIcon className="h-5 w-5" />
+          <MoreVerticalIcon className="h-4 w-4" />
         </button>
       )}
 

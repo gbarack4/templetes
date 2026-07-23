@@ -12,20 +12,31 @@ type InstructorSearchProps = Readonly<{
 
 export function InstructorProfileSummary({
   instructor,
-}: Readonly<{ instructor: InstructorOption }>) {
+  compact = false,
+}: Readonly<{ instructor: InstructorOption; compact?: boolean }>) {
   return (
-    <div className="flex gap-3">
-      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-slate-200 text-sm font-semibold text-slate-600">
+    <div className={`flex ${compact ? "gap-2.5" : "gap-3"}`}>
+      <div
+        className={`flex shrink-0 items-center justify-center rounded-full bg-slate-200 font-semibold text-slate-600 ${
+          compact ? "h-9 w-9 text-xs" : "h-12 w-12 text-sm"
+        }`}
+      >
         {instructor.initials}
       </div>
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-semibold text-slate-900">{instructor.name}</p>
+        <p
+          className={`font-semibold text-slate-900 ${compact ? "text-sm leading-tight" : "text-sm"}`}
+        >
+          {instructor.name}
+        </p>
         <p className="mt-0.5 text-xs font-medium text-amber-600">
           ★ {instructor.rating.toFixed(1)} · {instructor.reviewCount} reviews
         </p>
-        <p className="mt-0.5 text-xs text-slate-500">
-          {instructor.lessonsCompleted.toLocaleString()} lessons completed
-        </p>
+        {!compact ? (
+          <p className="mt-0.5 text-xs text-slate-500">
+            {instructor.lessonsCompleted.toLocaleString()} lessons completed
+          </p>
+        ) : null}
       </div>
     </div>
   );

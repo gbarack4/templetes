@@ -9,6 +9,7 @@ export interface LessonPackageOption {
 }
 
 export interface SiteConfig {
+  schoolId?: string;
   schoolName: string;
   templateName: string;
   logoUrl?: string;

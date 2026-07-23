@@ -1,3 +1,4 @@
+import { clerkMiddleware } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
@@ -11,9 +12,14 @@ const SYSTEM_PATHS = [
   "/login",
   "/sign-up",
   "/sso-callback",
+  "/__clerk",
 ];
 
-export default function middleware(req: NextRequest) {
+function isProtectedPath(pathname: string) {
+  return pathname.startsWith("/dashboard");
+}
+
+function applyDomainRewrite(req: NextRequest) {
   const url = req.nextUrl.clone();
   const hostname = req.headers.get("host");
 
@@ -52,6 +58,32 @@ export default function middleware(req: NextRequest) {
   return NextResponse.rewrite(url);
 }
 
+export default clerkMiddleware(
+  async (auth, req) => {
+    if (isProtectedPath(req.nextUrl.pathname)) {
+      const { userId } = await auth();
+      if (!userId) {
+        const loginUrl = new URL("/login", req.url);
+        loginUrl.searchParams.set(
+          "redirect_url",
+          `${req.nextUrl.pathname}${req.nextUrl.search}`,
+        );
+        return NextResponse.redirect(loginUrl);
+      }
+    }
+
+    return applyDomainRewrite(req);
+  },
+  {
+    signInUrl: "/login",
+    signUpUrl: "/sign-up",
+  },
+);
+
 export const config = {
-  matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],
+  matcher: [
+    "/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
+    "/(api|trpc)(.*)",
+    "/__clerk/(.*)",
+  ],
 };

@@ -6,7 +6,7 @@ import Image from "next/image";
 import { ButtonSpinner } from "@/components/ButtonSpinner";
 import { DEFAULT_STUDENT_AVATAR } from "./student-avatar";
 import { EditProfilePhotoModal } from "./components/EditProfilePhotoModal";
-import { ChevronRightIcon } from "./components/icons";
+import { ChevronRightIcon, CloseIcon } from "./components/icons";
 import { useClerk } from "@clerk/nextjs";
 import { useStudent } from "@/shared/hooks/useStudent";
 
@@ -285,7 +285,18 @@ export function AccountSettings() {
   }
 
   return (
-    <main className="flex-1 space-y-6 px-5 pb-6 pt-6">
+    <>
+      <header className="flex shrink-0 items-center px-5 pt-4">
+        <button
+          type="button"
+          onClick={() => router.push("/dashboard")}
+          aria-label="Close"
+          className="rounded-lg p-2 text-slate-600 transition hover:bg-slate-50"
+        >
+          <CloseIcon className="h-5 w-5" />
+        </button>
+      </header>
+      <main className="flex-1 space-y-6 px-5 pb-6 pt-2">
       <section>
         <h1 className="text-xl font-bold text-slate-900">Account</h1>
         <p className="mt-0.5 text-xs text-slate-500">
@@ -422,5 +433,6 @@ export function AccountSettings() {
         )}
       </button>
     </main>
+    </>
   );
 }
