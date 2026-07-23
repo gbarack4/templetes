@@ -1,6 +1,4 @@
-const STORAGE_KEY = "student-avatar-url";
 export const DEFAULT_STUDENT_AVATAR = "/avatars/presets/avatar-01.svg";
-export const AVATAR_UPDATED_EVENT = "student-avatar-updated";
 
 export const PRESET_AVATARS = [
   "/avatars/presets/avatar-01.svg",
@@ -39,27 +37,6 @@ export const PRESET_AVATARS = [
 
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
 const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
-
-export function getStudentAvatarUrl(fallback = DEFAULT_STUDENT_AVATAR): string {
-  if (typeof window === "undefined") return fallback;
-  return sessionStorage.getItem(STORAGE_KEY) ?? fallback;
-}
-
-function dispatchAvatarUpdate(url: string | null) {
-  window.dispatchEvent(
-    new CustomEvent<string | null>(AVATAR_UPDATED_EVENT, { detail: url }),
-  );
-}
-
-export function setStudentAvatarUrl(url: string) {
-  sessionStorage.setItem(STORAGE_KEY, url);
-  dispatchAvatarUpdate(url);
-}
-
-export function clearStudentAvatarUrl() {
-  sessionStorage.removeItem(STORAGE_KEY);
-  dispatchAvatarUpdate(null);
-}
 
 export function validateProfilePhoto(file: File): string | null {
   if (!ACCEPTED_IMAGE_TYPES.includes(file.type)) {

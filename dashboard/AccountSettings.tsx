@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { ButtonSpinner } from "@/components/ButtonSpinner";
-import { useStudentAvatar } from "./useStudentAvatar";
+import { DEFAULT_STUDENT_AVATAR } from "./student-avatar";
 import { EditProfilePhotoModal } from "./components/EditProfilePhotoModal";
 import { ChevronRightIcon } from "./components/icons";
 import { useClerk } from "@clerk/nextjs";
@@ -246,8 +246,8 @@ export function AccountSettings() {
     phone: "",
   });
 
-  const rawAvatarUrl = student?.user?.avatarUrl || "";
-  const avatarUrl = useStudentAvatar(rawAvatarUrl);
+  const avatarUrl =
+    student?.avatarUrl || student?.user?.avatarUrl || DEFAULT_STUDENT_AVATAR;
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [imageError, setImageError] = useState(false);
 

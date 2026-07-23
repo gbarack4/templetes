@@ -9,7 +9,7 @@ import { consumeCancelledLessonId } from "./cancel-booking";
 import { consumeBookedLesson } from "./book-lesson";
 import { LessonCard } from "./components/LessonCard";
 import { NotificationsPanel } from "./components/NotificationsPanel";
-import { useStudentAvatar } from "./useStudentAvatar";
+import { DEFAULT_STUDENT_AVATAR } from "./student-avatar";
 import { useStudentCreditHours } from "./useStudentCreditHours";
 import { BellIcon, CalendarIcon } from "./components/icons";
 import { useStudent } from "@/shared/hooks/useStudent";
@@ -120,10 +120,14 @@ export function Dashboard({ data = mockDashboardData }: DashboardProps) {
       .filter(Boolean)
       .join(" ") ||
     "User";
-  const rawAvatarUrl = student?.user?.avatarUrl || data.avatarUrl;
+
+  const avatarUrl =
+    student?.avatarUrl ||
+    student?.user?.avatarUrl ||
+    data.avatarUrl ||
+    DEFAULT_STUDENT_AVATAR;
 
   const completedLessons = data.completedLessons;
-  const avatarUrl = useStudentAvatar(rawAvatarUrl);
   const unreadNotificationCount = notifications.filter(
     (notification) => !notification.read,
   ).length;

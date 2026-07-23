@@ -2,13 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import {
-  clearStudentAvatarUrl,
-  DEFAULT_STUDENT_AVATAR,
-  PRESET_AVATARS,
-  setStudentAvatarUrl,
-} from "../student-avatar";
+import { DEFAULT_STUDENT_AVATAR, PRESET_AVATARS } from "../student-avatar";
 import { useIsClient } from "@/shared/hooks/useIsClient";
+import { useUpdateStudentAvatar } from "@/shared/hooks/useStudent";
 
 type EditProfilePhotoModalProps = Readonly<{
   currentAvatarUrl: string;
@@ -24,8 +20,10 @@ export function EditProfilePhotoModal({
   onSave,
 }: EditProfilePhotoModalProps) {
   const [selectedUrl, setSelectedUrl] = useState(currentAvatarUrl);
+  const [error, setError] = useState<string | null>(null);
 
   const isClient = useIsClient();
+  const { mutate: updateAvatar, isPending } = useUpdateStudentAvatar();
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
@@ -49,15 +47,29 @@ export function EditProfilePhotoModal({
   }, [onClose]);
 
   function handleSave() {
-    setStudentAvatarUrl(selectedUrl);
-    onSave(selectedUrl);
-    onClose();
+    setError(null);
+    updateAvatar(selectedUrl, {
+      onSuccess: () => {
+        onSave(selectedUrl);
+        onClose();
+      },
+      onError: () => {
+        setError("Couldn't save your photo. Please try again.");
+      },
+    });
   }
 
   function handleRemove() {
-    clearStudentAvatarUrl();
-    onSave(DEFAULT_STUDENT_AVATAR);
-    onClose();
+    setError(null);
+    updateAvatar(null, {
+      onSuccess: () => {
+        onSave(DEFAULT_STUDENT_AVATAR);
+        onClose();
+      },
+      onError: () => {
+        setError("Couldn't remove your photo. Please try again.");
+      },
+    });
   }
 
   const hasChanges = selectedUrl !== currentAvatarUrl;
@@ -115,6 +127,9 @@ export function EditProfilePhotoModal({
             <p className="mt-3 text-center text-sm text-slate-500">
               Choose an avatar for your student profile.
             </p>
+            {error && (
+              <p className="mt-2 text-center text-sm text-red-600">{error}</p>
+            )}
           </div>
 
           <div
@@ -133,7 +148,8 @@ export function EditProfilePhotoModal({
                   aria-selected={isSelected}
                   aria-label={`Avatar option ${index + 1}`}
                   onClick={() => setSelectedUrl(avatarUrl)}
-                  className={`relative aspect-square overflow-hidden rounded-full bg-slate-100 transition ${
+                  disabled={isPending}
+                  className={`relative aspect-square overflow-hidden rounded-full bg-slate-100 transition disabled:opacity-50 ${
                     isSelected
                       ? "ring-2 ring-blue-600 ring-offset-2"
                       : "ring-1 ring-slate-200 hover:ring-slate-300"
@@ -154,17 +170,18 @@ export function EditProfilePhotoModal({
           <button
             type="button"
             onClick={handleSave}
-            disabled={!hasChanges}
+            disabled={!hasChanges || isPending}
             className="w-full rounded-lg bg-blue-600 py-3 text-sm font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
           >
-            Save photo
+            {isPending ? "Saving..." : "Save photo"}
           </button>
 
           {isCustomPhoto && (
             <button
               type="button"
               onClick={handleRemove}
-              className="w-full rounded-lg py-3 text-sm font-medium text-red-600 transition hover:bg-red-50"
+              disabled={isPending}
+              className="w-full rounded-lg py-3 text-sm font-medium text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
               Reset to default
             </button>
