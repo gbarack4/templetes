@@ -2,7 +2,12 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@clerk/nextjs";
-import { fetchStudentProfile, updateStudentAvatar } from "@/lib/student-api";
+import {
+  fetchStudentProfile,
+  updateStudentAvatar,
+  updateStudentPersonalInfo,
+  type UpdateStudentPersonalInfoPayload,
+} from "@/lib/student-api";
 import { useSchoolId } from "@/dashboard/SchoolContext";
 
 export interface StudentData {
@@ -58,6 +63,22 @@ export function useUpdateStudentAvatar() {
     mutationFn: async (avatarUrl: string | null) => {
       const token = await getToken();
       return updateStudentAvatar(schoolId, avatarUrl, token);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["student", schoolId] });
+    },
+  });
+}
+
+export function useUpdateStudentPersonalInfo() {
+  const schoolId = useSchoolId();
+  const { getToken } = useAuth();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (data: UpdateStudentPersonalInfoPayload) => {
+      const token = await getToken();
+      return updateStudentPersonalInfo(schoolId, data, token);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["student", schoolId] });

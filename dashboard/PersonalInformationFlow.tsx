@@ -5,7 +5,11 @@ import { useRouter } from "next/navigation";
 import { FlowPageContent } from "./components/FlowPageContent";
 import { FlowPageHeader } from "./components/FlowPageHeader";
 import { ChevronRightIcon } from "./components/icons";
-import { useStudent, type StudentData } from "@/shared/hooks/useStudent";
+import {
+  useStudent,
+  useUpdateStudentPersonalInfo,
+  type StudentData,
+} from "@/shared/hooks/useStudent";
 
 function EditableField({
   label,
@@ -15,6 +19,8 @@ function EditableField({
   onEditStart,
   onEditEnd,
   type = "text",
+  disabled = false,
+  helperText,
 }: Readonly<{
   label: string;
   value: string;
@@ -23,6 +29,8 @@ function EditableField({
   onEditStart?: () => void;
   onEditEnd?: () => void;
   type?: "text" | "email" | "tel";
+  disabled?: boolean;
+  helperText?: string;
 }>) {
   const [isFocused, setIsFocused] = useState(false);
   const isEdited = value !== initialValue;
@@ -35,6 +43,7 @@ function EditableField({
         <input
           type={type}
           value={value}
+          disabled={disabled}
           onChange={(event) => onChange(event.target.value)}
           onFocus={() => {
             setIsFocused(true);
@@ -44,7 +53,7 @@ function EditableField({
             setIsFocused(false);
             onEditEnd?.();
           }}
-          className={`w-full rounded-xl py-3 pl-4 pr-10 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 ${
+          className={`w-full rounded-xl py-3 pl-4 pr-10 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 disabled:cursor-not-allowed disabled:text-slate-400 ${
             showBorder
               ? isFocused
                 ? "border border-blue-500 bg-white ring-2 ring-blue-100"
@@ -52,15 +61,17 @@ function EditableField({
               : "border border-transparent bg-slate-50"
           }`}
         />
-        <ChevronRightIcon className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+        {!disabled && (
+          <ChevronRightIcon className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+        )}
       </div>
+      {helperText && <p className="text-xs text-slate-400">{helperText}</p>}
     </div>
   );
 }
 
 function useEditableSection(initial: {
   fullName: string;
-  email: string;
   phone: string;
   address: string;
 }) {
@@ -92,19 +103,16 @@ function useEditableSection(initial: {
     setValues((current) => ({ ...current, [field]: value }));
   }
 
-  function save() {
+  function commit() {
     if (blurTimeout.current) {
       clearTimeout(blurTimeout.current);
       blurTimeout.current = null;
     }
     setSaved(values);
     setEditing(false);
-
-    // TODO: Here in the future you need to add an API call to save on the backend
-    // await updateStudentProfile(values);
   }
 
-  return { saved, values, showSave, handleFocus, handleBlur, update, save };
+  return { saved, values, showSave, handleFocus, handleBlur, update, commit };
 }
 
 function PersonalInformationForm({
@@ -119,15 +127,28 @@ function PersonalInformationForm({
 
   const email = student.email || student.user?.email || "";
   const phone = student.phone || student.user?.phoneNumber || "";
-
   const address = student.user?.address || "";
 
-  const section = useEditableSection({
-    fullName,
-    email,
-    phone,
-    address,
-  });
+  const section = useEditableSection({ fullName, phone, address });
+  const { mutate: savePersonalInfo, isPending } =
+    useUpdateStudentPersonalInfo();
+  const [error, setError] = useState<string | null>(null);
+
+  function handleSave() {
+    setError(null);
+    savePersonalInfo(
+      {
+        fullName: section.values.fullName,
+        phone: section.values.phone || null,
+        address: section.values.address || null,
+      },
+      {
+        onSuccess: () => section.commit(),
+        onError: () =>
+          setError("Couldn't save your changes. Please try again."),
+      },
+    );
+  }
 
   return (
     <>
@@ -143,11 +164,11 @@ function PersonalInformationForm({
         <EditableField
           label="Email"
           type="email"
-          value={section.values.email}
-          initialValue={section.saved.email}
-          onChange={(value) => section.update("email", value)}
-          onEditStart={section.handleFocus}
-          onEditEnd={section.handleBlur}
+          value={email}
+          initialValue={email}
+          onChange={() => {}}
+          disabled
+          helperText="Managed through your sign-in settings"
         />
         <EditableField
           label="Phone"
@@ -168,14 +189,17 @@ function PersonalInformationForm({
         />
       </div>
 
+      {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
+
       {section.showSave ? (
         <button
           type="button"
           onMouseDown={(event) => event.preventDefault()}
-          onClick={section.save}
-          className="mt-6 w-full rounded-lg bg-blue-600 py-3 text-sm font-medium text-white transition hover:bg-blue-700"
+          onClick={handleSave}
+          disabled={isPending}
+          className="mt-6 w-full rounded-lg bg-blue-600 py-3 text-sm font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
         >
-          Save
+          {isPending ? "Saving..." : "Save"}
         </button>
       ) : null}
     </>

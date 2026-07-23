@@ -20,6 +20,36 @@ export async function fetchStudentProfile(
   return response.json();
 }
 
+export interface UpdateStudentPersonalInfoPayload {
+  fullName: string;
+  phone: string | null;
+  address: string | null;
+}
+
+export async function updateStudentPersonalInfo(
+  schoolId: string,
+  data: UpdateStudentPersonalInfoPayload,
+  token: string | null,
+) {
+  const response = await fetch(
+    `${process.env.NEXT_PUBLIC_API_URL}/students/school/${schoolId}/me/personal-info`,
+    {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify(data),
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error("Failed to update personal information");
+  }
+
+  return response.json();
+}
+
 export async function updateStudentAvatar(
   schoolId: string,
   avatarUrl: string | null,
