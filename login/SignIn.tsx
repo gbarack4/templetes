@@ -30,6 +30,9 @@ export function SignIn() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [needsCode, setNeedsCode] = useState(false);
+  const [verificationCode, setVerificationCode] = useState("");
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
@@ -44,15 +47,19 @@ export function SignIn() {
     return null;
   }
 
-  const canSubmit =
+  const canSubmitCredentials =
     email.trim().length > 0 &&
     password.length >= 6 &&
     !isSubmitting &&
     !isGoogleSubmitting;
 
-  async function handleSubmit(event: React.SyntheticEvent<HTMLFormElement>) {
+  const canSubmitCode = verificationCode.length === 6 && !isSubmitting;
+
+  async function handleCredentialsSubmit(
+    event: React.SyntheticEvent<HTMLFormElement>,
+  ) {
     event.preventDefault();
-    if (!clerk.loaded || !canSubmit) return;
+    if (!clerk.loaded || !canSubmitCredentials) return;
 
     setIsSubmitting(true);
     setErrorMsg("");
@@ -67,10 +74,10 @@ export function SignIn() {
         await clerk.setActive({ session: result.createdSessionId });
         router.push(afterSignInUrl);
       } else if (result.status === "needs_second_factor") {
-        console.warn("Blocked by browser ETP:", result);
-        setErrorMsg(
-          "Browser is blocking authorization cookies. Please click the shield icon in the URL bar and disable Tracking Protection for localhost.",
-        );
+        await clerk.client.signIn.prepareSecondFactor({
+          strategy: "email_code",
+        });
+        setNeedsCode(true);
       } else {
         console.warn("Additional steps required for login:", result);
         setErrorMsg(
@@ -82,6 +89,39 @@ export function SignIn() {
       const clerkError = err as { errors?: Array<{ longMessage?: string }> };
       setErrorMsg(
         clerkError.errors?.[0]?.longMessage || "Invalid email or password.",
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function handleCodeSubmit(
+    event: React.SyntheticEvent<HTMLFormElement>,
+  ) {
+    event.preventDefault();
+    if (!clerk.loaded || !canSubmitCode) return;
+
+    setIsSubmitting(true);
+    setErrorMsg("");
+
+    try {
+      const result = await clerk.client.signIn.attemptSecondFactor({
+        strategy: "email_code",
+        code: verificationCode,
+      });
+
+      if (result.status === "complete") {
+        await clerk.setActive({ session: result.createdSessionId });
+        router.push(afterSignInUrl);
+      } else {
+        setErrorMsg("Verification failed. Please try again.");
+      }
+    } catch (err: unknown) {
+      console.error("Verification error:", err);
+      const clerkError = err as { errors?: Array<{ longMessage?: string }> };
+      setErrorMsg(
+        clerkError.errors?.[0]?.longMessage ||
+          "Invalid code. Please try again.",
       );
     } finally {
       setIsSubmitting(false);
@@ -111,9 +151,13 @@ export function SignIn() {
     <main className="flex flex-1 flex-col px-5 pb-8 pt-10">
       <section className="mb-8 text-center">
         <DrivingSchoolProfile school={schoolProfile} />
-        <h1 className="mt-6 text-2xl font-bold text-slate-900">Sign in</h1>
+        <h1 className="mt-6 text-2xl font-bold text-slate-900">
+          {needsCode ? "Check your email" : "Sign in"}
+        </h1>
         <p className="mt-1 text-sm text-slate-500">
-          Access your lessons, bookings, and account.
+          {needsCode
+            ? "We sent a verification code to your email."
+            : "Access your lessons, bookings, and account."}
         </p>
       </section>
 
@@ -123,86 +167,134 @@ export function SignIn() {
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="space-y-1.5">
-          <label htmlFor="email" className="text-sm font-medium text-slate-900">
-            Email
-          </label>
-          <input
-            id="email"
-            type="email"
-            autoComplete="email"
-            placeholder="you@email.com"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-          />
-        </div>
+      {needsCode ? (
+        <form onSubmit={handleCodeSubmit} className="space-y-4">
+          <div className="space-y-1.5">
+            <label
+              htmlFor="verificationCode"
+              className="text-sm font-medium text-slate-900"
+            >
+              Verification Code
+            </label>
+            <input
+              id="verificationCode"
+              type="text"
+              maxLength={6}
+              placeholder="Enter 6-digit code"
+              value={verificationCode}
+              onChange={(event) => setVerificationCode(event.target.value)}
+              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-center tracking-[0.5em] font-mono"
+            />
+          </div>
 
-        <div className="space-y-1.5">
-          <label
-            htmlFor="password"
-            className="text-sm font-medium text-slate-900"
+          <button
+            type="submit"
+            disabled={!canSubmitCode || !clerk.loaded}
+            className="w-full rounded-lg bg-blue-600 py-3 text-sm font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
           >
-            Password
-          </label>
-          <input
-            id="password"
-            type="password"
-            autoComplete="current-password"
-            placeholder="Enter your password"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-          />
-        </div>
+            {isSubmitting ? "Verifying..." : "Verify Code"}
+          </button>
 
-        <Link
-          href="/login/forgot-password"
-          className="inline-block text-sm font-medium text-blue-600 hover:text-blue-700"
-        >
-          Forgot password?
-        </Link>
+          <button
+            type="button"
+            onClick={() => {
+              setNeedsCode(false);
+              setVerificationCode("");
+              setErrorMsg("");
+            }}
+            disabled={isSubmitting}
+            className="w-full mt-2 py-3 text-sm font-medium text-slate-600 hover:text-slate-900 transition"
+          >
+            Back to sign in
+          </button>
+        </form>
+      ) : (
+        <>
+          <form onSubmit={handleCredentialsSubmit} className="space-y-4">
+            <div className="space-y-1.5">
+              <label
+                htmlFor="email"
+                className="text-sm font-medium text-slate-900"
+              >
+                Email
+              </label>
+              <input
+                id="email"
+                type="email"
+                autoComplete="email"
+                placeholder="you@email.com"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              />
+            </div>
 
-        <button
-          type="submit"
-          disabled={!canSubmit || !clerk.loaded}
-          className="w-full rounded-lg bg-blue-600 py-3 text-sm font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
-        >
-          {isSubmitting ? "Signing in..." : "Sign in"}
-        </button>
-      </form>
+            <div className="space-y-1.5">
+              <label
+                htmlFor="password"
+                className="text-sm font-medium text-slate-900"
+              >
+                Password
+              </label>
+              <input
+                id="password"
+                type="password"
+                autoComplete="current-password"
+                placeholder="Enter your password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              />
+            </div>
 
-      <div className="relative my-6">
-        <div className="absolute inset-0 flex items-center" aria-hidden>
-          <div className="w-full border-t border-slate-200" />
-        </div>
-        <p className="relative flex justify-center">
-          <span className="bg-white px-3 text-xs font-medium uppercase tracking-wide text-slate-400">
-            or
-          </span>
-        </p>
-      </div>
+            <Link
+              href="/login/forgot-password"
+              className="inline-block text-sm font-medium text-blue-600 hover:text-blue-700"
+            >
+              Forgot password?
+            </Link>
 
-      <button
-        type="button"
-        onClick={handleGoogleSignIn}
-        disabled={isGoogleSubmitting || isSubmitting || !clerk.loaded}
-        className="cursor-pointer flex w-full items-center justify-center gap-3 rounded-lg border border-slate-200 bg-white py-3 text-sm font-medium text-slate-900 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
-      >
-        <GoogleIcon className="h-5 w-5" />
-        {isGoogleSubmitting ? "Signing in..." : "Sign in with Google"}
-      </button>
+            <button
+              type="submit"
+              disabled={!canSubmitCredentials || !clerk.loaded}
+              className="w-full rounded-lg bg-blue-600 py-3 text-sm font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
+            >
+              {isSubmitting ? "Signing in..." : "Sign in"}
+            </button>
+          </form>
 
-      <p className="mt-8 text-center text-sm text-slate-500">
-        Don&apos;t have an account?{" "}
-        <Link
-          href="/sign-up"
-          className="font-medium text-blue-600 hover:text-blue-700"
-        >
-          Create account
-        </Link>
-      </p>
+          <div className="relative my-6">
+            <div className="absolute inset-0 flex items-center" aria-hidden>
+              <div className="w-full border-t border-slate-200" />
+            </div>
+            <p className="relative flex justify-center">
+              <span className="bg-white px-3 text-xs font-medium uppercase tracking-wide text-slate-400">
+                or
+              </span>
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleGoogleSignIn}
+            disabled={isGoogleSubmitting || isSubmitting || !clerk.loaded}
+            className="cursor-pointer flex w-full items-center justify-center gap-3 rounded-lg border border-slate-200 bg-white py-3 text-sm font-medium text-slate-900 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <GoogleIcon className="h-5 w-5" />
+            {isGoogleSubmitting ? "Signing in..." : "Sign in with Google"}
+          </button>
+
+          <p className="mt-8 text-center text-sm text-slate-500">
+            Don&apos;t have an account?{" "}
+            <Link
+              href="/sign-up"
+              className="font-medium text-blue-600 hover:text-blue-700"
+            >
+              Create account
+            </Link>
+          </p>
+        </>
+      )}
     </main>
   );
 }
