@@ -66,8 +66,16 @@ export function SignIn() {
       if (result.status === "complete") {
         await clerk.setActive({ session: result.createdSessionId });
         router.push(afterSignInUrl);
+      } else if (result.status === "needs_second_factor") {
+        console.warn("Blocked by browser ETP:", result);
+        setErrorMsg(
+          "Browser is blocking authorization cookies. Please click the shield icon in the URL bar and disable Tracking Protection for localhost.",
+        );
       } else {
         console.warn("Additional steps required for login:", result);
+        setErrorMsg(
+          `Login cannot proceed. Status: ${result.status}. Check Clerk settings.`,
+        );
       }
     } catch (err: unknown) {
       console.error("Login error:", err);

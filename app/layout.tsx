@@ -6,11 +6,6 @@ import { SchoolProvider } from "@/dashboard/SchoolContext";
 import "./globals.css";
 import { ClerkProvider } from "@clerk/nextjs";
 import { QueryProvider } from "@/shared/providers/QueryProvider";
-import {
-  getDomainFromHost,
-  getSchoolByDomain,
-  resolveSchoolLogoUrl,
-} from "@/lib/api";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -28,20 +23,21 @@ export const viewport: Viewport = {
   maximumScale: 1,
 };
 
-async function getSchoolBranding() {
+async function getSchoolId(): Promise<string> {
   try {
     const headerList = await headers();
     const host = headerList.get("host") || "";
-    const domain = getDomainFromHost(host);
-    const site = await getSchoolByDomain(domain);
+    const domain = host.split(".")[0];
 
-    return {
-      schoolId: site?.schoolId || "",
-      schoolName: site?.schoolName || "",
-      logoUrl: resolveSchoolLogoUrl(site),
-    };
+    const res = await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/public/websites/${domain}`,
+      { cache: "no-store" },
+    );
+    if (!res.ok) return "";
+    const data = await res.json();
+    return data?.schoolId || "";
   } catch {
-    return { schoolId: "", schoolName: "", logoUrl: "" };
+    return "";
   }
 }
 
@@ -50,17 +46,13 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const school = await getSchoolBranding();
+  const schoolId = await getSchoolId();
 
   return (
     <ClerkProvider>
       <html lang="en" className={`${geistSans.variable} antialiased`}>
         <body className="min-h-screen bg-white text-slate-900 flex flex-col font-sans">
-          <SchoolProvider
-            schoolId={school.schoolId}
-            schoolName={school.schoolName}
-            logoUrl={school.logoUrl}
-          >
+          <SchoolProvider schoolId={schoolId}>
             <QueryProvider>
               <SiteLoaderGate>{children}</SiteLoaderGate>
             </QueryProvider>
