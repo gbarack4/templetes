@@ -41,7 +41,11 @@ export function SiteLoaderGate({ children }: SiteLoaderGateProps) {
   return (
     <>
       {isLoading ? <SiteLoader /> : null}
-      <div className={isLoading ? "invisible" : undefined}>{children}</div>
+      <div
+        className={`flex min-h-0 flex-1 flex-col ${isLoading ? "invisible" : ""}`}
+      >
+        {children}
+      </div>
     </>
   );
 }

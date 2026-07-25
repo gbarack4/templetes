@@ -51,7 +51,7 @@ export default async function RootLayout({
   return (
     <ClerkProvider>
       <html lang="en" className={`${geistSans.variable} antialiased`}>
-        <body className="min-h-screen bg-white text-slate-900 flex flex-col font-sans">
+        <body className="flex min-h-dvh flex-col bg-white font-sans text-slate-900">
           <SchoolProvider schoolId={schoolId}>
             <QueryProvider>
               <SiteLoaderGate>{children}</SiteLoaderGate>

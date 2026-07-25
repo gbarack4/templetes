@@ -36,11 +36,8 @@ export function BottomNav() {
   const itemWidth = `calc((100% - 16px) / ${navItems.length})`;
 
   return (
-    <nav
-      className="shrink-0 border-t border-slate-100 bg-white"
-      style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
-    >
-      <div className="relative flex px-2 py-2">
+    <nav className="shrink-0 border-t border-slate-100 bg-white pb-[env(safe-area-inset-bottom,0px)]">
+      <div className="relative flex px-2 py-1.5">
         <div
           aria-hidden
           className="absolute inset-y-2 rounded-xl bg-slate-100 transition-transform duration-200 ease-out"

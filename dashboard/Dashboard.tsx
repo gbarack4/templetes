@@ -80,7 +80,7 @@ function LessonSection({
           View all
         </button>
       </div>
-      <div className="mt-3 min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-y-contain pb-1 [-webkit-overflow-scrolling:touch]">
+      <div className="mt-3 min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-y-contain pb-4 [-webkit-overflow-scrolling:touch]">
         {lessons.length > 0 ? (
           lessons.map((lesson) => (
             <LessonCard
@@ -214,7 +214,7 @@ export function Dashboard({ data = mockDashboardData }: DashboardProps) {
 
   return (
     <>
-      <main className="flex min-h-0 flex-1 flex-col overflow-hidden px-5 pb-6 pt-6">
+      <main className="flex min-h-0 flex-1 flex-col overflow-hidden px-5 pt-6">
         <section className="flex shrink-0 items-start justify-between gap-3">
           <div className="flex items-center gap-3">
             <Image

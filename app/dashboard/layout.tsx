@@ -20,8 +20,8 @@ export default async function DashboardLayout({
   }
 
   return (
-    <div className="h-dvh bg-slate-100">
-      <div className="app-frame relative mx-auto flex h-dvh w-full max-w-md flex-col overflow-hidden bg-white">
+    <div className="fixed inset-0 bg-slate-100">
+      <div className="app-frame relative mx-auto flex h-full min-h-0 w-full max-w-md flex-col overflow-hidden bg-white">
         <StudentSync />
         <DashboardShell>{children}</DashboardShell>
       </div>

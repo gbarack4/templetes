@@ -73,7 +73,7 @@ export function BookingsFlow() {
         onBack={() => router.push("/dashboard")}
       />
 
-      <div className="flex min-h-0 flex-1 flex-col px-5 pb-6 pt-4">
+      <div className="flex min-h-0 flex-1 flex-col px-5 pt-4">
         <div className="shrink-0">
           <label htmlFor="bookings-search" className="sr-only">
             Search bookings
@@ -108,7 +108,7 @@ export function BookingsFlow() {
           })}
         </nav>
 
-        <div className="mt-4 min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-y-contain [-webkit-overflow-scrolling:touch]">
+        <div className="mt-4 min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-y-contain pb-6 [-webkit-overflow-scrolling:touch]">
           {filteredLessons.length > 0 ? (
             filteredLessons.map((lesson) => (
               <LessonCard
