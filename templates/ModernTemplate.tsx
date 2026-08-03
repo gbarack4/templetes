@@ -233,12 +233,7 @@ export function ModernTemplate({ data }: Readonly<TemplateProps>) {
   const pathname = usePathname();
   const { schoolName, logoUrl } = useSchool();
   const site = useMemo(
-    () =>
-      resolveModernSite(
-        data,
-        { schoolName, logoUrl },
-        { fallbackToMock: false },
-      ),
+    () => resolveModernSite(data, { schoolName, logoUrl }),
     [data, schoolName, logoUrl],
   );
   const availableDates = useMemo(
