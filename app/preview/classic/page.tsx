@@ -1,20 +1,34 @@
+import { headers } from "next/headers";
 import { ClassicTemplate } from "@/templates/ClassicTemplate";
-import type { SiteConfig } from "@/templates/types";
 
-const mockClassicSite: SiteConfig = {
-  schoolName: "DriveRight Academy",
-  logoUrl: "/schools/drive-right-logo.svg",
-  templateName: "classic",
-  googleRating: 4.9,
-  googleReviewCount: 2400,
-  config: {
-    primaryColor: "#0f172a",
-    logoUrl: "/schools/drive-right-logo.svg",
-    welcomeText:
-      "Learn to drive with confidence. Trusted instructors and flexible lesson times for every student.",
-  },
-};
+async function getRealSiteConfig() {
+  try {
+    const headerList = await headers();
+    const host = headerList.get("host") || "";
+    const domain = host.split(".")[0];
 
-export default function ClassicTemplatePreviewPage() {
-  return <ClassicTemplate data={mockClassicSite} />;
+    const res = await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/public/websites/${domain}`,
+      { cache: "no-store" },
+    );
+
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
+export default async function ClassicTemplatePreviewPage() {
+  const realData = await getRealSiteConfig();
+
+  if (!realData) {
+    return (
+      <div className="flex min-h-screen items-center justify-center text-slate-500">
+        No real school data found for this domain.
+      </div>
+    );
+  }
+
+  return <ClassicTemplate data={realData} />;
 }

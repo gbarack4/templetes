@@ -91,11 +91,7 @@ export function ClassicTemplate({ data }: Readonly<TemplateProps>) {
   const futureDates = useMemo(() => buildFutureDates(), []);
   const selectedTestDate = getSelectedRescheduleDate(futureDates, testDateId);
   const { schoolName, logoUrl } = useSchool();
-  const school = resolveSchoolProfile(
-    data,
-    { schoolName, logoUrl },
-    { fallbackToMock: true },
-  );
+  const school = resolveSchoolProfile(data, { schoolName, logoUrl });
   const googleReviews = resolveGoogleReviews(data);
   const canSearch = suburb.trim().length > 0;
 
