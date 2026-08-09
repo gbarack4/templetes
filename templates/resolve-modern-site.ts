@@ -1,4 +1,7 @@
-import { buildFutureDates, mockRescheduleTimeSlots } from "@/dashboard/mock-data";
+import {
+  buildFutureDates,
+  mockRescheduleTimeSlots,
+} from "@/dashboard/mock-data";
 import type { RescheduleDateOption } from "@/dashboard/mock-data";
 import { resolveSchoolProfile } from "@/login/school-profile";
 import type { SiteConfig } from "./types";
@@ -10,7 +13,11 @@ export const mockModernNavLinks = [
   { label: "Contact", href: "#" },
 ] as const;
 
-export const mockModernLessonDurations = ["1 Hour", "1.5 Hours", "2 Hours"] as const;
+export const mockModernLessonDurations = [
+  "1 Hour",
+  "1.5 Hours",
+  "2 Hours",
+] as const;
 
 export const mockModernLessonPackages = [
   { id: "pack-5", label: "5 Lesson Pack" },
@@ -30,9 +37,8 @@ export const mockModernTransmissionOptions = ["Auto", "Manual"] as const;
 export function resolveModernSite(
   data: SiteConfig,
   branding?: Readonly<{ schoolName?: string; logoUrl?: string }>,
-  options?: Readonly<{ fallbackToMock?: boolean }>,
 ) {
-  const school = resolveSchoolProfile(data, branding, options);
+  const school = resolveSchoolProfile(data, branding);
 
   return {
     school,
@@ -43,10 +49,15 @@ export function resolveModernSite(
       data.config?.pickupHint ?? "We'll use this to find instructors near you.",
     loginPath: data.config?.loginPath ?? "/login",
     navLinks: data.config?.navLinks ?? [...mockModernNavLinks],
-    transmissionOptions:
-      data.config?.transmissionOptions ?? [...mockModernTransmissionOptions],
-    lessonDurations: data.config?.lessonDurations ?? [...mockModernLessonDurations],
-    lessonPackages: data.config?.lessonPackages ?? [...mockModernLessonPackages],
+    transmissionOptions: data.config?.transmissionOptions ?? [
+      ...mockModernTransmissionOptions,
+    ],
+    lessonDurations: data.config?.lessonDurations ?? [
+      ...mockModernLessonDurations,
+    ],
+    lessonPackages: data.config?.lessonPackages ?? [
+      ...mockModernLessonPackages,
+    ],
     timeSlots: data.config?.timeSlots ?? [...mockRescheduleTimeSlots],
     trustBadges: data.config?.trustBadges ?? [...mockModernTrustBadges],
     availableDates: buildFutureDates(),

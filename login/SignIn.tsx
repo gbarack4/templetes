@@ -6,7 +6,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth, useClerk } from "@clerk/nextjs";
 import { useSchool } from "@/dashboard/SchoolContext";
 import { DrivingSchoolProfile } from "./DrivingSchoolProfile";
-import { mockDrivingSchool } from "./school-profile";
 
 function getSafeRedirect(redirectUrl: string | null) {
   if (!redirectUrl) return "/dashboard";
@@ -24,8 +23,8 @@ export function SignIn() {
   const school = useSchool();
   const afterSignInUrl = getSafeRedirect(searchParams.get("redirect_url"));
   const schoolProfile = {
-    name: school.schoolName || mockDrivingSchool.name,
-    logoUrl: school.logoUrl || mockDrivingSchool.logoUrl,
+    name: school?.schoolName || "",
+    logoUrl: school?.logoUrl || "",
   };
 
   const [email, setEmail] = useState("");

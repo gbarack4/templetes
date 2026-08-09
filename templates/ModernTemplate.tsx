@@ -6,8 +6,14 @@ import { usePathname, useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { CalendarPickerModal } from "@/dashboard/components/CalendarPickerModal";
 import { getSelectedRescheduleDate } from "@/dashboard/components/RescheduleCalendar";
-import { buildOnboardingSearchPath, getOnboardingBasePath } from "@/onboarding/paths";
-import { resolveAvailableDates, resolveModernSite } from "@/templates/resolve-modern-site";
+import {
+  buildOnboardingSearchPath,
+  getOnboardingBasePath,
+} from "@/onboarding/paths";
+import {
+  resolveAvailableDates,
+  resolveModernSite,
+} from "@/templates/resolve-modern-site";
 import { useSchool } from "@/dashboard/SchoolContext";
 import { GoogleAddressAutocomplete } from "@/components/GoogleAddressAutocomplete";
 import type { TemplateProps } from "./types";
@@ -16,7 +22,15 @@ type IconProps = Readonly<{ className?: string; style?: React.CSSProperties }>;
 
 function ChevronRightIcon({ className, style }: IconProps) {
   return (
-    <svg className={className} style={style} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+    <svg
+      className={className}
+      style={style}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      aria-hidden
+    >
       <path d="M9 18l6-6-6-6" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
@@ -24,7 +38,15 @@ function ChevronRightIcon({ className, style }: IconProps) {
 
 function ChevronDownIcon({ className, style }: IconProps) {
   return (
-    <svg className={className} style={style} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+    <svg
+      className={className}
+      style={style}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      aria-hidden
+    >
       <path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
@@ -32,16 +54,40 @@ function ChevronDownIcon({ className, style }: IconProps) {
 
 function PhoneIcon({ className, style }: IconProps) {
   return (
-    <svg className={className} style={style} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-      <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z" strokeLinecap="round" strokeLinejoin="round" />
+    <svg
+      className={className}
+      style={style}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      aria-hidden
+    >
+      <path
+        d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
 
 function PinIcon({ className, style }: IconProps) {
   return (
-    <svg className={className} style={style} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-      <path d="M12 21s7-4.5 7-11a7 7 0 1 0-14 0c0 6.5 7 11 7 11z" strokeLinecap="round" strokeLinejoin="round" />
+    <svg
+      className={className}
+      style={style}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      aria-hidden
+    >
+      <path
+        d="M12 21s7-4.5 7-11a7 7 0 1 0-14 0c0 6.5 7 11 7 11z"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
       <circle cx="12" cy="10" r="2.5" />
     </svg>
   );
@@ -49,7 +95,15 @@ function PinIcon({ className, style }: IconProps) {
 
 function CalendarIcon({ className, style }: IconProps) {
   return (
-    <svg className={className} style={style} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+    <svg
+      className={className}
+      style={style}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      aria-hidden
+    >
       <rect x="3" y="4" width="18" height="18" rx="2" />
       <path d="M16 2v4M8 2v4M3 10h18" strokeLinecap="round" />
     </svg>
@@ -58,7 +112,15 @@ function CalendarIcon({ className, style }: IconProps) {
 
 function ClockIcon({ className, style }: IconProps) {
   return (
-    <svg className={className} style={style} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+    <svg
+      className={className}
+      style={style}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      aria-hidden
+    >
       <circle cx="12" cy="12" r="9" />
       <path d="M12 7v5l3 2" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
@@ -67,7 +129,14 @@ function ClockIcon({ className, style }: IconProps) {
 
 function SearchIcon({ className }: Readonly<{ className?: string }>) {
   return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      aria-hidden
+    >
       <circle cx="11" cy="11" r="7" />
       <path d="M20 20l-3.5-3.5" strokeLinecap="round" />
     </svg>
@@ -76,7 +145,15 @@ function SearchIcon({ className }: Readonly<{ className?: string }>) {
 
 function UserIcon({ className, style }: IconProps) {
   return (
-    <svg className={className} style={style} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+    <svg
+      className={className}
+      style={style}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      aria-hidden
+    >
       <circle cx="12" cy="8" r="4" />
       <path d="M4 20c1.5-3.5 5-6 8-6s6.5 2.5 8 6" strokeLinecap="round" />
     </svg>
@@ -85,8 +162,19 @@ function UserIcon({ className, style }: IconProps) {
 
 function ShieldIcon({ className }: Readonly<{ className?: string }>) {
   return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-      <path d="M12 3l8 3v6c0 5-3.5 8.5-8 9-4.5-.5-8-4-8-9V6l8-3z" strokeLinecap="round" strokeLinejoin="round" />
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      aria-hidden
+    >
+      <path
+        d="M12 3l8 3v6c0 5-3.5 8.5-8 9-4.5-.5-8-4-8-9V6l8-3z"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
       <path d="M9 12l2 2 4-4" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
@@ -94,8 +182,18 @@ function ShieldIcon({ className }: Readonly<{ className?: string }>) {
 
 function StarIcon({ className }: Readonly<{ className?: string }>) {
   return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-      <path d="M12 3l2.4 4.9 5.4.8-3.9 3.8.9 5.4L12 15.8l-4.8 2.5.9-5.4-3.9-3.8 5.4-.8L12 3z" strokeLinejoin="round" />
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      aria-hidden
+    >
+      <path
+        d="M12 3l2.4 4.9 5.4.8-3.9 3.8.9 5.4L12 15.8l-4.8 2.5.9-5.4-3.9-3.8 5.4-.8L12 3z"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
@@ -106,14 +204,26 @@ function ClockBadgeIcon({ className }: Readonly<{ className?: string }>) {
 
 function LockIcon({ className }: Readonly<{ className?: string }>) {
   return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      aria-hidden
+    >
       <rect x="5" y="11" width="14" height="10" rx="2" />
       <path d="M8 11V8a4 4 0 0 1 8 0v3" strokeLinecap="round" />
     </svg>
   );
 }
 
-const trustBadgeIcons = [ShieldIcon, StarIcon, ClockBadgeIcon, LockIcon] as const;
+const trustBadgeIcons = [
+  ShieldIcon,
+  StarIcon,
+  ClockBadgeIcon,
+  LockIcon,
+] as const;
 
 const fieldClassName =
   "flex w-full items-center gap-3 rounded-2xl border border-transparent bg-slate-100 px-4 py-3.5 text-left text-sm transition focus-within:border-blue-500 focus-within:bg-white focus-within:ring-2 focus-within:ring-blue-100";
@@ -123,8 +233,7 @@ export function ModernTemplate({ data }: Readonly<TemplateProps>) {
   const pathname = usePathname();
   const { schoolName, logoUrl } = useSchool();
   const site = useMemo(
-    () =>
-      resolveModernSite(data, { schoolName, logoUrl }, { fallbackToMock: true }),
+    () => resolveModernSite(data, { schoolName, logoUrl }),
     [data, schoolName, logoUrl],
   );
   const availableDates = useMemo(
@@ -133,10 +242,14 @@ export function ModernTemplate({ data }: Readonly<TemplateProps>) {
   );
 
   const [suburb, setSuburb] = useState("");
-  const [transmission, setTransmission] = useState(site.transmissionOptions[0] ?? "Auto");
+  const [transmission, setTransmission] = useState(
+    site.transmissionOptions[0] ?? "Auto",
+  );
   const [lessonDateId, setLessonDateId] = useState<string | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
-  const [lessonDuration, setLessonDuration] = useState(site.lessonDurations[0] ?? "1 Hour");
+  const [lessonDuration, setLessonDuration] = useState(
+    site.lessonDurations[0] ?? "1 Hour",
+  );
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
 
@@ -213,7 +326,11 @@ export function ModernTemplate({ data }: Readonly<TemplateProps>) {
 
         <nav className="mt-4 hidden gap-5 text-sm font-medium text-slate-500 sm:flex">
           {site.navLinks.map((item) => (
-            <a key={item.label} href={item.href} className="transition hover:text-slate-900">
+            <a
+              key={item.label}
+              href={item.href}
+              className="transition hover:text-slate-900"
+            >
               {item.label}
             </a>
           ))}
@@ -225,7 +342,10 @@ export function ModernTemplate({ data }: Readonly<TemplateProps>) {
           <form className="p-5" onSubmit={handleSearch}>
             <div className="space-y-5">
               <div className="space-y-2">
-                <label htmlFor="pickup-location" className="text-sm font-semibold text-slate-900">
+                <label
+                  htmlFor="pickup-location"
+                  className="text-sm font-semibold text-slate-900"
+                >
                   Pick-up Location <span className="text-red-500">*</span>
                 </label>
                 <GoogleAddressAutocomplete
@@ -237,7 +357,10 @@ export function ModernTemplate({ data }: Readonly<TemplateProps>) {
                   className={`${fieldClassName} relative`}
                   inputClassName="min-w-0 flex-1 bg-transparent text-slate-900 outline-none placeholder:text-slate-400"
                   icon={
-                    <PinIcon className="h-5 w-5 shrink-0" style={brandColorStyle} />
+                    <PinIcon
+                      className="h-5 w-5 shrink-0"
+                      style={brandColorStyle}
+                    />
                   }
                   trailing={
                     <ChevronRightIcon className="h-4 w-4 shrink-0 text-slate-300" />
@@ -274,7 +397,10 @@ export function ModernTemplate({ data }: Readonly<TemplateProps>) {
               </div>
 
               <div className="space-y-2">
-                <label htmlFor="lesson-date" className="text-sm font-semibold text-slate-900">
+                <label
+                  htmlFor="lesson-date"
+                  className="text-sm font-semibold text-slate-900"
+                >
                   Pick a Date <span className="text-red-500">*</span>
                 </label>
                 <button
@@ -283,8 +409,13 @@ export function ModernTemplate({ data }: Readonly<TemplateProps>) {
                   onClick={() => setShowDatePicker(true)}
                   className={fieldClassName}
                 >
-                  <CalendarIcon className="h-5 w-5 shrink-0" style={brandColorStyle} />
-                  <span className={`flex-1 ${selectedDate ? "text-slate-900" : "text-slate-400"}`}>
+                  <CalendarIcon
+                    className="h-5 w-5 shrink-0"
+                    style={brandColorStyle}
+                  />
+                  <span
+                    className={`flex-1 ${selectedDate ? "text-slate-900" : "text-slate-400"}`}
+                  >
                     {selectedDate?.label ?? "Select a date"}
                   </span>
                   <ChevronRightIcon className="h-4 w-4 shrink-0 text-slate-300" />
@@ -292,7 +423,10 @@ export function ModernTemplate({ data }: Readonly<TemplateProps>) {
               </div>
 
               <div className="space-y-2">
-                <label htmlFor="lesson-time" className="text-sm font-semibold text-slate-900">
+                <label
+                  htmlFor="lesson-time"
+                  className="text-sm font-semibold text-slate-900"
+                >
                   Pick a Time <span className="text-red-500">*</span>
                 </label>
                 <button
@@ -301,8 +435,13 @@ export function ModernTemplate({ data }: Readonly<TemplateProps>) {
                   onClick={() => setShowTimePicker(true)}
                   className={fieldClassName}
                 >
-                  <ClockIcon className="h-5 w-5 shrink-0" style={brandColorStyle} />
-                  <span className={`flex-1 ${selectedTime ? "text-slate-900" : "text-slate-400"}`}>
+                  <ClockIcon
+                    className="h-5 w-5 shrink-0"
+                    style={brandColorStyle}
+                  />
+                  <span
+                    className={`flex-1 ${selectedTime ? "text-slate-900" : "text-slate-400"}`}
+                  >
                     {selectedTime ?? "Select a time"}
                   </span>
                   <ChevronRightIcon className="h-4 w-4 shrink-0 text-slate-300" />
@@ -310,11 +449,17 @@ export function ModernTemplate({ data }: Readonly<TemplateProps>) {
               </div>
 
               <div className="space-y-2">
-                <label htmlFor="lesson-duration" className="text-sm font-semibold text-slate-900">
+                <label
+                  htmlFor="lesson-duration"
+                  className="text-sm font-semibold text-slate-900"
+                >
                   Lesson Duration
                 </label>
                 <div className={fieldClassName}>
-                  <ClockIcon className="h-5 w-5 shrink-0" style={brandColorStyle} />
+                  <ClockIcon
+                    className="h-5 w-5 shrink-0"
+                    style={brandColorStyle}
+                  />
                   <select
                     id="lesson-duration"
                     value={lessonDuration}
@@ -363,12 +508,17 @@ export function ModernTemplate({ data }: Readonly<TemplateProps>) {
             const Icon = trustBadgeIcons[index] ?? ShieldIcon;
 
             return (
-            <div key={label} className="flex min-w-0 flex-1 items-center gap-1 px-1.5 first:pl-0 last:pr-0">
-              <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-600">
-                <Icon className="h-2.5 w-2.5" />
+              <div
+                key={label}
+                className="flex min-w-0 flex-1 items-center gap-1 px-1.5 first:pl-0 last:pr-0"
+              >
+                <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-600">
+                  <Icon className="h-2.5 w-2.5" />
+                </div>
+                <p className="text-[8px] font-medium leading-tight text-slate-900">
+                  {label}
+                </p>
               </div>
-              <p className="text-[8px] font-medium leading-tight text-slate-900">{label}</p>
-            </div>
             );
           })}
         </section>
@@ -394,7 +544,9 @@ export function ModernTemplate({ data }: Readonly<TemplateProps>) {
           />
           <div className="relative z-10 w-full max-w-md rounded-t-2xl bg-white p-5 shadow-xl">
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-base font-bold text-slate-900">Pick a time</h2>
+              <h2 className="text-base font-bold text-slate-900">
+                Pick a time
+              </h2>
               <button
                 type="button"
                 onClick={() => setShowTimePicker(false)}
