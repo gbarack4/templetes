@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useMemo, useState } from "react";
 import type { InstructorOption } from "../mock-data";
 
@@ -14,14 +15,27 @@ export function InstructorProfileSummary({
   instructor,
   compact = false,
 }: Readonly<{ instructor: InstructorOption; compact?: boolean }>) {
+  const [imageError, setImageError] = useState(false);
+  const sizeClass = compact ? "h-9 w-9 text-xs" : "h-12 w-12 text-sm";
+  const showImage = Boolean(instructor.avatarUrl) && !imageError;
+
   return (
     <div className={`flex ${compact ? "gap-2.5" : "gap-3"}`}>
       <div
-        className={`flex shrink-0 items-center justify-center rounded-full bg-slate-200 font-semibold text-slate-600 ${
-          compact ? "h-9 w-9 text-xs" : "h-12 w-12 text-sm"
-        }`}
+        className={`relative flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-slate-200 font-semibold text-slate-600 ${sizeClass}`}
       >
-        {instructor.initials}
+        {showImage ? (
+          <Image
+            src={instructor.avatarUrl}
+            alt={`${instructor.name}'s profile`}
+            fill
+            className="object-cover"
+            onError={() => setImageError(true)}
+            sizes={compact ? "36px" : "48px"}
+          />
+        ) : (
+          instructor.initials
+        )}
       </div>
       <div className="min-w-0 flex-1">
         <p

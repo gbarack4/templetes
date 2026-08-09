@@ -28,16 +28,6 @@ function SearchIcon({ className }: Readonly<{ className?: string }>) {
   );
 }
 
-function HelpIcon({ className }: Readonly<{ className?: string }>) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-      <circle cx="12" cy="12" r="9" />
-      <path d="M9.5 9.5a2.5 2.5 0 115 0c0 2-2.5 2.5-2.5 4.5" strokeLinecap="round" />
-      <circle cx="12" cy="17" r="0.75" fill="currentColor" stroke="none" />
-    </svg>
-  );
-}
-
 const fieldClassName =
   "flex w-full items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 transition focus-within:border-slate-400 focus-within:ring-2 focus-within:ring-slate-100";
 
@@ -162,25 +152,17 @@ export function FormEmbedTemplate({ data }: Readonly<TemplateProps>) {
             type="submit"
             aria-busy={isSearching}
             disabled={!canSearch}
-            className={`mt-2 flex w-full items-center justify-center gap-2 rounded-full py-4 text-sm font-semibold transition ${
+            className={`mt-2 inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl text-sm font-medium transition ${
               canSearch
-                ? "bg-slate-900 text-white hover:bg-slate-800"
+                ? "bg-blue-600 text-white hover:bg-blue-700"
                 : "cursor-not-allowed bg-slate-100 text-slate-400"
             } ${isSearching ? "pointer-events-none" : ""}`}
           >
-            <SearchIcon className="h-5 w-5" />
-            {isSearching ? "Searching...." : "Search"}
+            <SearchIcon className="h-4 w-4" />
+            {isSearching ? "Searching...." : "Search instructors"}
           </button>
         </form>
       </main>
-
-      <button
-        type="button"
-        aria-label="Help"
-        className="absolute bottom-6 right-5 flex h-12 w-12 items-center justify-center rounded-full bg-slate-900 text-white shadow-lg transition hover:bg-slate-800"
-      >
-        <HelpIcon className="h-5 w-5" />
-      </button>
 
       {showTestDatePicker && (
         <CalendarPickerModal

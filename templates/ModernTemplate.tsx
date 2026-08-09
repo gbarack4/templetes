@@ -9,7 +9,7 @@ import { getSelectedRescheduleDate } from "@/dashboard/components/RescheduleCale
 import { buildOnboardingSearchPath, getOnboardingBasePath } from "@/onboarding/paths";
 import { resolveAvailableDates, resolveModernSite } from "@/templates/resolve-modern-site";
 import { useSchool } from "@/dashboard/SchoolContext";
-import { SuburbAutocomplete } from "./SuburbAutocomplete";
+import { GoogleAddressAutocomplete } from "@/components/GoogleAddressAutocomplete";
 import type { TemplateProps } from "./types";
 
 type IconProps = Readonly<{ className?: string; style?: React.CSSProperties }>;
@@ -228,10 +228,11 @@ export function ModernTemplate({ data }: Readonly<TemplateProps>) {
                 <label htmlFor="pickup-location" className="text-sm font-semibold text-slate-900">
                   Pick-up Location <span className="text-red-500">*</span>
                 </label>
-                <SuburbAutocomplete
+                <GoogleAddressAutocomplete
                   id="pickup-location"
                   value={suburb}
                   onChange={setSuburb}
+                  onSelect={setSuburb}
                   placeholder="Enter your suburb or address"
                   className={`${fieldClassName} relative`}
                   inputClassName="min-w-0 flex-1 bg-transparent text-slate-900 outline-none placeholder:text-slate-400"

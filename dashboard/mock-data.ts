@@ -531,6 +531,7 @@ export interface InstructorOption {
   id: string;
   name: string;
   initials: string;
+  avatarUrl: string;
   location: string;
   rating: number;
   reviewCount: number;
@@ -542,6 +543,7 @@ export const mockInstructors: InstructorOption[] = [
     id: "sarah-johnson",
     name: "Sarah Johnson",
     initials: "SJ",
+    avatarUrl: "/avatars/instructors/sarah-johnson.jpg",
     location: "123 Main Street, Downtown",
     rating: 4.9,
     reviewCount: 128,
@@ -551,6 +553,7 @@ export const mockInstructors: InstructorOption[] = [
     id: "mike-chen",
     name: "Mike Chen",
     initials: "MC",
+    avatarUrl: "/avatars/instructors/mike-chen.jpg",
     location: "456 Oak Avenue, Westside",
     rating: 4.8,
     reviewCount: 96,
@@ -560,6 +563,7 @@ export const mockInstructors: InstructorOption[] = [
     id: "emma-williams",
     name: "Emma Williams",
     initials: "EW",
+    avatarUrl: "/avatars/instructors/emma-williams.jpg",
     location: "789 Pine Road, Eastside",
     rating: 5.0,
     reviewCount: 74,

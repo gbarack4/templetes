@@ -38,7 +38,7 @@ type BookInstructorFlowProps = Readonly<{
   initialDuration?: string | null;
 }>;
 
-type FlowStep = "duration" | "date" | "time" | "summary";
+type FlowStep = "address" | "duration" | "date" | "time" | "summary";
 
 const BUTTON_LOADING_MS = 2000;
 
@@ -49,6 +49,7 @@ function scrollStepIntoView(element: HTMLElement | null) {
 function getStepRef(
   step: FlowStep,
   refs: {
+    address: RefObject<HTMLElement | null>;
     duration: RefObject<HTMLElement | null>;
     date: RefObject<HTMLElement | null>;
     time: RefObject<HTMLElement | null>;
@@ -58,7 +59,8 @@ function getStepRef(
   if (step === "summary") return refs.summary;
   if (step === "time") return refs.time;
   if (step === "date") return refs.date;
-  return refs.duration;
+  if (step === "duration") return refs.duration;
+  return refs.address;
 }
 
 export function BookInstructorFlow({
@@ -93,6 +95,13 @@ export function BookInstructorFlow({
   const [showDatePicker, setShowDatePicker] = useState(!preselectedDate);
   const [selectedTime, setSelectedTime] = useState<string | null>(preselectedTime);
   const [pickupAddress, setPickupAddress] = useState(preselectedSuburb);
+  const [addressSelected, setAddressSelected] = useState(
+    Boolean(preselectedSuburb),
+  );
+  const [durationPicked, setDurationPicked] = useState(Boolean(initialDuration));
+  const [durationConfirmed, setDurationConfirmed] = useState(
+    Boolean(initialDuration),
+  );
   const [showSignUp, setShowSignUp] = useState(false);
   const [showSummary, setShowSummary] = useState(false);
   const [hasRegistered, setHasRegistered] = useState(false);
@@ -102,6 +111,7 @@ export function BookInstructorFlow({
   const [isContinuingToPayment, setIsContinuingToPayment] = useState(false);
 
   const mainScrollRef = useRef<HTMLDivElement>(null);
+  const addressStepRef = useRef<HTMLElement>(null);
   const durationStepRef = useRef<HTMLElement>(null);
   const dateStepRef = useRef<HTMLElement>(null);
   const timeStepRef = useRef<HTMLElement>(null);
@@ -115,19 +125,28 @@ export function BookInstructorFlow({
 
   const selectedDate = getSelectedRescheduleDate(availableDates, selectedDateId);
   const trimmedPickupAddress = pickupAddress.trim();
+  const addressComplete = addressSelected && trimmedPickupAddress.length > 0;
   const durationOptions = buildLessonDurationOptions(Math.max(availableCreditHours, 4));
   const payment = calculateOnboardingLessonPayment(
     selectedHours,
     availableCreditHours,
     instructor.pricePerHour,
   );
-  const canConfirm = Boolean(selectedDate && selectedTime && trimmedPickupAddress);
+  const canConfirm = Boolean(
+    selectedDate && selectedTime && addressComplete && durationConfirmed,
+  );
+  const showDurationStep = addressComplete;
+  const showScheduleStep = addressComplete && durationConfirmed;
 
   const flowStep: FlowStep = showSummary && canConfirm && hasRegistered
     ? "summary"
-    : selectedDate
-      ? "time"
-      : "duration";
+    : !addressComplete
+      ? "address"
+      : !durationConfirmed
+        ? "duration"
+        : selectedDate
+          ? "time"
+          : "date";
 
   useEffect(() => {
     if (skipInitialScroll.current) {
@@ -140,6 +159,7 @@ export function BookInstructorFlow({
     previousFlowStep.current = flowStep;
 
     const stepRef = getStepRef(flowStep, {
+      address: addressStepRef,
       duration: durationStepRef,
       date: dateStepRef,
       time: timeStepRef,
@@ -151,8 +171,55 @@ export function BookInstructorFlow({
     });
   }, [flowStep]);
 
+  useEffect(() => {
+    if (addressComplete && !durationConfirmed) {
+      setShowDurationPicker(true);
+    }
+  }, [addressComplete, durationConfirmed]);
+
+  function resetDownstreamFromAddress() {
+    setShowSignUp(false);
+    setShowSummary(false);
+    setHasRegistered(false);
+  }
+
+  function handlePickupAddressChange(address: string) {
+    setPickupAddress(address);
+    setAddressSelected(false);
+    setDurationPicked(false);
+    setDurationConfirmed(false);
+    resetDownstreamFromAddress();
+    setSelectedDateId(preselectedDate?.id ?? null);
+    setSelectedTime(preselectedTime);
+    setShowDatePicker(!preselectedDate);
+  }
+
+  function handlePickupAddressSelect(address: string) {
+    setPickupAddress(address);
+    setAddressSelected(true);
+    setDurationPicked(false);
+    setDurationConfirmed(false);
+    resetDownstreamFromAddress();
+    setSelectedDateId(preselectedDate?.id ?? null);
+    setSelectedTime(preselectedTime);
+    setShowDatePicker(!preselectedDate);
+  }
+
+  function confirmDuration() {
+    if (!durationPicked) return;
+    setDurationConfirmed(true);
+    setSelectedTime(null);
+    setShowSignUp(false);
+    setShowSummary(false);
+    setHasRegistered(false);
+    setShowDurationPicker(false);
+    setShowDatePicker(true);
+  }
+
   function handleHoursChange(hours: number) {
     setSelectedHours(hours);
+    setDurationPicked(true);
+    setDurationConfirmed(false);
     setSelectedTime(null);
     setShowSignUp(false);
     setShowSummary(false);
@@ -291,79 +358,81 @@ export function BookInstructorFlow({
           </p>
         </section>
 
-        <section className="space-y-3">
+        <section ref={addressStepRef} className="space-y-3">
           <h2 className="text-sm font-semibold text-slate-900">Pick up address</h2>
           <GoogleAddressAutocomplete
             id="pickup-address"
             value={pickupAddress}
             biasSuburb={preselectedSuburb || instructor.suburb}
             biasPostcode={instructor.postcode}
-            onChange={(address) => {
-              setPickupAddress(address);
-              setShowSignUp(false);
-              setShowSummary(false);
-              setHasRegistered(false);
-            }}
-            onSelect={(address) => {
-              setPickupAddress(address);
-              setShowSignUp(false);
-              setShowSummary(false);
-              setHasRegistered(false);
-            }}
+            onChange={handlePickupAddressChange}
+            onSelect={handlePickupAddressSelect}
             placeholder="Enter pick up address"
             inputClassName="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
           />
         </section>
 
-        <section ref={durationStepRef} className="space-y-3">
-          <h2 className="text-sm font-semibold text-slate-900">Lesson duration</h2>
-          <button
-            type="button"
-            onClick={() => setShowDurationPicker((open) => !open)}
-            className="flex w-full items-center justify-between rounded-xl bg-slate-50 px-4 py-3 text-left transition hover:bg-slate-100"
-          >
-            <span className="text-sm font-medium text-slate-900">
-              {formatLessonHoursLabel(selectedHours)}
-            </span>
-            <ChevronRightIcon
-              className={`h-4 w-4 shrink-0 text-slate-400 transition ${
-                showDurationPicker ? "rotate-90" : ""
-              }`}
-            />
-          </button>
+        {showDurationStep && (
+          <section ref={durationStepRef} className="space-y-3">
+            <h2 className="text-sm font-semibold text-slate-900">Lesson duration</h2>
+            <button
+              type="button"
+              onClick={() => setShowDurationPicker((open) => !open)}
+              className="flex w-full items-center justify-between rounded-xl bg-slate-50 px-4 py-3 text-left transition hover:bg-slate-100"
+            >
+              <span className="text-sm font-medium text-slate-900">
+                {formatLessonHoursLabel(selectedHours)}
+              </span>
+              <ChevronRightIcon
+                className={`h-4 w-4 shrink-0 text-slate-400 transition ${
+                  showDurationPicker ? "rotate-90" : ""
+                }`}
+              />
+            </button>
 
-          {showDurationPicker && (
-            <div className="flex max-h-44 flex-col gap-2 overflow-y-auto overscroll-y-contain rounded-xl border border-slate-200 bg-white p-2">
-              {durationOptions.map((hours) => {
-                const isSelected = selectedHours === hours;
+            {showDurationPicker && (
+              <div className="flex max-h-44 flex-col gap-2 overflow-y-auto overscroll-y-contain rounded-xl border border-slate-200 bg-white p-2">
+                {durationOptions.map((hours) => {
+                  const isSelected = selectedHours === hours;
 
-                return (
-                  <button
-                    key={hours}
-                    type="button"
-                    onClick={() => handleHoursChange(hours)}
-                    className={`w-full shrink-0 rounded-lg px-3 py-2.5 text-left text-sm font-medium transition ${
-                      isSelected
-                        ? "bg-blue-600 text-white"
-                        : "text-slate-700 hover:bg-slate-50"
-                    }`}
-                  >
-                    {formatLessonHoursLabel(hours)}
-                  </button>
-                );
-              })}
-            </div>
-          )}
+                  return (
+                    <button
+                      key={hours}
+                      type="button"
+                      onClick={() => handleHoursChange(hours)}
+                      className={`w-full shrink-0 rounded-lg px-3 py-2.5 text-left text-sm font-medium transition ${
+                        isSelected
+                          ? "bg-blue-600 text-white"
+                          : "text-slate-700 hover:bg-slate-50"
+                      }`}
+                    >
+                      {formatLessonHoursLabel(hours)}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
 
-          {payment.payableHours > 0 && (
-            <p className="text-sm text-slate-500">
-              {formatCurrency(payment.totalDue)} due at checkout (
-              {formatLessonHoursLabel(payment.payableHours)} not covered by credit).
-            </p>
-          )}
-        </section>
+            {payment.payableHours > 0 && (
+              <p className="text-sm text-slate-500">
+                {formatCurrency(payment.totalDue)} due at checkout (
+                {formatLessonHoursLabel(payment.payableHours)} not covered by credit).
+              </p>
+            )}
 
-        {showDatePicker && (
+            {durationPicked && !durationConfirmed && (
+              <button
+                type="button"
+                onClick={confirmDuration}
+                className="inline-flex h-11 w-full items-center justify-center rounded-lg bg-blue-600 text-sm font-medium text-white transition hover:bg-blue-700"
+              >
+                Continue
+              </button>
+            )}
+          </section>
+        )}
+
+        {showScheduleStep && showDatePicker && (
           <section ref={dateStepRef} className="space-y-3">
             <h2 className="text-sm font-semibold text-slate-900">
               {selectedDate ? "Change date" : "Pick a date"}
@@ -392,7 +461,7 @@ export function BookInstructorFlow({
           </section>
         )}
 
-        {selectedDate && !showDatePicker && (
+        {showScheduleStep && selectedDate && !showDatePicker && (
           <section ref={timeStepRef} className="space-y-3">
             <div className="rounded-2xl bg-slate-50 p-4">
               <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
@@ -461,7 +530,7 @@ export function BookInstructorFlow({
           </section>
         )}
 
-        {selectedTime && (
+        {showScheduleStep && selectedTime && (
           <section className="space-y-3">
             <div className="rounded-2xl bg-slate-50 p-4">
               <p className="text-xs font-medium uppercase tracking-wide text-slate-400">

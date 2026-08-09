@@ -22,10 +22,12 @@ type GoogleAddressAutocompleteProps = Readonly<{
   onChange: (value: string) => void;
   onSelect?: (address: string) => void;
   placeholder?: string;
+  className?: string;
   inputClassName?: string;
   biasSuburb?: string;
   biasPostcode?: string;
   icon?: ReactNode;
+  trailing?: ReactNode;
 }>;
 
 const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
@@ -285,10 +287,12 @@ export function GoogleAddressAutocomplete({
   onChange,
   onSelect,
   placeholder = "Enter pick up address",
+  className = "relative",
   inputClassName,
   biasSuburb,
   biasPostcode,
   icon,
+  trailing,
 }: GoogleAddressAutocompleteProps) {
   const listId = useId();
   const inputId = id ?? listId;
@@ -354,7 +358,7 @@ export function GoogleAddressAutocomplete({
   }
 
   return (
-    <div ref={containerRef} className="relative">
+    <div ref={containerRef} className={className}>
       {icon}
       <input
         id={inputId}
@@ -407,6 +411,7 @@ export function GoogleAddressAutocomplete({
         }}
         className={inputClassName}
       />
+      {trailing}
 
       {showOverlay ? (
         <ul
