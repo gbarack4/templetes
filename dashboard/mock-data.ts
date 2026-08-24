@@ -6,8 +6,8 @@ export const mockDashboardData: DashboardData = {
   avatarUrl: DEFAULT_STUDENT_AVATAR,
   availableCreditHours: 0,
   tabCounts: {
-    upcoming: 6,
-    completed: 6,
+    upcoming: 1,
+    completed: 1,
     cancelled: 2,
   },
   upcomingLessons: [
@@ -22,61 +22,6 @@ export const mockDashboardData: DashboardData = {
       hours: 1.5,
       status: "upcoming",
     },
-    {
-      id: "upcoming-2",
-      month: "JUL",
-      day: 2,
-      weekday: "WED",
-      timeRange: "2:00 PM – 3:30 PM",
-      instructor: "Sarah Johnson",
-      location: "456 Oak Avenue, Westside",
-      hours: 1.5,
-      status: "upcoming",
-    },
-    {
-      id: "upcoming-3",
-      month: "JUL",
-      day: 5,
-      weekday: "SAT",
-      timeRange: "9:00 AM – 10:30 AM",
-      instructor: "Mike Chen",
-      location: "789 Pine Road, Eastside",
-      hours: 1.5,
-      status: "upcoming",
-    },
-    {
-      id: "upcoming-4",
-      month: "JUL",
-      day: 9,
-      weekday: "WED",
-      timeRange: "4:00 PM – 5:30 PM",
-      instructor: "Sarah Johnson",
-      location: "123 Main Street, Downtown",
-      hours: 1.5,
-      status: "upcoming",
-    },
-    {
-      id: "upcoming-5",
-      month: "JUL",
-      day: 12,
-      weekday: "SAT",
-      timeRange: "11:00 AM – 12:30 PM",
-      instructor: "Mike Chen",
-      location: "456 Oak Avenue, Westside",
-      hours: 1.5,
-      status: "upcoming",
-    },
-    {
-      id: "upcoming-6",
-      month: "JUL",
-      day: 16,
-      weekday: "WED",
-      timeRange: "1:00 PM – 2:30 PM",
-      instructor: "Sarah Johnson",
-      location: "789 Pine Road, Eastside",
-      hours: 1.5,
-      status: "upcoming",
-    },
   ],
   completedLessons: [
     {
@@ -87,61 +32,6 @@ export const mockDashboardData: DashboardData = {
       timeRange: "10:00 AM – 11:30 AM",
       instructor: "Sarah Johnson",
       location: "123 Main Street, Downtown",
-      hours: 1.5,
-      status: "completed",
-    },
-    {
-      id: "completed-2",
-      month: "JUN",
-      day: 14,
-      weekday: "SAT",
-      timeRange: "2:00 PM – 3:30 PM",
-      instructor: "Mike Chen",
-      location: "456 Oak Avenue, Westside",
-      hours: 1.5,
-      status: "completed",
-    },
-    {
-      id: "completed-3",
-      month: "JUN",
-      day: 7,
-      weekday: "SAT",
-      timeRange: "10:00 AM – 11:30 AM",
-      instructor: "Sarah Johnson",
-      location: "123 Main Street, Downtown",
-      hours: 1.5,
-      status: "completed",
-    },
-    {
-      id: "completed-4",
-      month: "MAY",
-      day: 31,
-      weekday: "SAT",
-      timeRange: "2:00 PM – 3:30 PM",
-      instructor: "Mike Chen",
-      location: "789 Pine Road, Eastside",
-      hours: 1.5,
-      status: "completed",
-    },
-    {
-      id: "completed-5",
-      month: "MAY",
-      day: 24,
-      weekday: "SAT",
-      timeRange: "10:00 AM – 11:30 AM",
-      instructor: "Sarah Johnson",
-      location: "123 Main Street, Downtown",
-      hours: 1.5,
-      status: "completed",
-    },
-    {
-      id: "completed-6",
-      month: "MAY",
-      day: 17,
-      weekday: "SAT",
-      timeRange: "2:00 PM – 3:30 PM",
-      instructor: "Sarah Johnson",
-      location: "456 Oak Avenue, Westside",
       hours: 1.5,
       status: "completed",
     },
@@ -236,6 +126,8 @@ export const mockStudentAccount: StudentAccount = {
   },
 };
 
+export type CalendarDayAvailability = "open" | "full";
+
 export interface RescheduleDateOption {
   id: string;
   year: number;
@@ -244,6 +136,8 @@ export interface RescheduleDateOption {
   day: number;
   weekday: string;
   label: string;
+  slotCount: number;
+  availability: CalendarDayAvailability;
 }
 
 const MONTH_ABBR = [
@@ -267,6 +161,8 @@ function createRescheduleDate(
   year: number,
   monthIndex: number,
   day: number,
+  slotCount = 5,
+  availability: CalendarDayAvailability = slotCount > 0 ? "open" : "full",
 ): RescheduleDateOption {
   const date = new Date(year, monthIndex, day);
 
@@ -282,6 +178,8 @@ function createRescheduleDate(
       day: "numeric",
       weekday: "long",
     }),
+    slotCount,
+    availability,
   };
 }
 
@@ -289,15 +187,27 @@ function buildMockRescheduleDates(): RescheduleDateOption[] {
   const dates: RescheduleDateOption[] = [];
   const year = 2026;
 
-  // Available lesson days: Tue, Wed, Thu, Sat — Jul through Nov
+  // Working days: Tue, Wed, Thu, Sat — Jul through Nov
   for (let monthIndex = 6; monthIndex <= 10; monthIndex += 1) {
     const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
 
     for (let day = 1; day <= daysInMonth; day += 1) {
       const dayOfWeek = new Date(year, monthIndex, day).getDay();
-      if ([2, 3, 4, 6].includes(dayOfWeek)) {
-        dates.push(createRescheduleDate(year, monthIndex, day));
+      if (![2, 3, 4, 6].includes(dayOfWeek)) continue;
+
+      // Some working days are fully booked
+      if (day % 7 === 3) {
+        dates.push(createRescheduleDate(year, monthIndex, day, 0, "full"));
+        continue;
       }
+
+      const slotCount =
+        dayOfWeek === 6
+          ? 8 + (day % 7)
+          : dayOfWeek === 2
+            ? 3 + (day % 4)
+            : 5 + (day % 6);
+      dates.push(createRescheduleDate(year, monthIndex, day, slotCount, "open"));
     }
   }
 
@@ -419,6 +329,26 @@ export function formatLessonHoursLabel(hours: number): string {
   return `${hours} ${hours === 1 ? "Hour" : "Hours"}`;
 }
 
+export function formatShortLessonHours(hours: number): string {
+  if (hours < 1) return `${Math.round(hours * 60)}m`;
+  return Number.isInteger(hours) ? `${hours}h` : `${hours}h`;
+}
+
+/** Display titles for duration options in the booking package picker. */
+export function getLessonPackageTitle(hours: number): string {
+  const titles: Record<number, string> = {
+    1: "First Lesson Intro",
+    1.5: "Standard Lesson",
+    2: "Highway Practice",
+    2.5: "Refresher Duo",
+    3: "Extended Practice",
+    3.5: "Test Ready Package",
+    4: "Beginner 5-Pack",
+  };
+
+  return titles[hours] ?? formatLessonHoursLabel(hours);
+}
+
 /** Parse labels like "1 Hour" / "1.5 Hours" from Modern template search. */
 export function parseLessonDurationLabel(
   label: string | null | undefined,
@@ -459,6 +389,50 @@ export function formatCurrency(amount: number): string {
     currency: "USD",
   }).format(amount);
 }
+
+export interface RecentPayment {
+  id: string;
+  title: string;
+  description: string;
+  dateLabel: string;
+  amount: number;
+  status: "paid" | "refunded";
+}
+
+export const mockRecentPayments: RecentPayment[] = [
+  {
+    id: "payment-1",
+    title: "Lesson with Sarah Johnson",
+    description: "1.5 hours · Jun 28, 10:00 AM",
+    dateLabel: "Jun 26, 2026",
+    amount: 90,
+    status: "paid",
+  },
+  {
+    id: "payment-2",
+    title: "5-hour package",
+    description: "Credit top-up",
+    dateLabel: "Jun 18, 2026",
+    amount: 275,
+    status: "paid",
+  },
+  {
+    id: "payment-3",
+    title: "Lesson with Mike Chen",
+    description: "1.5 hours · Jun 14, 2:00 PM",
+    dateLabel: "Jun 12, 2026",
+    amount: 87,
+    status: "paid",
+  },
+  {
+    id: "payment-4",
+    title: "Lesson cancellation refund",
+    description: "Sarah Johnson · May 10",
+    dateLabel: "May 9, 2026",
+    amount: 90,
+    status: "refunded",
+  },
+];
 
 export interface HourPackage {
   id: string;
@@ -536,6 +510,7 @@ export interface InstructorOption {
   rating: number;
   reviewCount: number;
   lessonsCompleted: number;
+  pricePerHour: number;
 }
 
 export const mockInstructors: InstructorOption[] = [
@@ -548,6 +523,7 @@ export const mockInstructors: InstructorOption[] = [
     rating: 4.9,
     reviewCount: 128,
     lessonsCompleted: 840,
+    pricePerHour: 60,
   },
   {
     id: "mike-chen",
@@ -558,6 +534,7 @@ export const mockInstructors: InstructorOption[] = [
     rating: 4.8,
     reviewCount: 96,
     lessonsCompleted: 620,
+    pricePerHour: 58,
   },
   {
     id: "emma-williams",
@@ -568,6 +545,7 @@ export const mockInstructors: InstructorOption[] = [
     rating: 5.0,
     reviewCount: 74,
     lessonsCompleted: 510,
+    pricePerHour: 62,
   },
 ];
 

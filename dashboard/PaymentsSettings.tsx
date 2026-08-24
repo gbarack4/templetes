@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { formatCurrency, mockRecentPayments } from "./mock-data";
 import { getCardBrand, isCardFormValid } from "./card-utils";
 import { CreditCardFields } from "./components/CreditCardFields";
 import { CreditCardIcon } from "./components/icons";
@@ -138,13 +139,44 @@ export function PaymentsSettings() {
         </section>
       )}
 
-      <section className="rounded-2xl bg-slate-50 p-4">
-        <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
-          Recent payments
-        </p>
-        <p className="mt-3 text-sm text-slate-500">
-          Your lesson and package payments will appear here.
-        </p>
+      <section className="space-y-3">
+        <h2 className="text-sm font-semibold text-slate-900">Recent payments</h2>
+        <div className="overflow-hidden rounded-2xl bg-slate-50">
+          {mockRecentPayments.map((payment, index) => (
+            <article
+              key={payment.id}
+              className={`flex items-start justify-between gap-3 px-4 py-3.5 ${
+                index < mockRecentPayments.length - 1
+                  ? "border-b border-slate-100"
+                  : ""
+              }`}
+            >
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-slate-900">
+                  {payment.title}
+                </p>
+                <p className="mt-0.5 truncate text-xs text-slate-500">
+                  {payment.description}
+                </p>
+                <p className="mt-1 text-xs text-slate-400">{payment.dateLabel}</p>
+              </div>
+              <div className="shrink-0 text-right">
+                <p className="text-sm font-semibold text-slate-900">
+                  {formatCurrency(payment.amount)}
+                </p>
+                <p
+                  className={`mt-1 text-xs font-medium ${
+                    payment.status === "refunded"
+                      ? "text-amber-600"
+                      : "text-green-600"
+                  }`}
+                >
+                  {payment.status === "refunded" ? "Refunded" : "Paid"}
+                </p>
+              </div>
+            </article>
+          ))}
+        </div>
       </section>
     </main>
   );

@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useMemo, useState } from "react";
-import type { InstructorOption } from "../mock-data";
+import { formatCurrency, type InstructorOption } from "../mock-data";
 
 type InstructorSearchProps = Readonly<{
   instructors: InstructorOption[];
@@ -20,7 +20,7 @@ export function InstructorProfileSummary({
   const showImage = Boolean(instructor.avatarUrl) && !imageError;
 
   return (
-    <div className={`flex ${compact ? "gap-2.5" : "gap-3"}`}>
+    <div className={`flex min-w-0 flex-1 ${compact ? "gap-2.5" : "gap-3"}`}>
       <div
         className={`relative flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-slate-200 font-semibold text-slate-600 ${sizeClass}`}
       >
@@ -69,7 +69,12 @@ function InstructorProfileCard({
       onClick={onSelect}
       className="w-full rounded-xl bg-slate-50 p-3 text-left transition hover:bg-slate-100"
     >
-      <InstructorProfileSummary instructor={instructor} />
+      <div className="flex items-start justify-between gap-3">
+        <InstructorProfileSummary instructor={instructor} />
+        <span className="shrink-0 rounded-full bg-blue-600 px-2.5 py-1 text-xs font-medium text-white">
+          {formatCurrency(instructor.pricePerHour)}/hr
+        </span>
+      </div>
     </button>
   );
 }

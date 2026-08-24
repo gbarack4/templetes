@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import type { RescheduleDateOption } from "../mock-data";
 import { RescheduleCalendar } from "./RescheduleCalendar";
 
@@ -19,6 +19,8 @@ export function CalendarPickerModal({
   onSelectDate,
   onClose,
 }: CalendarPickerModalProps) {
+  const [isVisible, setIsVisible] = useState(false);
+
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") onClose();
@@ -26,8 +28,10 @@ export function CalendarPickerModal({
 
     document.addEventListener("keydown", handleKeyDown);
     document.body.style.overflow = "hidden";
+    const frameId = window.requestAnimationFrame(() => setIsVisible(true));
 
     return () => {
+      window.cancelAnimationFrame(frameId);
       document.removeEventListener("keydown", handleKeyDown);
       document.body.style.overflow = "";
     };
@@ -39,27 +43,22 @@ export function CalendarPickerModal({
         type="button"
         aria-label="Close calendar"
         onClick={onClose}
-        className="absolute inset-0 bg-slate-900/40"
+        className={`absolute inset-0 bg-slate-900/30 backdrop-blur-[2px] transition-opacity duration-300 ease-out ${
+          isVisible ? "opacity-100" : "opacity-0"
+        }`}
       />
       <div
         role="dialog"
         aria-modal="true"
-        aria-labelledby="calendar-picker-title"
-        className="relative z-10 w-full max-w-md rounded-t-2xl bg-white p-5 shadow-xl"
+        aria-label={title}
+        className={`relative z-10 w-full max-w-md rounded-t-[1.75rem] bg-white px-5 pb-6 pt-3 shadow-xl transition-transform duration-300 ease-out ${
+          isVisible ? "translate-y-0" : "translate-y-full"
+        }`}
       >
-        <div className="mb-4 flex items-center justify-between">
-          <h2 id="calendar-picker-title" className="text-base font-bold text-slate-900">
-            {title}
-          </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg px-2 py-1 text-sm font-medium text-slate-500 transition hover:bg-slate-100 hover:text-slate-700"
-          >
-            Close
-          </button>
-        </div>
-
+        <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-slate-200" />
+        <h2 className="mb-5 text-center text-lg font-bold text-slate-900">
+          Select date
+        </h2>
         <RescheduleCalendar
           availableDates={availableDates}
           selectedDateId={selectedDateId}

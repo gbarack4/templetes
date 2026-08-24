@@ -27,12 +27,14 @@ function ChevronRightIcon({ className }: Readonly<{ className?: string }>) {
   );
 }
 
+type DayStatus = "open" | "full" | "unavailable";
+
 export function RescheduleCalendar({
   availableDates,
   selectedDateId,
   onSelectDate,
 }: RescheduleCalendarProps) {
-  const availableByDay = useMemo(() => {
+  const datesByDay = useMemo(() => {
     const map = new Map<string, RescheduleDateOption>();
     for (const date of availableDates) {
       map.set(`${date.year}-${date.monthIndex}-${date.day}`, date);
@@ -42,7 +44,13 @@ export function RescheduleCalendar({
 
   const monthRange = useMemo(() => {
     if (availableDates.length === 0) {
-      return { minMonth: 0, minYear: 2026, maxMonth: 0, maxYear: 2026 };
+      const now = new Date();
+      return {
+        minMonth: now.getMonth(),
+        minYear: now.getFullYear(),
+        maxMonth: now.getMonth(),
+        maxYear: now.getFullYear(),
+      };
     }
 
     const sorted = [...availableDates].sort((a, b) => {
@@ -64,10 +72,13 @@ export function RescheduleCalendar({
   const [viewYear, setViewYear] = useState(monthRange.minYear);
   const [viewMonth, setViewMonth] = useState(monthRange.minMonth);
 
-  const monthLabel = new Date(viewYear, viewMonth, 1).toLocaleDateString("en-US", {
-    month: "long",
-    year: "numeric",
-  });
+  const monthLabel = new Date(viewYear, viewMonth, 1).toLocaleDateString(
+    "en-US",
+    {
+      month: "long",
+      year: "numeric",
+    },
+  );
 
   const calendarDays = useMemo(() => {
     const firstDay = new Date(viewYear, viewMonth, 1).getDay();
@@ -88,14 +99,6 @@ export function RescheduleCalendar({
 
     return cells;
   }, [viewMonth, viewYear]);
-
-  const availableThisMonth = useMemo(
-    () =>
-      availableDates.filter(
-        (date) => date.year === viewYear && date.monthIndex === viewMonth,
-      ).length,
-    [availableDates, viewMonth, viewYear],
-  );
 
   const canGoPrevious =
     viewYear > monthRange.minYear ||
@@ -125,35 +128,47 @@ export function RescheduleCalendar({
     setViewMonth((month) => month + 1);
   }
 
+  function getDayStatus(day: number): {
+    status: DayStatus;
+    date: RescheduleDateOption | null;
+  } {
+    const date = datesByDay.get(`${viewYear}-${viewMonth}-${day}`) ?? null;
+    if (!date) return { status: "unavailable", date: null };
+    if (date.availability === "full" || date.slotCount <= 0) {
+      return { status: "full", date };
+    }
+    return { status: "open", date };
+  }
+
   return (
-    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
-      <div className="flex items-center justify-between bg-blue-600 px-3 py-2.5 text-white">
+    <div className="bg-white">
+      <div className="mb-4 flex items-center justify-between px-1">
         <button
           type="button"
           aria-label="Previous month"
           onClick={goToPreviousMonth}
           disabled={!canGoPrevious}
-          className="rounded-lg p-1 transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-30"
+          className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-50 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-30"
         >
-          <ChevronLeftIcon className="h-4 w-4" />
+          <ChevronLeftIcon className="h-5 w-5" />
         </button>
-        <p className="text-sm font-semibold">{monthLabel}</p>
+        <p className="text-base font-semibold text-slate-900">{monthLabel}</p>
         <button
           type="button"
           aria-label="Next month"
           onClick={goToNextMonth}
           disabled={!canGoNext}
-          className="rounded-lg p-1 transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-30"
+          className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-50 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-30"
         >
-          <ChevronRightIcon className="h-4 w-4" />
+          <ChevronRightIcon className="h-5 w-5" />
         </button>
       </div>
 
-      <div className="grid grid-cols-7 gap-px bg-slate-100 px-px pt-px">
+      <div className="grid grid-cols-7 gap-1.5">
         {WEEKDAY_LABELS.map((label) => (
           <div
             key={label}
-            className="bg-slate-50 py-2 text-center text-[10px] font-semibold uppercase tracking-wide text-slate-400"
+            className="pb-1 text-center text-xs font-medium text-slate-400"
           >
             {label}
           </div>
@@ -161,57 +176,59 @@ export function RescheduleCalendar({
 
         {calendarDays.map((cell, index) => {
           if (cell.day === null) {
-            return (
-              <div
-                key={`empty-${index}`}
-                className="h-9 bg-white"
-              />
-            );
+            return <div key={`empty-${index}`} className="min-h-[3.25rem]" />;
           }
 
           const dateKey = `${viewYear}-${viewMonth}-${cell.day}`;
-          const availableDate = availableByDay.get(dateKey);
-          const isSelected = availableDate?.id === selectedDateId;
-          const isAvailable = Boolean(availableDate);
-          const dayOfWeek = new Date(viewYear, viewMonth, cell.day).getDay();
-          const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+          const { status, date } = getDayStatus(cell.day);
+          const isSelected = date?.id === selectedDateId;
+          const isOpen = status === "open";
 
           return (
             <button
               key={dateKey}
               type="button"
-              disabled={!isAvailable}
-              onClick={() => availableDate && onSelectDate(availableDate.id)}
-              className={`relative h-9 bg-white transition ${
-                isWeekend && !isSelected ? "bg-slate-50/80" : ""
-              } ${isAvailable ? "hover:bg-blue-50" : "cursor-default"}`}
+              disabled={!isOpen}
+              onClick={() => date && isOpen && onSelectDate(date.id)}
+              className={`flex min-h-[3.25rem] flex-col items-center justify-center gap-0.5 rounded-2xl px-0.5 py-1.5 transition ${
+                isOpen
+                  ? isSelected
+                    ? "bg-slate-900 text-white"
+                    : "bg-slate-100 text-slate-900 hover:bg-slate-200/80"
+                  : "cursor-default bg-transparent text-slate-300"
+              }`}
             >
               <span
-                className={`absolute left-1/2 top-1/2 flex h-7 w-7 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full text-xs font-medium ${
-                  isSelected
-                    ? "bg-blue-600 text-white shadow-sm"
-                    : isAvailable
-                      ? "text-slate-900"
-                      : "text-slate-300"
+                className={`text-sm font-semibold leading-none ${
+                  isOpen
+                    ? isSelected
+                      ? "text-white"
+                      : "text-slate-900"
+                    : "text-slate-300"
                 }`}
               >
                 {cell.day}
               </span>
+              <span
+                className={`max-w-full truncate leading-none ${
+                  status === "unavailable"
+                    ? "text-[7px] tracking-tight text-slate-300"
+                    : isOpen
+                      ? isSelected
+                        ? "text-[9px] text-white/80"
+                        : "text-[9px] text-slate-400"
+                      : "text-[9px] text-slate-300"
+                }`}
+              >
+                {status === "open"
+                  ? `slot ${date?.slotCount ?? 0}`
+                  : status === "full"
+                    ? "full"
+                    : "unavailable"}
+              </span>
             </button>
           );
         })}
-      </div>
-
-      <div className="flex items-center justify-between border-t border-slate-100 px-3 py-2 text-[10px] text-slate-500">
-        <span className="flex items-center gap-1.5">
-          <span className="h-2 w-2 rounded-full bg-blue-600" />
-          Available
-        </span>
-        <span>
-          {availableThisMonth > 0
-            ? `${availableThisMonth} slots this month`
-            : "No slots this month"}
-        </span>
       </div>
     </div>
   );
@@ -221,5 +238,10 @@ export function getSelectedRescheduleDate(
   availableDates: RescheduleDateOption[],
   selectedDateId: string | null,
 ) {
-  return availableDates.find((date) => date.id === selectedDateId) ?? null;
+  const selected =
+    availableDates.find((date) => date.id === selectedDateId) ?? null;
+  if (!selected || selected.availability === "full" || selected.slotCount <= 0) {
+    return null;
+  }
+  return selected;
 }

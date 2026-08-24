@@ -13,6 +13,7 @@ export type SuggestedInstructor = InstructorOption &
     pricePerHour: number;
     suburb: string;
     postcode: string;
+    availableSlots: number;
   }>;
 
 export const mockStudentArea: StudentArea = {
@@ -28,18 +29,21 @@ export const suggestedInstructorsInArea: SuggestedInstructor[] = [
     pricePerHour: 60,
     suburb: "Downtown",
     postcode: "98101",
+    availableSlots: 5,
   },
   {
     ...mockInstructors[1],
     pricePerHour: 58,
     suburb: "Westside",
     postcode: "98109",
+    availableSlots: 3,
   },
   {
     ...mockInstructors[2],
     pricePerHour: 62,
     suburb: "Eastside",
     postcode: "98112",
+    availableSlots: 7,
   },
   {
     id: "james-rodriguez",
@@ -53,6 +57,7 @@ export const suggestedInstructorsInArea: SuggestedInstructor[] = [
     pricePerHour: 57,
     suburb: "Northgate",
     postcode: "98125",
+    availableSlots: 4,
   },
   {
     id: "lisa-patel",
@@ -66,6 +71,7 @@ export const suggestedInstructorsInArea: SuggestedInstructor[] = [
     pricePerHour: 61,
     suburb: "Capitol Hill",
     postcode: "98102",
+    availableSlots: 6,
   },
   {
     id: "tom-anderson",
@@ -79,6 +85,7 @@ export const suggestedInstructorsInArea: SuggestedInstructor[] = [
     pricePerHour: 59,
     suburb: "Ballard",
     postcode: "98107",
+    availableSlots: 2,
   },
   {
     id: "nina-brooks",
@@ -92,6 +99,7 @@ export const suggestedInstructorsInArea: SuggestedInstructor[] = [
     pricePerHour: 63,
     suburb: "Queen Anne",
     postcode: "98109",
+    availableSlots: 8,
   },
   {
     id: "david-kim",
@@ -105,6 +113,7 @@ export const suggestedInstructorsInArea: SuggestedInstructor[] = [
     pricePerHour: 56,
     suburb: "Rainier Valley",
     postcode: "98118",
+    availableSlots: 5,
   },
 ];
 

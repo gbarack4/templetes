@@ -9,6 +9,8 @@ import {
   formatCurrency,
   formatLessonHoursLabel,
   formatLessonTimeRange,
+  formatShortLessonHours,
+  getLessonPackageTitle,
   mergeRescheduleDates,
   mockRescheduleDates,
   mockRescheduleTimeSlots,
@@ -19,10 +21,15 @@ import { FlowPageHeader } from "@/dashboard/components/FlowPageHeader";
 import { LessonPayment } from "@/dashboard/components/LessonPayment";
 import {
   getSelectedRescheduleDate,
-  RescheduleCalendar,
 } from "@/dashboard/components/RescheduleCalendar";
+import { CalendarPickerModal } from "@/dashboard/components/CalendarPickerModal";
+import { TimePickerModal } from "@/dashboard/components/TimePickerModal";
 import { InstructorProfileSummary } from "@/dashboard/components/InstructorSearch";
-import { ChevronRightIcon, CloseIcon } from "@/dashboard/components/icons";
+import {
+  CheckIcon,
+  ChevronRightIcon,
+  CloseIcon,
+} from "@/dashboard/components/icons";
 import { mockDashboardData } from "@/dashboard/mock-data";
 import { useStudentCreditHours } from "@/dashboard/useStudentCreditHours";
 import { calculateOnboardingLessonPayment } from "./book-lesson-payment";
@@ -381,7 +388,9 @@ export function BookInstructorFlow({
               className="flex w-full items-center justify-between rounded-xl bg-slate-50 px-4 py-3 text-left transition hover:bg-slate-100"
             >
               <span className="text-sm font-medium text-slate-900">
-                {formatLessonHoursLabel(selectedHours)}
+                {getLessonPackageTitle(selectedHours)} ·{" "}
+                {formatShortLessonHours(selectedHours)} ·{" "}
+                {formatCurrency(selectedHours * instructor.pricePerHour)}
               </span>
               <ChevronRightIcon
                 className={`h-4 w-4 shrink-0 text-slate-400 transition ${
@@ -391,22 +400,32 @@ export function BookInstructorFlow({
             </button>
 
             {showDurationPicker && (
-              <div className="flex max-h-44 flex-col gap-2 overflow-y-auto overscroll-y-contain rounded-xl border border-slate-200 bg-white p-2">
+              <div className="flex max-h-64 flex-col overflow-y-auto overscroll-y-contain rounded-2xl border border-slate-200 bg-white px-4 py-2">
                 {durationOptions.map((hours) => {
                   const isSelected = selectedHours === hours;
+                  const priceLabel = formatCurrency(
+                    hours * instructor.pricePerHour,
+                  );
 
                   return (
                     <button
                       key={hours}
                       type="button"
                       onClick={() => handleHoursChange(hours)}
-                      className={`w-full shrink-0 rounded-lg px-3 py-2.5 text-left text-sm font-medium transition ${
-                        isSelected
-                          ? "bg-blue-600 text-white"
-                          : "text-slate-700 hover:bg-slate-50"
-                      }`}
+                      className="flex w-full shrink-0 items-center justify-between gap-3 py-3.5 text-left transition hover:opacity-80"
                     >
-                      {formatLessonHoursLabel(hours)}
+                      <span className="min-w-0">
+                        <span className="block text-sm font-semibold text-slate-900">
+                          {getLessonPackageTitle(hours)}
+                        </span>
+                        <span className="mt-0.5 block text-xs text-slate-500">
+                          {formatShortLessonHours(hours)} · {priceLabel} ·{" "}
+                          {instructor.suburb}
+                        </span>
+                      </span>
+                      {isSelected ? (
+                        <CheckIcon className="h-5 w-5 shrink-0 text-blue-600" />
+                      ) : null}
                     </button>
                   );
                 })}
@@ -433,31 +452,35 @@ export function BookInstructorFlow({
         )}
 
         {showScheduleStep && showDatePicker && (
+          <CalendarPickerModal
+            title={selectedDate ? "Change date" : "Pick a date"}
+            availableDates={availableDates}
+            selectedDateId={selectedDateId}
+            onSelectDate={(dateId) => {
+              setSelectedDateId(dateId);
+              setShowDatePicker(false);
+              setSelectedTime(null);
+              setShowSignUp(false);
+              setShowSummary(false);
+              setHasRegistered(false);
+            }}
+            onClose={() => setShowDatePicker(false)}
+          />
+        )}
+
+        {showScheduleStep && !selectedDate && !showDatePicker && (
           <section ref={dateStepRef} className="space-y-3">
-            <h2 className="text-sm font-semibold text-slate-900">
-              {selectedDate ? "Change date" : "Pick a date"}
-            </h2>
-            <RescheduleCalendar
-              availableDates={availableDates}
-              selectedDateId={selectedDateId}
-              onSelectDate={(dateId) => {
-                setSelectedDateId(dateId);
-                setShowDatePicker(false);
-                setSelectedTime(null);
-                setShowSignUp(false);
-                setShowSummary(false);
-                setHasRegistered(false);
-              }}
-            />
-            {selectedDate && (
-              <button
-                type="button"
-                onClick={() => setShowDatePicker(false)}
-                className="text-sm font-medium text-blue-600 hover:text-blue-700"
-              >
-                Keep current date
-              </button>
-            )}
+            <h2 className="text-sm font-semibold text-slate-900">Pick a date</h2>
+            <button
+              type="button"
+              onClick={() => setShowDatePicker(true)}
+              className="flex w-full items-center justify-between rounded-xl bg-slate-50 px-4 py-3 text-left transition hover:bg-slate-100"
+            >
+              <span className="text-sm font-medium text-slate-400">
+                Select date
+              </span>
+              <ChevronRightIcon className="h-4 w-4 shrink-0 text-slate-400" />
+            </button>
           </section>
         )}
 
@@ -488,7 +511,7 @@ export function BookInstructorFlow({
             <h2 className="text-sm font-semibold text-slate-900">Pick a time</h2>
             <button
               type="button"
-              onClick={() => setShowTimePicker((open) => !open)}
+              onClick={() => setShowTimePicker(true)}
               className="flex w-full items-center justify-between rounded-xl bg-slate-50 px-4 py-3 text-left transition hover:bg-slate-100"
             >
               <span
@@ -498,34 +521,16 @@ export function BookInstructorFlow({
               >
                 {selectedTime ?? "Select time"}
               </span>
-              <ChevronRightIcon
-                className={`h-4 w-4 shrink-0 text-slate-400 transition ${
-                  showTimePicker ? "rotate-90" : ""
-                }`}
-              />
+              <ChevronRightIcon className="h-4 w-4 shrink-0 text-slate-400" />
             </button>
 
             {showTimePicker && (
-              <div className="grid max-h-48 grid-cols-4 gap-1.5 overflow-y-auto overscroll-y-contain rounded-xl border border-slate-200 bg-white p-2">
-                {mockRescheduleTimeSlots.map((time) => {
-                  const isSelected = selectedTime === time;
-
-                  return (
-                    <button
-                      key={time}
-                      type="button"
-                      onClick={() => handleTimeChange(time)}
-                      className={`rounded-md px-1 py-1.5 text-center text-[11px] font-medium leading-tight transition ${
-                        isSelected
-                          ? "bg-blue-600 text-white"
-                          : "bg-slate-50 text-slate-700 hover:bg-slate-100"
-                      }`}
-                    >
-                      {time}
-                    </button>
-                  );
-                })}
-              </div>
+              <TimePickerModal
+                timeSlots={mockRescheduleTimeSlots}
+                selectedTime={selectedTime}
+                onSelectTime={handleTimeChange}
+                onClose={() => setShowTimePicker(false)}
+              />
             )}
           </section>
         )}
