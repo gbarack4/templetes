@@ -5,7 +5,10 @@ import { useMemo, useState } from "react";
 import { CalendarPickerModal } from "@/dashboard/components/CalendarPickerModal";
 import { getSelectedRescheduleDate } from "@/dashboard/components/RescheduleCalendar";
 import { buildFutureDates } from "@/dashboard/mock-data";
-import { buildOnboardingSearchPath, getOnboardingBasePath } from "@/onboarding/paths";
+import {
+  buildOnboardingSearchPath,
+  getOnboardingBasePath,
+} from "@/onboarding/paths";
 import { submitFormEmbedSearch } from "./form-embed-search";
 import { mockModernTransmissionOptions } from "./resolve-modern-site";
 import { SuburbAutocomplete } from "./SuburbAutocomplete";
@@ -13,7 +16,14 @@ import type { TemplateProps } from "./types";
 
 function ChevronDownIcon({ className }: Readonly<{ className?: string }>) {
   return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      aria-hidden
+    >
       <path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
@@ -21,7 +31,14 @@ function ChevronDownIcon({ className }: Readonly<{ className?: string }>) {
 
 function SearchIcon({ className }: Readonly<{ className?: string }>) {
   return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      aria-hidden
+    >
       <circle cx="11" cy="11" r="7" />
       <path d="M20 20l-3.5-3.5" strokeLinecap="round" />
     </svg>
@@ -34,11 +51,14 @@ const fieldClassName =
 export function FormEmbedTemplate({ data }: Readonly<TemplateProps>) {
   const router = useRouter();
   const pathname = usePathname();
-  const transmissionOptions =
-    data.config?.transmissionOptions ?? [...mockModernTransmissionOptions];
+  const transmissionOptions = data.config?.transmissionOptions ?? [
+    ...mockModernTransmissionOptions,
+  ];
 
   const [suburb, setSuburb] = useState("");
-  const [transmission, setTransmission] = useState(transmissionOptions[0] ?? "Auto");
+  const [transmission, setTransmission] = useState(
+    transmissionOptions[0] ?? "Auto",
+  );
   const [testDateId, setTestDateId] = useState<string | null>(null);
   const [showTestDatePicker, setShowTestDatePicker] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
@@ -48,7 +68,7 @@ export function FormEmbedTemplate({ data }: Readonly<TemplateProps>) {
   const selectedTestDate = getSelectedRescheduleDate(futureDates, testDateId);
   const canSearch = suburb.trim().length > 0;
 
-  async function handleSearch(event: React.FormEvent<HTMLFormElement>) {
+  async function handleSearch(event: React.SyntheticEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!canSearch || isSearching) return;
 
@@ -76,7 +96,7 @@ export function FormEmbedTemplate({ data }: Readonly<TemplateProps>) {
         buildOnboardingSearchPath(getOnboardingBasePath(pathname), {
           suburb,
           transmission,
-          testDate,
+          preferredDate: testDate,
         }),
       );
     } catch {
@@ -90,7 +110,10 @@ export function FormEmbedTemplate({ data }: Readonly<TemplateProps>) {
       <main className="flex-1 px-5 pb-24 pt-6">
         <form className="space-y-5" onSubmit={handleSearch}>
           <div className="space-y-2">
-            <label htmlFor="embed-pickup" className="text-sm font-semibold text-slate-900">
+            <label
+              htmlFor="embed-pickup"
+              className="text-sm font-semibold text-slate-900"
+            >
               Pick-up Location <span className="text-amber-500">*</span>
             </label>
             <SuburbAutocomplete
@@ -107,7 +130,10 @@ export function FormEmbedTemplate({ data }: Readonly<TemplateProps>) {
           </div>
 
           <div className="space-y-2">
-            <label htmlFor="embed-transmission" className="text-sm font-semibold text-slate-900">
+            <label
+              htmlFor="embed-transmission"
+              className="text-sm font-semibold text-slate-900"
+            >
               Transmission <span className="text-amber-500">*</span>
             </label>
             <div className={fieldClassName}>
@@ -128,7 +154,10 @@ export function FormEmbedTemplate({ data }: Readonly<TemplateProps>) {
           </div>
 
           <div className="space-y-2">
-            <label htmlFor="embed-test-date" className="text-sm font-semibold text-slate-900">
+            <label
+              htmlFor="embed-test-date"
+              className="text-sm font-semibold text-slate-900"
+            >
               Pick dates
             </label>
             <div className={fieldClassName}>
