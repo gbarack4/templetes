@@ -117,7 +117,9 @@ export const suggestedInstructorsInArea: SuggestedInstructor[] = [
   },
 ];
 
-export function getSuggestedInstructorById(id: string): SuggestedInstructor | undefined {
+export function getSuggestedInstructorById(
+  id: string,
+): SuggestedInstructor | undefined {
   return suggestedInstructorsInArea.find((instructor) => instructor.id === id);
 }
 
@@ -158,7 +160,9 @@ export function instructorMatchesSuburb(
     return true;
   }
 
-  const serviceAreas = instructorServiceSuburbs[instructor.id] ?? [instructor.suburb];
+  const serviceAreas = instructorServiceSuburbs[instructor.id] ?? [
+    instructor.suburb,
+  ];
   return serviceAreas.some((suburb) => {
     const normalizedSuburb = suburb.toLowerCase();
     return (
@@ -296,4 +300,28 @@ export const instructorProfileDetails: Record<
       imageUrl: "/cars/honda-civic.svg",
     },
   },
+};
+
+type AvailableSlot = {
+  instructorId: string;
+  startDatetime: string;
+  endDatetime: string;
+};
+
+export type PublicInstructor = {
+  id: string;
+  name: string;
+  phone: string | null;
+  bio: string | null;
+  pricePerHour: number;
+  avatarUrl: string;
+  suburb: string | null;
+  postcode: string | null;
+  schoolId: string;
+  initials: string;
+  location: string;
+  rating: number;
+  reviewCount: number;
+  lessonsCompleted: number;
+  availableSlots: AvailableSlot[];
 };

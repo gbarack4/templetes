@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useMemo, useState } from "react";
+
 import { formatCurrency, type InstructorOption } from "../mock-data";
 
 type InstructorSearchProps = Readonly<{
@@ -11,13 +12,29 @@ type InstructorSearchProps = Readonly<{
   title?: string;
 }>;
 
+function getInitials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+
+  if (parts.length >= 2) {
+    return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+  }
+
+  return name.slice(0, 2).toUpperCase();
+}
+
 export function InstructorProfileSummary({
   instructor,
   compact = false,
 }: Readonly<{ instructor: InstructorOption; compact?: boolean }>) {
   const [imageError, setImageError] = useState(false);
+
   const sizeClass = compact ? "h-9 w-9 text-xs" : "h-12 w-12 text-sm";
   const showImage = Boolean(instructor.avatarUrl) && !imageError;
+
+  const initials = instructor.initials || getInitials(instructor.name);
+  const rating = instructor.rating ?? null;
+  const reviewCount = instructor.reviewCount ?? 0;
+  const lessonsCompleted = instructor.lessonsCompleted ?? 0;
 
   return (
     <div className={`flex min-w-0 flex-1 ${compact ? "gap-2.5" : "gap-3"}`}>
@@ -34,21 +51,32 @@ export function InstructorProfileSummary({
             sizes={compact ? "36px" : "48px"}
           />
         ) : (
-          instructor.initials
+          initials
         )}
       </div>
+
       <div className="min-w-0 flex-1">
         <p
-          className={`font-semibold text-slate-900 ${compact ? "text-sm leading-tight" : "text-sm"}`}
+          className={`font-semibold text-slate-900 ${
+            compact ? "text-sm leading-tight" : "text-sm"
+          }`}
         >
           {instructor.name}
         </p>
-        <p className="mt-0.5 text-xs font-medium text-amber-600">
-          ★ {instructor.rating.toFixed(1)} · {instructor.reviewCount} reviews
-        </p>
+
+        {rating !== null && reviewCount > 0 ? (
+          <p className="mt-0.5 text-xs font-medium text-amber-600">
+            ★ {rating.toFixed(1)} · {reviewCount} reviews
+          </p>
+        ) : (
+          <p className="mt-0.5 text-xs text-slate-400">No reviews yet</p>
+        )}
+
         {!compact ? (
           <p className="mt-0.5 text-xs text-slate-500">
-            {instructor.lessonsCompleted.toLocaleString()} lessons completed
+            {lessonsCompleted > 0
+              ? `${lessonsCompleted.toLocaleString()} lessons completed`
+              : "No completed lessons yet"}
           </p>
         ) : null}
       </div>
@@ -63,6 +91,8 @@ function InstructorProfileCard({
   instructor: InstructorOption;
   onSelect: () => void;
 }>) {
+  const pricePerHour = instructor.pricePerHour;
+
   return (
     <button
       type="button"
@@ -71,8 +101,11 @@ function InstructorProfileCard({
     >
       <div className="flex items-start justify-between gap-3">
         <InstructorProfileSummary instructor={instructor} />
+
         <span className="shrink-0 rounded-full bg-blue-600 px-2.5 py-1 text-xs font-medium text-white">
-          {formatCurrency(instructor.pricePerHour)}/hr
+          {pricePerHour != null
+            ? `${formatCurrency(pricePerHour)}/hr`
+            : "Price on request"}
         </span>
       </div>
     </button>
@@ -89,20 +122,25 @@ export function InstructorSearch({
 
   const suggestions = useMemo(() => {
     const trimmed = query.trim().toLowerCase();
-    if (!trimmed) return instructors;
 
-    return instructors.filter(
-      (instructor) =>
-        instructor.name.toLowerCase().includes(trimmed) ||
-        instructor.location.toLowerCase().includes(trimmed),
-    );
+    if (!trimmed) {
+      return instructors;
+    }
+
+    return instructors.filter((instructor) => {
+      const name = instructor.name?.toLowerCase() ?? "";
+      const location = instructor.location?.toLowerCase() ?? "";
+
+      return name.includes(trimmed) || location.includes(trimmed);
+    });
   }, [instructors, query]);
 
   return (
     <section className="space-y-3">
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-semibold text-slate-900">{title}</h2>
-        {onCancel && (
+
+        {onCancel ? (
           <button
             type="button"
             onClick={onCancel}
@@ -110,7 +148,7 @@ export function InstructorSearch({
           >
             Cancel
           </button>
-        )}
+        ) : null}
       </div>
 
       <input

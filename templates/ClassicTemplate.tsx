@@ -3,21 +3,23 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
+
+import { GoogleAddressAutocomplete } from "@/components/GoogleAddressAutocomplete";
 import { CalendarPickerModal } from "@/dashboard/components/CalendarPickerModal";
 import { getSelectedRescheduleDate } from "@/dashboard/components/RescheduleCalendar";
+import { useSchool } from "@/dashboard/SchoolContext";
 import { buildFutureDates } from "@/dashboard/mock-data";
-import {
-  buildOnboardingSearchPath,
-  getOnboardingBasePath,
-} from "@/onboarding/paths";
 import { DrivingSchoolProfile } from "@/login/DrivingSchoolProfile";
 import {
   formatReviewCount,
   resolveGoogleReviews,
   resolveSchoolProfile,
 } from "@/login/school-profile";
-import { useSchool } from "@/dashboard/SchoolContext";
-import { GoogleAddressAutocomplete } from "@/components/GoogleAddressAutocomplete";
+import {
+  buildOnboardingSearchPath,
+  getOnboardingBasePath,
+} from "@/onboarding/paths";
+
 import type { TemplateProps } from "./types";
 
 function SearchIcon({ className }: Readonly<{ className?: string }>) {
@@ -83,33 +85,45 @@ const SEARCH_LOADING_MS = 2000;
 export function ClassicTemplate({ data }: Readonly<TemplateProps>) {
   const router = useRouter();
   const pathname = usePathname();
+
   const [suburb, setSuburb] = useState("");
   const [transmission, setTransmission] = useState("Auto");
-  const [testDateId, setTestDateId] = useState<string | null>(null);
-  const [showTestDatePicker, setShowTestDatePicker] = useState(false);
+  const [preferredDateId, setPreferredDateId] = useState<string | null>(null);
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
+
   const futureDates = useMemo(() => buildFutureDates(), []);
-  const selectedTestDate = getSelectedRescheduleDate(futureDates, testDateId);
+
+  const selectedDate = getSelectedRescheduleDate(futureDates, preferredDateId);
+
   const { schoolName, logoUrl } = useSchool();
   const school = resolveSchoolProfile(data, { schoolName, logoUrl });
   const googleReviews = resolveGoogleReviews(data);
-  const canSearch = suburb.trim().length > 0;
+
+  const canSearch =
+    suburb.trim().length > 0 &&
+    transmission.length > 0 &&
+    selectedDate !== null;
 
   function handleSearch(event: React.SyntheticEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!canSearch || isSearching) return;
 
-    const testDate = selectedTestDate
-      ? `${selectedTestDate.year}-${String(selectedTestDate.monthIndex + 1).padStart(2, "0")}-${String(selectedTestDate.day).padStart(2, "0")}`
-      : undefined;
+    if (!canSearch || isSearching || !selectedDate) {
+      return;
+    }
+
+    const preferredDate = `${selectedDate.year}-${String(
+      selectedDate.monthIndex + 1,
+    ).padStart(2, "0")}-${String(selectedDate.day).padStart(2, "0")}`;
 
     setIsSearching(true);
+
     window.setTimeout(() => {
       router.push(
         buildOnboardingSearchPath(getOnboardingBasePath(pathname), {
           suburb,
           transmission,
-          testDate,
+          preferredDate,
         }),
       );
     }, SEARCH_LOADING_MS);
@@ -117,11 +131,12 @@ export function ClassicTemplate({ data }: Readonly<TemplateProps>) {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-slate-50">
-      <header className="flex shrink-0 items-center justify-between px-5 pb-2 pt-5">
+      <header className="flex shrink-0 items-center justify-between px-5 pt-5 pb-2">
         <DrivingSchoolProfile
           school={school}
           className="bg-transparent px-0 py-0"
         />
+
         <Link
           href="/login"
           className="rounded-full bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-slate-800"
@@ -130,14 +145,15 @@ export function ClassicTemplate({ data }: Readonly<TemplateProps>) {
         </Link>
       </header>
 
-      <main className="flex min-h-0 flex-1 flex-col px-5 pb-6 pt-4">
-        <h3 className="text-center text-2xl font-bold leading-tight text-slate-900">
+      <main className="flex min-h-0 flex-1 flex-col px-5 pt-4 pb-6">
+        <h3 className="text-center text-2xl leading-tight font-bold text-slate-900">
           Book driving lessons with local{" "}
           <span className="mt-1 block">instructors</span>
         </h3>
 
         <div className="mt-3 flex items-center justify-center gap-2">
           <GoogleIcon />
+
           <div className="flex items-center gap-0.5 text-amber-400" aria-hidden>
             {[1, 2, 3, 4, 5].map((star) => (
               <span key={star} className="text-sm leading-none">
@@ -145,6 +161,7 @@ export function ClassicTemplate({ data }: Readonly<TemplateProps>) {
               </span>
             ))}
           </div>
+
           <p className="text-sm text-slate-500">
             <span className="font-semibold text-slate-700">
               {googleReviews.rating}
@@ -156,6 +173,7 @@ export function ClassicTemplate({ data }: Readonly<TemplateProps>) {
         <section className="mt-6 rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-100">
           <div className="flex items-center gap-2 border-b border-slate-100 pb-4">
             <SearchIcon className="h-5 w-5 text-slate-700" />
+
             <h2 className="text-base font-bold text-slate-900">
               Find an instructor
             </h2>
@@ -169,15 +187,16 @@ export function ClassicTemplate({ data }: Readonly<TemplateProps>) {
               >
                 Pick-up Location <span className="text-orange-500">*</span>
               </label>
+
               <GoogleAddressAutocomplete
                 id="pickup-address"
                 value={suburb}
                 onChange={setSuburb}
                 onSelect={setSuburb}
                 placeholder="Enter pick up address"
-                inputClassName={`${fieldClassName} py-3.5 pl-11 pr-4 placeholder:text-slate-400`}
+                inputClassName={`${fieldClassName} py-3.5 pr-4 pl-11 placeholder:text-slate-400`}
                 icon={
-                  <SearchIcon className="pointer-events-none absolute left-4 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                  <SearchIcon className="pointer-events-none absolute top-1/2 left-4 z-10 h-4 w-4 -translate-y-1/2 text-slate-400" />
                 }
               />
             </div>
@@ -189,6 +208,7 @@ export function ClassicTemplate({ data }: Readonly<TemplateProps>) {
               >
                 Transmission <span className="text-orange-500">*</span>
               </label>
+
               <select
                 id="transmission"
                 value={transmission}
@@ -201,31 +221,28 @@ export function ClassicTemplate({ data }: Readonly<TemplateProps>) {
             </div>
 
             <div className="space-y-2">
-              <div>
-                <label
-                  htmlFor="test-date"
-                  className="text-sm font-semibold text-slate-900"
-                >
-                  Pick date
-                </label>
-                <p className="text-xs text-slate-400">
-                  Optional, helps match availability
-                </p>
-              </div>
+              <label
+                htmlFor="preferred-date"
+                className="text-sm font-semibold text-slate-900"
+              >
+                Pick date <span className="text-orange-500">*</span>
+              </label>
+
               <div className="relative">
-                <CalendarIcon className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <CalendarIcon className="pointer-events-none absolute top-1/2 left-4 h-4 w-4 -translate-y-1/2 text-slate-400" />
+
                 <button
                   type="button"
-                  id="test-date"
-                  onClick={() => setShowTestDatePicker(true)}
-                  className={`${fieldClassName} py-3.5 pl-11 pr-4 text-left`}
+                  id="preferred-date"
+                  onClick={() => setShowDatePicker(true)}
+                  className={`${fieldClassName} py-3.5 pr-4 pl-11 text-left`}
                 >
                   <span
                     className={
-                      selectedTestDate ? "text-slate-900" : "text-slate-400"
+                      selectedDate ? "text-slate-900" : "text-slate-400"
                     }
                   >
-                    {selectedTestDate?.label ?? "Select test date"}
+                    {selectedDate?.label ?? "Select date"}
                   </span>
                 </button>
               </div>
@@ -234,10 +251,8 @@ export function ClassicTemplate({ data }: Readonly<TemplateProps>) {
             <button
               type="submit"
               aria-busy={isSearching}
-              disabled={!canSearch}
-              className={`w-full rounded-full bg-slate-900 py-4 text-sm font-bold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 ${
-                isSearching ? "pointer-events-none" : ""
-              }`}
+              disabled={!canSearch || isSearching}
+              className="w-full rounded-full bg-slate-900 py-4 text-sm font-bold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
             >
               {isSearching ? "Searching...." : "Search Instructors"}
             </button>
@@ -258,13 +273,13 @@ export function ClassicTemplate({ data }: Readonly<TemplateProps>) {
         </p>
       </main>
 
-      {showTestDatePicker && (
+      {showDatePicker && (
         <CalendarPickerModal
           title="Choose date"
           availableDates={futureDates}
-          selectedDateId={testDateId}
-          onSelectDate={setTestDateId}
-          onClose={() => setShowTestDatePicker(false)}
+          selectedDateId={preferredDateId}
+          onSelectDate={setPreferredDateId}
+          onClose={() => setShowDatePicker(false)}
         />
       )}
     </div>

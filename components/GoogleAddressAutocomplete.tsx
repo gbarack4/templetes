@@ -1,13 +1,6 @@
 "use client";
 
-import {
-  useEffect,
-  useId,
-  useMemo,
-  useRef,
-  useState,
-  type ReactNode,
-} from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 
 export type AddressSuggestion = Readonly<{
   id: string;
@@ -31,81 +24,6 @@ type GoogleAddressAutocompleteProps = Readonly<{
 }>;
 
 const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
-
-const MOCK_ADDRESSES: readonly AddressSuggestion[] = [
-  {
-    id: "mock-1",
-    mainText: "1201 Pike St",
-    secondaryText: "Seattle, WA 98101, USA",
-    description: "1201 Pike St, Seattle, WA 98101, USA",
-  },
-  {
-    id: "mock-2",
-    mainText: "400 Broad St",
-    secondaryText: "Seattle, WA 98109, USA",
-    description: "400 Broad St, Seattle, WA 98109, USA",
-  },
-  {
-    id: "mock-3",
-    mainText: "15 Broadway E",
-    secondaryText: "Seattle, WA 98102, USA",
-    description: "15 Broadway E, Seattle, WA 98102, USA",
-  },
-  {
-    id: "mock-4",
-    mainText: "5300 Ballard Ave NW",
-    secondaryText: "Seattle, WA 98107, USA",
-    description: "5300 Ballard Ave NW, Seattle, WA 98107, USA",
-  },
-  {
-    id: "mock-5",
-    mainText: "220 Northgate Way",
-    secondaryText: "Seattle, WA 98125, USA",
-    description: "220 Northgate Way, Seattle, WA 98125, USA",
-  },
-  {
-    id: "mock-6",
-    mainText: "800 Queen Anne Ave N",
-    secondaryText: "Seattle, WA 98109, USA",
-    description: "800 Queen Anne Ave N, Seattle, WA 98109, USA",
-  },
-  {
-    id: "mock-7",
-    mainText: "9800 Rainier Ave S",
-    secondaryText: "Seattle, WA 98118, USA",
-    description: "9800 Rainier Ave S, Seattle, WA 98118, USA",
-  },
-  {
-    id: "mock-8",
-    mainText: "4507 University Way NE",
-    secondaryText: "Seattle, WA 98105, USA",
-    description: "4507 University Way NE, Seattle, WA 98105, USA",
-  },
-  {
-    id: "mock-9",
-    mainText: "3417 Fremont Ave N",
-    secondaryText: "Seattle, WA 98103, USA",
-    description: "3417 Fremont Ave N, Seattle, WA 98103, USA",
-  },
-  {
-    id: "mock-10",
-    mainText: "1500 E Madison St",
-    secondaryText: "Seattle, WA 98122, USA",
-    description: "1500 E Madison St, Seattle, WA 98122, USA",
-  },
-  {
-    id: "mock-11",
-    mainText: "88 Yesler Way",
-    secondaryText: "Seattle, WA 98104, USA",
-    description: "88 Yesler Way, Seattle, WA 98104, USA",
-  },
-  {
-    id: "mock-12",
-    mainText: "5600 15th Ave NE",
-    secondaryText: "Seattle, WA 98105, USA",
-    description: "5600 15th Ave NE, Seattle, WA 98105, USA",
-  },
-];
 
 declare global {
   interface Window {
@@ -194,56 +112,11 @@ function loadGoogleMapsPlaces(apiKey: string): Promise<void> {
   return window.__googleMapsPlacesPromise;
 }
 
-function filterMockAddresses(
+async function fetchGoogleSuggestions(
   query: string,
-  biasSuburb?: string,
-  biasPostcode?: string,
-): AddressSuggestion[] {
-  const trimmed = query.trim().toLowerCase();
-  if (!trimmed) return [];
+): Promise<AddressSuggestion[]> {
+  if (!GOOGLE_MAPS_API_KEY) return [];
 
-  const scored = MOCK_ADDRESSES.map((address) => {
-    const haystack = address.description.toLowerCase();
-    let score = 0;
-
-    if (haystack.includes(trimmed)) score += 10;
-    if (address.mainText.toLowerCase().startsWith(trimmed)) score += 8;
-    if (address.mainText.toLowerCase().includes(trimmed)) score += 5;
-    if (address.secondaryText.toLowerCase().includes(trimmed)) score += 3;
-
-    if (biasSuburb && haystack.includes(biasSuburb.toLowerCase())) score += 4;
-    if (biasPostcode && haystack.includes(biasPostcode.toLowerCase())) score += 4;
-
-    return { address, score };
-  })
-    .filter((item) => item.score > 0)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 5)
-    .map((item) => item.address);
-
-  if (scored.length > 0) return scored;
-
-  // Synthesize Google-style completions when the typed query is an address fragment.
-  const suburb = biasSuburb?.trim() || "Seattle";
-  const postcode = biasPostcode?.trim() || "98101";
-  const streets = ["Pike St", "Pine St", "1st Ave", "Madison St", "Broadway"];
-
-  return streets.slice(0, 4).map((street, index) => {
-    const mainText = /^\d/.test(trimmed)
-      ? `${query.trim()} ${street}`
-      : `${1200 + index} ${query.trim()}`;
-    const secondaryText = `${suburb}, WA ${postcode}, USA`;
-
-    return {
-      id: `synthetic-${index}-${mainText}`,
-      mainText,
-      secondaryText,
-      description: `${mainText}, ${secondaryText}`,
-    };
-  });
-}
-
-async function fetchGoogleSuggestions(query: string): Promise<AddressSuggestion[]> {
   await loadGoogleMapsPlaces(GOOGLE_MAPS_API_KEY);
 
   const places = window.google?.maps?.places;
@@ -256,7 +129,7 @@ async function fetchGoogleSuggestions(query: string): Promise<AddressSuggestion[
       {
         input: query,
         types: ["address"],
-        componentRestrictions: { country: "us" },
+        componentRestrictions: { country: "au" },
       },
       (predictions, status) => {
         if (
@@ -289,8 +162,6 @@ export function GoogleAddressAutocomplete({
   placeholder = "Enter pick up address",
   className = "relative",
   inputClassName,
-  biasSuburb,
-  biasPostcode,
   icon,
   trailing,
 }: GoogleAddressAutocompleteProps) {
@@ -303,22 +174,10 @@ export function GoogleAddressAutocomplete({
   const [suggestions, setSuggestions] = useState<AddressSuggestion[]>([]);
 
   const showOverlay = open && value.trim().length > 0 && suggestions.length > 0;
-  const useGoogle = Boolean(GOOGLE_MAPS_API_KEY);
-
-  const mockSuggestions = useMemo(
-    () => filterMockAddresses(value, biasSuburb, biasPostcode),
-    [value, biasSuburb, biasPostcode],
-  );
 
   useEffect(() => {
-    if (!open || value.trim().length === 0) {
+    if (!open || value.trim().length === 0 || !GOOGLE_MAPS_API_KEY) {
       setSuggestions([]);
-      return;
-    }
-
-    if (!useGoogle) {
-      setSuggestions(mockSuggestions);
-      setHighlightIndex(0);
       return;
     }
 
@@ -332,13 +191,13 @@ export function GoogleAddressAutocomplete({
         })
         .catch(() => {
           if (requestId !== requestIdRef.current) return;
-          setSuggestions(mockSuggestions);
+          setSuggestions([]);
           setHighlightIndex(0);
         });
     }, 250);
 
     return () => window.clearTimeout(timeoutId);
-  }, [open, value, useGoogle, mockSuggestions]);
+  }, [open, value]);
 
   useEffect(() => {
     function handlePointerDown(event: MouseEvent) {
@@ -449,14 +308,12 @@ export function GoogleAddressAutocomplete({
               </li>
             );
           })}
-          {useGoogle ? (
-            <li className="border-t border-slate-100 px-3 py-2">
-              <p className="flex items-center justify-end gap-1 text-[10px] font-medium tracking-wide text-slate-400">
-                <GoogleMark />
-                powered by Google
-              </p>
-            </li>
-          ) : null}
+          <li className="border-t border-slate-100 px-3 py-2">
+            <p className="flex items-center justify-end gap-1 text-[10px] font-medium tracking-wide text-slate-400">
+              <GoogleMark />
+              powered by Google
+            </p>
+          </li>
         </ul>
       ) : null}
     </div>

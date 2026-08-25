@@ -1,16 +1,38 @@
-const RESERVED_ROOTS = new Set(["login", "dashboard", "sign-up", "preview", "api"]);
+const RESERVED_ROOTS = new Set([
+  "login",
+  "dashboard",
+  "sign-up",
+  "preview",
+  "api",
+  "onboarding",
+]);
+
+function normalizeTransmission(transmission: string): string {
+  const value = transmission.trim().toLowerCase();
+
+  if (value === "auto") {
+    return "automatic";
+  }
+
+  return value;
+}
 
 export function getOnboardingBasePath(pathname: string): string {
   if (pathname === "/preview" || pathname.startsWith("/preview/")) {
     return "/preview/onboarding";
   }
 
+  if (pathname === "/onboarding" || pathname.startsWith("/onboarding/")) {
+    return "/onboarding";
+  }
+
   const root = pathname.split("/").filter(Boolean)[0];
+
   if (root && !RESERVED_ROOTS.has(root)) {
     return `/${root}/onboarding`;
   }
 
-  return "/preview/onboarding";
+  return "/onboarding";
 }
 
 export function buildOnboardingSearchPath(
@@ -18,7 +40,7 @@ export function buildOnboardingSearchPath(
   values: Readonly<{
     suburb: string;
     transmission: string;
-    testDate?: string;
+    preferredDate?: string;
     lessonTime?: string;
     lessonDuration?: string;
     packageId?: string;
@@ -26,11 +48,11 @@ export function buildOnboardingSearchPath(
 ): string {
   const params = new URLSearchParams({
     suburb: values.suburb.trim(),
-    transmission: values.transmission,
+    transmission: normalizeTransmission(values.transmission),
   });
 
-  if (values.testDate) {
-    params.set("testDate", values.testDate);
+  if (values.preferredDate) {
+    params.set("preferredDate", values.preferredDate);
   }
 
   if (values.lessonTime) {
@@ -51,13 +73,13 @@ export function buildOnboardingSearchPath(
 const BOOKING_QUERY_KEYS = [
   "suburb",
   "transmission",
-  "testDate",
+  "preferredDate",
   "lessonTime",
   "lessonDuration",
   "packageId",
 ] as const;
 
-/** Keep Classic/search filters when moving through onboarding → book. */
+/** Keep search filters when moving through onboarding → book. */
 export function withOnboardingQuery(
   path: string,
   searchParams: URLSearchParams | { get: (key: string) => string | null },
@@ -66,9 +88,13 @@ export function withOnboardingQuery(
 
   for (const key of BOOKING_QUERY_KEYS) {
     const value = searchParams.get(key);
-    if (value) params.set(key, value);
+
+    if (value) {
+      params.set(key, value);
+    }
   }
 
   const query = params.toString();
+
   return query ? `${path}?${query}` : path;
 }
