@@ -18,18 +18,18 @@ import { LessonPayment } from "@/dashboard/components/LessonPayment";
 import { getSelectedRescheduleDate } from "@/dashboard/components/RescheduleCalendar";
 import { TimePickerModal } from "@/dashboard/components/TimePickerModal";
 import {
+  buildFutureDates,
   formatCurrency,
   formatLessonHoursLabel,
   formatLessonTimeRange,
   formatShortLessonHours,
   mergeRescheduleDates,
-  mockDashboardData,
-  mockRescheduleDates,
-  mockRescheduleTimeSlots,
   resolveRescheduleDateFromIso,
-} from "@/dashboard/mock-data";
-import { useStudentCreditHours } from "@/dashboard/useStudentCreditHours";
-import { fetchPublicPackages } from "@/lib/public-booking-api";
+} from "@/onboarding/booking-utils";
+import {
+  fetchAvailableSlots,
+  fetchPublicPackages,
+} from "@/lib/public-booking-api";
 
 import { calculateOnboardingLessonPayment } from "./book-lesson-payment";
 import { BookingSignUp } from "./BookingSignUp";
@@ -48,6 +48,19 @@ type PublicPackage = Readonly<{
   name: string;
   durationMinutes: number;
   price: string;
+}>;
+
+type PublicAvailableSlot = Readonly<{
+  instructorId: string;
+  instructor: {
+    name: string;
+    avatarUrl: string | null;
+    pricePerHour: string | null;
+  };
+  startDatetime: string;
+  endDatetime: string;
+  startTime: string;
+  endTime: string;
 }>;
 
 type FlowStep = "address" | "duration" | "date" | "time" | "summary";
@@ -93,20 +106,15 @@ export function BookInstructorFlow({
   );
 
   const availableDates = useMemo(
-    () => mergeRescheduleDates(mockRescheduleDates, preselectedDate),
+    () => mergeRescheduleDates(buildFutureDates(), preselectedDate),
     [preselectedDate],
   );
 
-  const preselectedTime =
-    initialTime && mockRescheduleTimeSlots.includes(initialTime)
-      ? initialTime
-      : null;
+  const preselectedTime = initialTime?.trim() || null;
 
   const preselectedSuburb = initialSuburb?.trim() ?? "";
 
-  const [availableCreditHours] = useStudentCreditHours(
-    mockDashboardData.availableCreditHours,
-  );
+  const availableCreditHours = 0;
 
   const [selectedPackageId, setSelectedPackageId] = useState<string | null>(
     null,
@@ -176,6 +184,13 @@ export function BookInstructorFlow({
     selectedDateId,
   );
 
+  const selectedDateIso = selectedDate
+    ? `${selectedDate.year}-${String(selectedDate.monthIndex + 1).padStart(
+        2,
+        "0",
+      )}-${String(selectedDate.day).padStart(2, "0")}`
+    : null;
+
   const trimmedPickupAddress = pickupAddress.trim();
 
   const addressComplete = addressSelected && trimmedPickupAddress.length > 0;
@@ -193,6 +208,36 @@ export function BookInstructorFlow({
 
   const selectedPackage =
     packages.find((pkg) => pkg.id === selectedPackageId) ?? null;
+
+  const { data: availableSlots = [], isLoading: isLoadingAvailableSlots } =
+    useQuery<PublicAvailableSlot[]>({
+      queryKey: [
+        "booking-slots",
+        instructor.schoolId,
+        instructor.id,
+        selectedPackage?.id,
+        selectedDateIso,
+        packageSuburb,
+      ],
+      queryFn: () =>
+        fetchAvailableSlots(
+          instructor.id,
+          selectedPackage!.id,
+          selectedDateIso!,
+          packageSuburb,
+        ),
+      enabled: Boolean(
+        durationConfirmed &&
+        selectedPackage &&
+        selectedDateIso &&
+        packageSuburb.length > 0,
+      ),
+    });
+
+  const availableTimeSlots = useMemo(
+    () => Array.from(new Set(availableSlots.map((slot) => slot.startTime))),
+    [availableSlots],
+  );
 
   const selectedHours = selectedPackage
     ? selectedPackage.durationMinutes / 60
@@ -266,6 +311,30 @@ export function BookInstructorFlow({
       setShowDurationPicker(true);
     }
   }, [addressComplete, durationConfirmed]);
+
+  useEffect(() => {
+    if (
+      !selectedTime ||
+      isLoadingAvailableSlots ||
+      !durationConfirmed ||
+      !selectedPackage ||
+      !selectedDateIso
+    ) {
+      return;
+    }
+
+    if (!availableTimeSlots.includes(selectedTime)) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setSelectedTime(null);
+    }
+  }, [
+    availableTimeSlots,
+    durationConfirmed,
+    isLoadingAvailableSlots,
+    selectedDateIso,
+    selectedPackage,
+    selectedTime,
+  ]);
 
   function resetDownstreamFromAddress() {
     setShowSignUp(false);
@@ -682,23 +751,31 @@ export function BookInstructorFlow({
 
             <button
               type="button"
+              disabled={
+                isLoadingAvailableSlots || availableTimeSlots.length === 0
+              }
               onClick={() => setShowTimePicker(true)}
-              className="flex w-full items-center justify-between rounded-xl bg-slate-50 px-4 py-3 text-left transition hover:bg-slate-100"
+              className="flex w-full items-center justify-between rounded-xl bg-slate-50 px-4 py-3 text-left transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
             >
               <span
                 className={`text-sm font-medium ${
                   selectedTime ? "text-slate-900" : "text-slate-400"
                 }`}
               >
-                {selectedTime ?? "Select time"}
+                {selectedTime ??
+                  (isLoadingAvailableSlots
+                    ? "Loading available times..."
+                    : availableTimeSlots.length > 0
+                      ? "Select time"
+                      : "No times available")}
               </span>
 
               <ChevronRightIcon className="h-4 w-4 shrink-0 text-slate-400" />
             </button>
 
-            {showTimePicker && (
+            {showTimePicker && availableTimeSlots.length > 0 && (
               <TimePickerModal
-                timeSlots={mockRescheduleTimeSlots}
+                timeSlots={availableTimeSlots}
                 selectedTime={selectedTime}
                 onSelectTime={handleTimeChange}
                 onClose={() => setShowTimePicker(false)}

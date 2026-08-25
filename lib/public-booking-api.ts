@@ -88,22 +88,23 @@ export async function fetchPublicPackages(
 }
 
 export async function fetchAvailableSlots(
-  schoolId: string,
+  instructorId: string,
   packageId: string,
   date: string,
   suburb: string,
 ) {
   const params = new URLSearchParams({
-    schoolId,
+    instructorId,
     packageId,
     date,
     suburb,
   });
 
   const response = await fetch(
-    `${process.env.NEXT_PUBLIC_API_URL}/bookings/slots?${params.toString()}`,
+    `${process.env.NEXT_PUBLIC_API_URL}/public/bookings/slots?${params.toString()}`,
     {
       method: "GET",
+      cache: "no-store",
     },
   );
 

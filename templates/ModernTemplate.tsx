@@ -268,7 +268,7 @@ export function ModernTemplate({ data }: Readonly<TemplateProps>) {
       buildOnboardingSearchPath(getOnboardingBasePath(pathname), {
         suburb,
         transmission,
-        testDate: lessonDate,
+        preferredDate: lessonDate,
         lessonTime: selectedTime,
         lessonDuration,
       }),

@@ -207,7 +207,9 @@ function buildMockRescheduleDates(): RescheduleDateOption[] {
           : dayOfWeek === 2
             ? 3 + (day % 4)
             : 5 + (day % 6);
-      dates.push(createRescheduleDate(year, monthIndex, day, slotCount, "open"));
+      dates.push(
+        createRescheduleDate(year, monthIndex, day, slotCount, "open"),
+      );
     }
   }
 
