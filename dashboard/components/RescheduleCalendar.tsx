@@ -194,7 +194,7 @@ export function RescheduleCalendar({
                 isOpen
                   ? isSelected
                     ? "bg-slate-900 text-white"
-                    : "bg-slate-100 text-slate-900 hover:bg-slate-200/80"
+                    : "bg-[#f9f9f9] text-slate-900 hover:bg-slate-200/80"
                   : "cursor-default bg-transparent text-slate-300"
               }`}
             >

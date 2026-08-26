@@ -78,7 +78,7 @@ function GoogleIcon() {
 }
 
 const fieldClassName =
-  "w-full rounded-2xl border border-transparent bg-slate-100 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-100";
+  "w-full rounded-2xl border border-transparent bg-[#f9f9f9] text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-100";
 
 const SEARCH_LOADING_MS = 2000;
 
@@ -130,7 +130,7 @@ export function ClassicTemplate({ data }: Readonly<TemplateProps>) {
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col bg-slate-50">
+    <div className="flex min-h-0 flex-1 flex-col bg-[#f9f9f9]">
       <header className="flex shrink-0 items-center justify-between px-5 pt-5 pb-2">
         <DrivingSchoolProfile
           school={school}
@@ -252,7 +252,7 @@ export function ClassicTemplate({ data }: Readonly<TemplateProps>) {
               type="submit"
               aria-busy={isSearching}
               disabled={!canSearch || isSearching}
-              className="w-full rounded-full bg-slate-900 py-4 text-sm font-bold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+              className="w-full rounded-2xl bg-slate-900 py-4 text-sm font-bold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
             >
               {isSearching ? "Searching...." : "Search Instructors"}
             </button>
