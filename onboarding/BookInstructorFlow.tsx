@@ -442,7 +442,7 @@ export function BookInstructorFlow({
             Payment complete. Your lesson with {instructor.name} is confirmed.
           </p>
 
-          <div className="mt-6 w-full rounded-2xl bg-slate-50 p-4 text-left">
+          <div className="mt-6 w-full rounded-2xl bg-[#f9f9f9] p-4 text-left">
             <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
               {selectedHours} hour lesson
             </p>
@@ -534,7 +534,7 @@ export function BookInstructorFlow({
           type="button"
           onClick={() => router.back()}
           aria-label="Close"
-          className="rounded-lg p-2 text-slate-600 transition hover:bg-slate-50"
+          className="rounded-lg p-2 text-slate-600 transition hover:bg-[#f9f9f9]"
         >
           <CloseIcon className="h-5 w-5" />
         </button>
@@ -549,7 +549,7 @@ export function BookInstructorFlow({
           </p>
         </section>
 
-        <section className="rounded-2xl bg-slate-50 p-4">
+        <section className="rounded-2xl bg-[#f9f9f9] p-4">
           <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
             Instructor
           </p>
@@ -602,7 +602,7 @@ export function BookInstructorFlow({
                 <button
                   type="button"
                   onClick={() => setShowDurationPicker((open) => !open)}
-                  className="flex w-full items-center justify-between rounded-xl bg-slate-50 px-4 py-3 text-left transition hover:bg-slate-100"
+                  className="flex w-full items-center justify-between rounded-xl bg-[#f9f9f9] px-4 py-3 text-left transition hover:bg-[#f0f0f0]"
                 >
                   <span
                     className={`text-sm font-medium ${
@@ -705,7 +705,7 @@ export function BookInstructorFlow({
             <button
               type="button"
               onClick={() => setShowDatePicker(true)}
-              className="flex w-full items-center justify-between rounded-xl bg-slate-50 px-4 py-3 text-left transition hover:bg-slate-100"
+              className="flex w-full items-center justify-between rounded-xl bg-[#f9f9f9] px-4 py-3 text-left transition hover:bg-[#f0f0f0]"
             >
               <span className="text-sm font-medium text-slate-400">
                 Select date
@@ -718,7 +718,7 @@ export function BookInstructorFlow({
 
         {showScheduleStep && selectedDate && !showDatePicker && (
           <section ref={timeStepRef} className="space-y-3">
-            <div className="rounded-2xl bg-slate-50 p-4">
+            <div className="rounded-2xl bg-[#f9f9f9] p-4">
               <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
                 Selected date
               </p>
@@ -755,7 +755,7 @@ export function BookInstructorFlow({
                 isLoadingAvailableSlots || availableTimeSlots.length === 0
               }
               onClick={() => setShowTimePicker(true)}
-              className="flex w-full items-center justify-between rounded-xl bg-slate-50 px-4 py-3 text-left transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+              className="flex w-full items-center justify-between rounded-xl bg-[#f9f9f9] px-4 py-3 text-left transition hover:bg-[#f0f0f0] disabled:cursor-not-allowed disabled:opacity-60"
             >
               <span
                 className={`text-sm font-medium ${
@@ -786,7 +786,7 @@ export function BookInstructorFlow({
 
         {showScheduleStep && selectedTime && (
           <section className="space-y-3">
-            <div className="rounded-2xl bg-slate-50 p-4">
+            <div className="rounded-2xl bg-[#f9f9f9] p-4">
               <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
                 Selected time
               </p>
@@ -842,7 +842,7 @@ export function BookInstructorFlow({
           selectedTime &&
           trimmedPickupAddress && (
             <section ref={summaryStepRef} className="space-y-3">
-              <div className="rounded-2xl bg-slate-50 p-4">
+              <div className="rounded-2xl bg-[#f9f9f9] p-4">
                 <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
                   Booking summary
                 </p>

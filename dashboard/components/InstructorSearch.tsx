@@ -65,9 +65,28 @@ export function InstructorProfileSummary({
         </p>
 
         {rating !== null && reviewCount > 0 ? (
-          <p className="mt-0.5 text-xs font-medium text-amber-600">
-            ★ {rating.toFixed(1)} · {reviewCount} reviews
-          </p>
+          <div className="mt-0.5 flex items-center gap-1.5">
+            <div
+              className="flex gap-0.5"
+              aria-label={`${rating.toFixed(1)} out of 5 stars`}
+            >
+              {[1, 2, 3, 4, 5].map((star) => (
+                <span
+                  key={star}
+                  className={`text-xs leading-none ${
+                    star <= Math.round(rating)
+                      ? "text-yellow-500"
+                      : "text-slate-200"
+                  }`}
+                >
+                  ★
+                </span>
+              ))}
+            </div>
+            <p className="text-xs font-medium text-slate-500">
+              {rating.toFixed(1)} · {reviewCount} reviews
+            </p>
+          </div>
         ) : (
           <p className="mt-0.5 text-xs text-slate-400">No reviews yet</p>
         )}
@@ -97,7 +116,7 @@ function InstructorProfileCard({
     <button
       type="button"
       onClick={onSelect}
-      className="w-full rounded-xl bg-slate-50 p-3 text-left transition hover:bg-slate-100"
+      className="w-full rounded-xl bg-[#f9f9f9] p-3 text-left transition hover:bg-[#f0f0f0]"
     >
       <div className="flex items-start justify-between gap-3">
         <InstructorProfileSummary instructor={instructor} />

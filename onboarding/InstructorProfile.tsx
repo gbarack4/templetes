@@ -73,7 +73,7 @@ export function InstructorProfile({
                   )}
                 </div>
                 {details?.car && (
-                  <div className="relative z-10 -ml-5 h-20 w-20 shrink-0 overflow-hidden rounded-full border-2 border-slate-200 bg-slate-100 ring-4 ring-white shadow-sm">
+                  <div className="relative z-10 -ml-5 h-20 w-20 shrink-0 overflow-hidden rounded-full border-2 border-slate-200 bg-[#f9f9f9] ring-4 ring-white shadow-sm">
                     <Image
                       src={details.car.imageUrl}
                       alt={`${details.car.year} ${details.car.make} ${details.car.model}`}
@@ -105,7 +105,7 @@ export function InstructorProfile({
           </div>
 
           <div className="mt-6 space-y-3">
-            <div className="flex items-center justify-between rounded-xl bg-slate-50 p-3.5">
+            <div className="flex items-center justify-between rounded-xl bg-[#f9f9f9] p-3.5">
               <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
                 Rate
               </p>
@@ -116,7 +116,7 @@ export function InstructorProfile({
             {!isOnboarding && details?.phone && (
               <a
                 href={`tel:${details.phone}`}
-                className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-900 transition hover:bg-slate-50"
+                className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-900 transition hover:bg-[#f9f9f9]"
               >
                 <PhoneIcon className="h-4 w-4" />
                 Call
@@ -130,7 +130,7 @@ export function InstructorProfile({
                 <h2 className="text-sm font-semibold text-slate-900">
                   Lesson car
                 </h2>
-                <div className="mt-3 grid grid-cols-2 gap-3 rounded-xl bg-slate-50 p-4">
+                <div className="mt-3 grid grid-cols-2 gap-3 rounded-xl bg-[#f9f9f9] p-4">
                   <div>
                     <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
                       Make & model
@@ -171,7 +171,7 @@ export function InstructorProfile({
                   type="button"
                   aria-expanded={aboutOpen}
                   onClick={() => setAboutOpen((open) => !open)}
-                  className="flex w-full items-center justify-between gap-3 rounded-xl bg-slate-50 px-4 py-3.5 text-left transition hover:bg-slate-100"
+                  className="flex w-full items-center justify-between gap-3 rounded-xl bg-[#f9f9f9] px-4 py-3.5 text-left transition hover:bg-[#f0f0f0]"
                 >
                   <h2 className="text-sm font-semibold text-slate-900">About</h2>
                   <ChevronRightIcon

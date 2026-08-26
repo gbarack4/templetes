@@ -14,7 +14,7 @@ export function FlowPageHeader({ title, onBack }: FlowPageHeaderProps) {
         type="button"
         aria-label="Go back"
         onClick={onBack}
-        className="rounded-lg p-2 text-slate-600 hover:bg-slate-50"
+        className="rounded-lg p-2 text-slate-600 hover:bg-[#f9f9f9]"
       >
         <ChevronLeftIcon className="h-5 w-5" />
       </button>

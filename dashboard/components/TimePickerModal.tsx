@@ -73,7 +73,7 @@ export function TimePickerModal({
                   className={`rounded-xl px-1 py-3 text-center text-xs font-semibold transition ${
                     isSelected
                       ? "bg-blue-600 text-white"
-                      : "bg-slate-100 text-slate-800 hover:bg-slate-200"
+                      : "bg-[#f9f9f9] text-slate-800 hover:bg-slate-200"
                   }`}
                 >
                   {time}

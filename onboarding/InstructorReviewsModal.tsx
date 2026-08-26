@@ -71,7 +71,7 @@ export function InstructorReviewsModal({
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+            className="rounded-lg p-1.5 text-slate-400 transition hover:bg-[#f0f0f0] hover:text-slate-600"
           >
             <svg
               className="h-5 w-5"

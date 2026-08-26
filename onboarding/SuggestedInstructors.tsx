@@ -2,10 +2,9 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 
 import { InstructorProfileSummary } from "@/dashboard/components/InstructorSearch";
-import { ChevronLeftIcon } from "@/dashboard/components/icons";
 import {
   formatCurrency,
   resolveRescheduleDateFromIso,
@@ -14,7 +13,6 @@ import {
   searchPublicInstructors,
   type Transmission,
 } from "@/lib/public-booking-api";
-import { SuburbAutocomplete } from "@/templates/SuburbAutocomplete";
 
 import { withOnboardingQuery } from "./paths";
 import { PublicInstructor } from "./suggested-instructors";
@@ -46,10 +44,12 @@ function SuggestedInstructorCard({
   instructor,
   basePath,
   queryString,
+  isBestMatch = false,
 }: Readonly<{
   instructor: PublicInstructor;
   basePath: string;
   queryString: URLSearchParams;
+  isBestMatch?: boolean;
 }>) {
   const profileHref = withOnboardingQuery(
     `${basePath}/instructor/${instructor.id}`,
@@ -62,7 +62,7 @@ function SuggestedInstructorCard({
   );
 
   return (
-    <article className="w-full rounded-xl bg-slate-50 p-3 transition hover:bg-slate-100">
+    <article className="w-full rounded-xl bg-[#f9f9f9] p-3 transition hover:bg-[#f0f0f0]">
       <Link href={profileHref} className="block">
         <div className="flex items-start justify-between gap-3">
           <InstructorProfileSummary instructor={instructor} />
@@ -89,12 +89,19 @@ function SuggestedInstructorCard({
         </div>
       </Link>
 
-      <Link
-        href={bookHref}
-        className="mt-3 inline-block rounded-lg bg-blue-600 px-4 py-1.5 text-xs font-medium text-white transition hover:bg-blue-700"
-      >
-        Book now
-      </Link>
+      <div className="mt-3 flex items-center justify-between gap-3">
+        <Link
+          href={bookHref}
+          className="inline-block rounded-lg bg-blue-600 px-4 py-1.5 text-xs font-medium text-white transition hover:bg-blue-700"
+        >
+          Book now
+        </Link>
+        {isBestMatch ? (
+          <span className="inline-flex items-center rounded-full bg-green-600 px-2.5 py-1 text-[11px] font-semibold text-white">
+            Best match
+          </span>
+        ) : null}
+      </div>
     </article>
   );
 }
@@ -103,7 +110,6 @@ export function SuggestedInstructors({
   schoolId,
   basePath = "/onboarding",
 }: SuggestedInstructorsProps) {
-  const router = useRouter();
   const searchParams = useSearchParams();
 
   const suburbParam = searchParams.get("suburb") ?? "";
@@ -126,20 +132,14 @@ export function SuggestedInstructors({
       preferredDateParam)
     : null;
 
-  const [query, setQuery] = useState(suburbParam);
   const [instructors, setInstructors] = useState<PublicInstructor[]>([]);
   const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setQuery(suburbParam);
-  }, [suburbParam]);
 
   useEffect(() => {
     let isMounted = true;
 
     async function fetchInstructors() {
-      const normalizedQuery = query.trim();
+      const normalizedQuery = suburbParam.trim();
 
       if (!normalizedQuery) {
         setInstructors([]);
@@ -176,44 +176,25 @@ export function SuggestedInstructors({
     return () => {
       isMounted = false;
     };
-  }, [schoolId, query, transmissionParam, preferredDateParam]);
+  }, [schoolId, suburbParam, transmissionParam, preferredDateParam]);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-      <header className="flex shrink-0 items-center px-5 pt-4">
-        <button
-          type="button"
-          aria-label="Go back"
-          onClick={() => router.back()}
-          className="rounded-lg p-2 text-slate-600 transition hover:bg-slate-50"
-        >
-          <ChevronLeftIcon className="h-5 w-5" />
-        </button>
-      </header>
-
-      <main className="flex min-h-0 flex-1 flex-col overflow-hidden px-5 pb-4 pt-2">
+      <main className="flex min-h-0 flex-1 flex-col overflow-hidden px-5 pb-4 pt-4">
         <section className="shrink-0 pb-4">
-          <SuburbAutocomplete
-            id="onboarding-suburb-search"
-            value={query}
-            onChange={setQuery}
-            placeholder="Search by suburb or postcode"
-            inputClassName="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-          />
-
-          <p className="mt-2 text-xs text-slate-500">
+          <p className="text-xs text-slate-500">
             {loading
               ? "Searching..."
               : `${instructors.length} instructor${
                   instructors.length === 1 ? "" : "s"
                 } available nearby`}
 
-            {query.trim() ? (
+            {suburbParam.trim() ? (
               <>
                 {" "}
                 in{" "}
                 <span className="font-medium text-slate-700">
-                  {query.trim()}
+                  {suburbParam.trim()}
                 </span>
               </>
             ) : null}
@@ -222,25 +203,25 @@ export function SuggestedInstructors({
           {showLessonPrefs ? (
             <div className="mt-3 flex flex-wrap gap-2">
               {selectedDateLabel ? (
-                <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
+                <span className="rounded-full bg-[#f9f9f9] px-3 py-1 text-xs font-medium text-slate-700">
                   {selectedDateLabel}
                 </span>
               ) : null}
 
               {lessonTimeParam ? (
-                <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
+                <span className="rounded-full bg-[#f9f9f9] px-3 py-1 text-xs font-medium text-slate-700">
                   {lessonTimeParam}
                 </span>
               ) : null}
 
               {lessonDurationParam ? (
-                <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
+                <span className="rounded-full bg-[#f9f9f9] px-3 py-1 text-xs font-medium text-slate-700">
                   {lessonDurationParam}
                 </span>
               ) : null}
 
               {transmissionParam ? (
-                <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium capitalize text-slate-700">
+                <span className="rounded-full bg-[#f9f9f9] px-3 py-1 text-xs font-medium capitalize text-slate-700">
                   {transmissionParam}
                 </span>
               ) : null}
@@ -249,28 +230,25 @@ export function SuggestedInstructors({
         </section>
 
         <section className="flex min-h-0 flex-1 flex-col">
-          <h2 className="shrink-0 pb-3 text-sm font-semibold text-slate-900">
-            Suggested instructors
-          </h2>
-
           <div className="instructor-list-scroll min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-y-contain scroll-smooth pb-4 pt-1 [-webkit-overflow-scrolling:touch]">
             {loading ? (
               <p className="py-4 text-center text-sm text-slate-400">
                 Loading instructors...
               </p>
             ) : instructors.length > 0 ? (
-              instructors.map((instructor) => (
+              instructors.map((instructor, index) => (
                 <SuggestedInstructorCard
                   key={instructor.id}
                   instructor={instructor}
                   basePath={basePath}
                   queryString={searchParams}
+                  isBestMatch={index === 0}
                 />
               ))
             ) : (
               <p className="py-4 text-center text-sm text-slate-400">
                 No instructors found
-                {query.trim() ? ` for ${query.trim()}` : ""}
+                {suburbParam.trim() ? ` for ${suburbParam.trim()}` : ""}
               </p>
             )}
           </div>

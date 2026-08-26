@@ -148,7 +148,7 @@ export function RescheduleCalendar({
           aria-label="Previous month"
           onClick={goToPreviousMonth}
           disabled={!canGoPrevious}
-          className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-50 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-30"
+          className="rounded-lg p-1.5 text-slate-400 transition hover:bg-[#f9f9f9] hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-30"
         >
           <ChevronLeftIcon className="h-5 w-5" />
         </button>
@@ -158,7 +158,7 @@ export function RescheduleCalendar({
           aria-label="Next month"
           onClick={goToNextMonth}
           disabled={!canGoNext}
-          className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-50 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-30"
+          className="rounded-lg p-1.5 text-slate-400 transition hover:bg-[#f9f9f9] hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-30"
         >
           <ChevronRightIcon className="h-5 w-5" />
         </button>

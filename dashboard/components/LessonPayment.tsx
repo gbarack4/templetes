@@ -71,7 +71,7 @@ export function LessonPayment({
   return (
     <>
       <main className="flex-1 space-y-6 px-5 pb-24 pt-6">
-        <section className="rounded-2xl bg-slate-50 p-4">
+        <section className="rounded-2xl bg-[#f9f9f9] p-4">
           <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
             Lesson summary
           </p>
@@ -85,7 +85,7 @@ export function LessonPayment({
           </div>
         </section>
 
-        <section className="rounded-2xl bg-slate-50 p-4">
+        <section className="rounded-2xl bg-[#f9f9f9] p-4">
           <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
             Payment summary
           </p>
