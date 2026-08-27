@@ -13,6 +13,7 @@ import { submitFormEmbedSearch } from "./form-embed-search";
 import { mockModernTransmissionOptions } from "./resolve-modern-site";
 import { SuburbAutocomplete } from "./SuburbAutocomplete";
 import type { TemplateProps } from "./types";
+import { GoogleAddressAutocomplete } from "@/components/GoogleAddressAutocomplete";
 
 function ChevronDownIcon({ className }: Readonly<{ className?: string }>) {
   return (
@@ -116,11 +117,13 @@ export function FormEmbedTemplate({ data }: Readonly<TemplateProps>) {
             >
               Pick-up Location <span className="text-amber-500">*</span>
             </label>
-            <SuburbAutocomplete
+            <GoogleAddressAutocomplete
               id="embed-pickup"
+              mode="suburb"
               value={suburb}
               onChange={setSuburb}
-              placeholder="Enter your suburb"
+              onSelect={setSuburb}
+              placeholder="Enter suburb or postcode"
               className={`${fieldClassName} relative`}
               inputClassName="min-w-0 flex-1 bg-transparent outline-none placeholder:text-slate-400"
               trailing={

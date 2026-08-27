@@ -185,15 +185,15 @@ export function ClassicTemplate({ data }: Readonly<TemplateProps>) {
                 htmlFor="pickup-address"
                 className="text-sm font-semibold text-slate-900"
               >
-                Pick-up Location <span className="text-orange-500">*</span>
+                Suburb or postcode <span className="text-orange-500">*</span>
               </label>
-
               <GoogleAddressAutocomplete
                 id="pickup-address"
+                mode="suburb"
                 value={suburb}
                 onChange={setSuburb}
                 onSelect={setSuburb}
-                placeholder="Enter pick up address"
+                placeholder="Enter suburb or postcode"
                 inputClassName={`${fieldClassName} py-3.5 pr-4 pl-11 placeholder:text-slate-400`}
                 icon={
                   <SearchIcon className="pointer-events-none absolute top-1/2 left-4 z-10 h-4 w-4 -translate-y-1/2 text-slate-400" />

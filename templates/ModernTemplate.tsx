@@ -350,10 +350,11 @@ export function ModernTemplate({ data }: Readonly<TemplateProps>) {
                 </label>
                 <GoogleAddressAutocomplete
                   id="pickup-location"
+                  mode="suburb"
                   value={suburb}
                   onChange={setSuburb}
                   onSelect={setSuburb}
-                  placeholder="Enter your suburb or address"
+                  placeholder="Enter suburb or postcode"
                   className={`${fieldClassName} relative`}
                   inputClassName="min-w-0 flex-1 bg-transparent text-slate-900 outline-none placeholder:text-slate-400"
                   icon={

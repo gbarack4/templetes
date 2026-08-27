@@ -21,6 +21,7 @@ type GoogleAddressAutocompleteProps = Readonly<{
   biasPostcode?: string;
   icon?: ReactNode;
   trailing?: ReactNode;
+  mode?: "address" | "suburb";
 }>;
 
 const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
@@ -114,6 +115,7 @@ function loadGoogleMapsPlaces(apiKey: string): Promise<void> {
 
 async function fetchGoogleSuggestions(
   query: string,
+  mode: "address" | "suburb",
 ): Promise<AddressSuggestion[]> {
   if (!GOOGLE_MAPS_API_KEY) return [];
 
@@ -128,7 +130,7 @@ async function fetchGoogleSuggestions(
     service.getPlacePredictions(
       {
         input: query,
-        types: ["address"],
+        types: mode === "suburb" ? ["(regions)"] : ["address"],
         componentRestrictions: { country: "au" },
       },
       (predictions, status) => {
@@ -164,6 +166,7 @@ export function GoogleAddressAutocomplete({
   inputClassName,
   icon,
   trailing,
+  mode = "address",
 }: GoogleAddressAutocompleteProps) {
   const listId = useId();
   const inputId = id ?? listId;
@@ -183,7 +186,7 @@ export function GoogleAddressAutocomplete({
 
     const requestId = ++requestIdRef.current;
     const timeoutId = window.setTimeout(() => {
-      void fetchGoogleSuggestions(value.trim())
+      void fetchGoogleSuggestions(value.trim(), mode)
         .then((results) => {
           if (requestId !== requestIdRef.current) return;
           setSuggestions(results);
@@ -197,7 +200,7 @@ export function GoogleAddressAutocomplete({
     }, 250);
 
     return () => window.clearTimeout(timeoutId);
-  }, [open, value]);
+  }, [mode, open, value]);
 
   useEffect(() => {
     function handlePointerDown(event: MouseEvent) {
@@ -211,8 +214,11 @@ export function GoogleAddressAutocomplete({
   }, []);
 
   function selectAddress(suggestion: AddressSuggestion) {
-    onChange(suggestion.description);
-    onSelect?.(suggestion.description);
+    const selectedValue =
+      mode === "suburb" ? suggestion.mainText : suggestion.description;
+
+    onChange(selectedValue);
+    onSelect?.(selectedValue);
     setOpen(false);
   }
 

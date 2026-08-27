@@ -8,10 +8,7 @@ import { ButtonSpinner } from "@/components/ButtonSpinner";
 import { GoogleAddressAutocomplete } from "@/components/GoogleAddressAutocomplete";
 import { CalendarPickerModal } from "@/dashboard/components/CalendarPickerModal";
 import { FlowPageHeader } from "@/dashboard/components/FlowPageHeader";
-import {
-  CheckIcon,
-  ChevronRightIcon,
-} from "@/dashboard/components/icons";
+import { CheckIcon, ChevronRightIcon } from "@/dashboard/components/icons";
 import { InstructorProfileSummary } from "@/dashboard/components/InstructorSearch";
 import { LessonPayment } from "@/dashboard/components/LessonPayment";
 import { getSelectedRescheduleDate } from "@/dashboard/components/RescheduleCalendar";
@@ -133,11 +130,9 @@ export function BookInstructorFlow({
     preselectedTime,
   );
 
-  const [pickupAddress, setPickupAddress] = useState(preselectedSuburb);
+  const [pickupAddress, setPickupAddress] = useState("");
 
-  const [addressSelected, setAddressSelected] = useState(
-    Boolean(preselectedSuburb),
-  );
+  const [addressSelected, setAddressSelected] = useState(false);
 
   const [durationConfirmed, setDurationConfirmed] = useState(false);
 
@@ -194,8 +189,7 @@ export function BookInstructorFlow({
 
   const addressComplete = addressSelected && trimmedPickupAddress.length > 0;
 
-  const packageSuburb =
-    preselectedSuburb || instructor.suburb?.trim() || trimmedPickupAddress;
+  const packageSuburb = preselectedSuburb;
 
   const { data: packages = [], isLoading: isLoadingPackages } = useQuery<
     PublicPackage[]
@@ -769,8 +763,6 @@ export function BookInstructorFlow({
             <GoogleAddressAutocomplete
               id="pickup-address"
               value={pickupAddress}
-              biasSuburb={preselectedSuburb || instructor.suburb || undefined}
-              biasPostcode={instructor.postcode || undefined}
               onChange={handlePickupAddressChange}
               onSelect={handlePickupAddressSelect}
               placeholder="Enter pick up address"
@@ -779,31 +771,35 @@ export function BookInstructorFlow({
           </section>
         )}
 
-        {showScheduleStep && selectedTime && canConfirm && !showSignUp && !showSummary && (
-          <section className="space-y-3">
-            <button
-              type="button"
-              aria-busy={isContinuing}
-              onClick={() => {
-                if (isContinuing) {
-                  return;
-                }
+        {showScheduleStep &&
+          selectedTime &&
+          canConfirm &&
+          !showSignUp &&
+          !showSummary && (
+            <section className="space-y-3">
+              <button
+                type="button"
+                aria-busy={isContinuing}
+                onClick={() => {
+                  if (isContinuing) {
+                    return;
+                  }
 
-                setIsContinuing(true);
+                  setIsContinuing(true);
 
-                window.setTimeout(() => {
-                  setShowSignUp(true);
-                  scrollMainToTop();
-                }, BUTTON_LOADING_MS);
-              }}
-              className={`inline-flex h-11 w-full items-center justify-center rounded-lg bg-blue-600 text-sm font-medium text-white transition hover:bg-blue-700 ${
-                isContinuing ? "pointer-events-none" : ""
-              }`}
-            >
-              {isContinuing ? <ButtonSpinner inverse /> : "Continue"}
-            </button>
-          </section>
-        )}
+                  window.setTimeout(() => {
+                    setShowSignUp(true);
+                    scrollMainToTop();
+                  }, BUTTON_LOADING_MS);
+                }}
+                className={`inline-flex h-11 w-full items-center justify-center rounded-lg bg-blue-600 text-sm font-medium text-white transition hover:bg-blue-700 ${
+                  isContinuing ? "pointer-events-none" : ""
+                }`}
+              >
+                {isContinuing ? <ButtonSpinner inverse /> : "Continue"}
+              </button>
+            </section>
+          )}
 
         {showSummary &&
           hasRegistered &&
