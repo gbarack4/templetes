@@ -72,7 +72,7 @@ function SuggestedInstructorCard({
               {formatCurrency(instructor.pricePerHour)}/hr
             </span>
 
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-[#4b5563]">
               {[instructor.suburb, instructor.postcode]
                 .filter(Boolean)
                 .join(" · ")}
@@ -182,7 +182,7 @@ export function SuggestedInstructors({
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
       <main className="flex min-h-0 flex-1 flex-col overflow-hidden px-5 pb-4 pt-4">
         <section className="shrink-0 pb-4">
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-[#4b5563]">
             {loading
               ? "Searching..."
               : `${instructors.length} instructor${

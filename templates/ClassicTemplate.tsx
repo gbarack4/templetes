@@ -162,7 +162,7 @@ export function ClassicTemplate({ data }: Readonly<TemplateProps>) {
             ))}
           </div>
 
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-[#4b5563]">
             <span className="font-semibold text-slate-700">
               {googleReviews.rating}
             </span>{" "}
@@ -239,7 +239,7 @@ export function ClassicTemplate({ data }: Readonly<TemplateProps>) {
                 >
                   <span
                     className={
-                      selectedDate ? "text-slate-900" : "text-slate-400"
+                      selectedDate ? "text-slate-900" : "text-[#4b5563]"
                     }
                   >
                     {selectedDate?.label ?? "Select date"}
@@ -259,7 +259,7 @@ export function ClassicTemplate({ data }: Readonly<TemplateProps>) {
           </form>
         </section>
 
-        <p className="mt-auto pt-6 text-center text-xs leading-relaxed text-slate-500">
+        <p className="mt-auto pt-6 text-center text-xs leading-relaxed text-[#4b5563]">
           By booking with{" "}
           <span className="font-medium text-slate-700">{school.name}</span>, you
           agree to our{" "}
@@ -280,6 +280,7 @@ export function ClassicTemplate({ data }: Readonly<TemplateProps>) {
           selectedDateId={preferredDateId}
           onSelectDate={setPreferredDateId}
           onClose={() => setShowDatePicker(false)}
+          showSlotLabels={false}
         />
       )}
     </div>

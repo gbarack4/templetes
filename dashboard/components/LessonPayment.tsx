@@ -77,7 +77,7 @@ export function LessonPayment({
           </p>
           <p className="mt-2 font-semibold text-slate-900">{dateLabel}</p>
           <p className="mt-1 text-sm text-slate-600">{timeLabel}</p>
-          <p className="mt-1 text-sm text-slate-500">
+          <p className="mt-1 text-sm text-[#4b5563]">
             {hours} {hours === 1 ? "hour" : "hours"}
           </p>
           <div className="mt-4 border-t border-slate-200 pt-4">
@@ -112,7 +112,7 @@ export function LessonPayment({
         {requiresCard ? (
           <section className="space-y-4">
             <div className="flex items-center gap-2">
-              <CreditCardIcon className="h-5 w-5 text-slate-500" />
+              <CreditCardIcon className="h-5 w-5 text-[#4b5563]" />
               <h2 className="text-sm font-semibold text-slate-900">Payment method</h2>
             </div>
 
@@ -191,7 +191,7 @@ export function LessonPayment({
         <button
           type="button"
           onClick={onBack}
-          className="w-full py-2 text-sm font-medium text-slate-500 transition hover:text-slate-700"
+          className="w-full py-2 text-sm font-medium text-[#4b5563] transition hover:text-slate-700"
         >
           Back to booking
         </button>

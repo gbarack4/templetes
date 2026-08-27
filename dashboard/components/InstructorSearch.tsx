@@ -83,7 +83,7 @@ export function InstructorProfileSummary({
                 </span>
               ))}
             </div>
-            <p className="text-xs font-medium text-slate-500">
+            <p className="text-xs font-medium text-[#4b5563]">
               {rating.toFixed(1)} · {reviewCount} reviews
             </p>
           </div>
@@ -92,7 +92,7 @@ export function InstructorProfileSummary({
         )}
 
         {!compact ? (
-          <p className="mt-0.5 text-xs text-slate-500">
+          <p className="mt-0.5 text-xs text-[#4b5563]">
             {lessonsCompleted > 0
               ? `${lessonsCompleted.toLocaleString()} lessons completed`
               : "No completed lessons yet"}
@@ -163,7 +163,7 @@ export function InstructorSearch({
           <button
             type="button"
             onClick={onCancel}
-            className="text-xs font-medium text-slate-500 hover:text-slate-700"
+            className="text-xs font-medium text-[#4b5563] hover:text-slate-700"
           >
             Cancel
           </button>

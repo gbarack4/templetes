@@ -112,7 +112,7 @@ export function BookingSignUp({
           onBack={() => setPendingVerification(false)}
         />
         <main className="flex min-h-0 flex-1 flex-col overflow-y-auto px-5 pb-8 pt-6">
-          <p className="mb-6 text-sm text-slate-500">
+          <p className="mb-6 text-sm text-[#4b5563]">
             We sent a verification code to{" "}
             <span className="font-medium text-slate-900">{email}</span>.
           </p>
@@ -153,7 +153,7 @@ export function BookingSignUp({
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
       <FlowPageHeader title="Create account" onBack={onBack} />
       <main className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-y-contain px-5 pb-8 pt-6 [-webkit-overflow-scrolling:touch]">
-        <p className="mb-4 text-sm text-slate-500">{description}</p>
+        <p className="mb-4 text-sm text-[#4b5563]">{description}</p>
 
         {error && <p className="mb-4 text-sm text-red-500">{error}</p>}
 
@@ -258,7 +258,7 @@ export function BookingSignUp({
           </button>
         </form>
 
-        <p className="mt-8 text-center text-sm text-slate-500">
+        <p className="mt-8 text-center text-sm text-[#4b5563]">
           Already have an account?{" "}
           <Link
             href="/login"

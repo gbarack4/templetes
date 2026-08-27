@@ -118,7 +118,7 @@ export function SuburbAutocomplete({
         <ul
           id={listId}
           role="listbox"
-          className="absolute left-0 right-0 top-full z-30 mt-2 max-h-56 overflow-y-auto rounded-2xl bg-white py-1 shadow-lg ring-1 ring-slate-200"
+          className="absolute left-0 right-0 top-full z-30 mt-2 max-h-56 overflow-y-auto rounded-2xl bg-[#f9f9f9] py-1 shadow-lg ring-1 ring-slate-200"
         >
           {suggestions.map((suggestion, index) => {
             const isActive = index === highlightIndex;
@@ -137,13 +137,13 @@ export function SuburbAutocomplete({
                   onMouseDown={(event) => event.preventDefault()}
                   onClick={() => selectSuburb(suggestion)}
                   className={`flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition ${
-                    isActive ? "bg-slate-100" : "bg-white hover:bg-slate-50"
+                    isActive ? "bg-[#f0f0f0]" : "bg-transparent hover:bg-[#f0f0f0]"
                   }`}
                 >
                   <span className="text-sm font-medium text-slate-900">
                     {suggestion.suburb}
                   </span>
-                  <span className="shrink-0 text-xs text-slate-400">
+                  <span className="shrink-0 text-xs text-[#4b5563]">
                     {suggestion.postcode}
                   </span>
                 </button>

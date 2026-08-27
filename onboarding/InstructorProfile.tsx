@@ -99,7 +99,7 @@ export function InstructorProfile({
             >
               ★ {instructor.rating.toFixed(1)} · {instructor.reviewCount} reviews
             </button>
-            <p className="mt-1 text-sm text-slate-500">
+            <p className="mt-1 text-sm text-[#4b5563]">
               {instructor.lessonsCompleted.toLocaleString()} lessons completed
             </p>
           </div>

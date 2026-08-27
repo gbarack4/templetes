@@ -10,6 +10,7 @@ type CalendarPickerModalProps = Readonly<{
   selectedDateId: string | null;
   onSelectDate: (dateId: string) => void;
   onClose: () => void;
+  showSlotLabels?: boolean;
 }>;
 
 export function CalendarPickerModal({
@@ -18,6 +19,7 @@ export function CalendarPickerModal({
   selectedDateId,
   onSelectDate,
   onClose,
+  showSlotLabels = true,
 }: CalendarPickerModalProps) {
   const [isVisible, setIsVisible] = useState(false);
 
@@ -62,6 +64,7 @@ export function CalendarPickerModal({
         <RescheduleCalendar
           availableDates={availableDates}
           selectedDateId={selectedDateId}
+          showSlotLabels={showSlotLabels}
           onSelectDate={(dateId) => {
             onSelectDate(dateId);
             onClose();

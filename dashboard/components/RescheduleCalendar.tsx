@@ -8,6 +8,7 @@ type RescheduleCalendarProps = Readonly<{
   availableDates: RescheduleDateOption[];
   selectedDateId: string | null;
   onSelectDate: (dateId: string) => void;
+  showSlotLabels?: boolean;
 }>;
 
 const WEEKDAY_LABELS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
@@ -33,6 +34,7 @@ export function RescheduleCalendar({
   availableDates,
   selectedDateId,
   onSelectDate,
+  showSlotLabels = true,
 }: RescheduleCalendarProps) {
   const datesByDay = useMemo(() => {
     const map = new Map<string, RescheduleDateOption>();
@@ -209,23 +211,25 @@ export function RescheduleCalendar({
               >
                 {cell.day}
               </span>
-              <span
-                className={`max-w-full truncate leading-none ${
-                  status === "unavailable"
-                    ? "text-[7px] tracking-tight text-slate-300"
-                    : isOpen
-                      ? isSelected
-                        ? "text-[9px] text-white/80"
-                        : "text-[9px] text-slate-400"
-                      : "text-[9px] text-slate-300"
-                }`}
-              >
-                {status === "open"
-                  ? `slot ${date?.slotCount ?? 0}`
-                  : status === "full"
-                    ? "full"
-                    : "unavailable"}
-              </span>
+              {showSlotLabels ? (
+                <span
+                  className={`max-w-full truncate leading-none ${
+                    status === "unavailable"
+                      ? "text-[7px] tracking-tight text-slate-300"
+                      : isOpen
+                        ? isSelected
+                          ? "text-[9px] text-white/80"
+                          : "text-[9px] text-[#4b5563]"
+                        : "text-[9px] text-slate-300"
+                  }`}
+                >
+                  {status === "open"
+                    ? `slot ${date?.slotCount ?? 0}`
+                    : status === "full"
+                      ? "full"
+                      : "unavailable"}
+                </span>
+              ) : null}
             </button>
           );
         })}

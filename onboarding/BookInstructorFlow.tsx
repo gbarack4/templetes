@@ -11,7 +11,6 @@ import { FlowPageHeader } from "@/dashboard/components/FlowPageHeader";
 import {
   CheckIcon,
   ChevronRightIcon,
-  CloseIcon,
 } from "@/dashboard/components/icons";
 import { InstructorProfileSummary } from "@/dashboard/components/InstructorSearch";
 import { LessonPayment } from "@/dashboard/components/LessonPayment";
@@ -203,7 +202,7 @@ export function BookInstructorFlow({
   >({
     queryKey: ["public-packages", instructor.schoolId, packageSuburb],
     queryFn: () => fetchPublicPackages(instructor.schoolId, packageSuburb),
-    enabled: addressComplete && packageSuburb.length > 0,
+    enabled: packageSuburb.length > 0,
   });
 
   const selectedPackage =
@@ -264,20 +263,24 @@ export function BookInstructorFlow({
     durationConfirmed,
   );
 
-  const showDurationStep = addressComplete;
+  const showDurationStep = true;
 
-  const showScheduleStep = addressComplete && durationConfirmed;
+  const showScheduleStep = durationConfirmed;
+
+  const showAddressStep = Boolean(selectedTime);
 
   const flowStep: FlowStep =
     showSummary && canConfirm && hasRegistered
       ? "summary"
-      : !addressComplete
-        ? "address"
-        : !durationConfirmed
-          ? "duration"
-          : selectedDate
+      : !durationConfirmed
+        ? "duration"
+        : !selectedDate
+          ? "date"
+          : !selectedTime
             ? "time"
-            : "date";
+            : !addressComplete
+              ? "address"
+              : "summary";
 
   useEffect(() => {
     if (skipInitialScroll.current) {
@@ -306,11 +309,11 @@ export function BookInstructorFlow({
   }, [flowStep]);
 
   useEffect(() => {
-    if (addressComplete && !durationConfirmed) {
+    if (!durationConfirmed) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setShowDurationPicker(true);
     }
-  }, [addressComplete, durationConfirmed]);
+  }, [durationConfirmed]);
 
   useEffect(() => {
     if (
@@ -345,31 +348,13 @@ export function BookInstructorFlow({
   function handlePickupAddressChange(address: string) {
     setPickupAddress(address);
     setAddressSelected(false);
-    setSelectedPackageId(null);
-    setDurationConfirmed(false);
-
     resetDownstreamFromAddress();
-
-    setSelectedDateId(preselectedDate?.id ?? null);
-
-    setSelectedTime(preselectedTime);
-
-    setShowDatePicker(!preselectedDate);
   }
 
   function handlePickupAddressSelect(address: string) {
     setPickupAddress(address);
     setAddressSelected(true);
-    setSelectedPackageId(null);
-    setDurationConfirmed(false);
-
     resetDownstreamFromAddress();
-
-    setSelectedDateId(preselectedDate?.id ?? null);
-
-    setSelectedTime(preselectedTime);
-
-    setShowDatePicker(!preselectedDate);
   }
 
   function confirmDuration() {
@@ -438,12 +423,12 @@ export function BookInstructorFlow({
             Lesson booked
           </h1>
 
-          <p className="mt-2 text-sm text-slate-500">
+          <p className="mt-2 text-sm text-[#4b5563]">
             Payment complete. Your lesson with {instructor.name} is confirmed.
           </p>
 
           <div className="mt-6 w-full rounded-2xl bg-[#f9f9f9] p-4 text-left">
-            <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
+            <p className="text-xs font-medium uppercase tracking-wide text-[#4b5563]">
               {selectedHours} hour lesson
             </p>
 
@@ -455,7 +440,7 @@ export function BookInstructorFlow({
               {formatLessonTimeRange(selectedTime, selectedHours)}
             </p>
 
-            <p className="mt-1 text-sm text-slate-500">
+            <p className="mt-1 text-sm text-[#4b5563]">
               Pick up: {trimmedPickupAddress}
             </p>
 
@@ -529,28 +514,9 @@ export function BookInstructorFlow({
       ref={mainScrollRef}
       className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain [-webkit-overflow-scrolling:touch]"
     >
-      <header className="flex items-center px-5 pt-4">
-        <button
-          type="button"
-          onClick={() => router.back()}
-          aria-label="Close"
-          className="rounded-lg p-2 text-slate-600 transition hover:bg-[#f9f9f9]"
-        >
-          <CloseIcon className="h-5 w-5" />
-        </button>
-      </header>
-
-      <main className="space-y-6 px-5 pb-24 pt-2">
-        <section>
-          <h1 className="text-xl font-bold text-slate-900">Book a lesson</h1>
-
-          <p className="mt-0.5 text-xs text-slate-500">
-            Choose a date and time with {instructor.name}.
-          </p>
-        </section>
-
+      <main className="space-y-6 px-5 pb-24 pt-4">
         <section className="rounded-2xl bg-[#f9f9f9] p-4">
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
+          <p className="text-xs font-medium uppercase tracking-wide text-[#4b5563]">
             Instructor
           </p>
 
@@ -566,23 +532,6 @@ export function BookInstructorFlow({
           </p>
         </section>
 
-        <section ref={addressStepRef} className="space-y-3">
-          <h2 className="text-sm font-semibold text-slate-900">
-            Pick up address
-          </h2>
-
-          <GoogleAddressAutocomplete
-            id="pickup-address"
-            value={pickupAddress}
-            biasSuburb={preselectedSuburb || instructor.suburb || undefined}
-            biasPostcode={instructor.postcode || undefined}
-            onChange={handlePickupAddressChange}
-            onSelect={handlePickupAddressSelect}
-            placeholder="Enter pick up address"
-            inputClassName="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-          />
-        </section>
-
         {showDurationStep && (
           <section ref={durationStepRef} className="space-y-3">
             <h2 className="text-sm font-semibold text-slate-900">
@@ -590,11 +539,11 @@ export function BookInstructorFlow({
             </h2>
 
             {isLoadingPackages ? (
-              <p className="text-sm text-slate-500">
+              <p className="text-sm text-[#4b5563]">
                 Loading lesson packages...
               </p>
             ) : packages.length === 0 ? (
-              <p className="text-sm text-slate-500">
+              <p className="text-sm text-[#4b5563]">
                 No lesson packages are available for this location.
               </p>
             ) : (
@@ -606,7 +555,7 @@ export function BookInstructorFlow({
                 >
                   <span
                     className={`text-sm font-medium ${
-                      selectedPackage ? "text-slate-900" : "text-slate-400"
+                      selectedPackage ? "text-slate-900" : "text-[#4b5563]"
                     }`}
                   >
                     {selectedPackage
@@ -642,7 +591,7 @@ export function BookInstructorFlow({
                               {pkg.name}
                             </span>
 
-                            <span className="mt-0.5 block text-xs text-slate-500">
+                            <span className="mt-0.5 block text-xs text-[#4b5563]">
                               {formatShortLessonHours(hours)} ·{" "}
                               {formatCurrency(price)} · {packageSuburb}
                             </span>
@@ -658,7 +607,7 @@ export function BookInstructorFlow({
                 )}
 
                 {selectedPackage && payment.payableHours > 0 && (
-                  <p className="text-sm text-slate-500">
+                  <p className="text-sm text-[#4b5563]">
                     {formatCurrency(payment.totalDue)} due at checkout (
                     {formatLessonHoursLabel(payment.payableHours)} not covered
                     by credit).
@@ -707,7 +656,7 @@ export function BookInstructorFlow({
               onClick={() => setShowDatePicker(true)}
               className="flex w-full items-center justify-between rounded-xl bg-[#f9f9f9] px-4 py-3 text-left transition hover:bg-[#f0f0f0]"
             >
-              <span className="text-sm font-medium text-slate-400">
+              <span className="text-sm font-medium text-[#4b5563]">
                 Select date
               </span>
 
@@ -719,7 +668,7 @@ export function BookInstructorFlow({
         {showScheduleStep && selectedDate && !showDatePicker && (
           <section ref={timeStepRef} className="space-y-3">
             <div className="rounded-2xl bg-[#f9f9f9] p-4">
-              <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
+              <p className="text-xs font-medium uppercase tracking-wide text-[#4b5563]">
                 Selected date
               </p>
 
@@ -727,7 +676,7 @@ export function BookInstructorFlow({
                 {selectedDate.month} {selectedDate.day} · {selectedDate.weekday}
               </p>
 
-              <p className="mt-0.5 text-sm text-slate-500">
+              <p className="mt-0.5 text-sm text-[#4b5563]">
                 {selectedDate.label}
               </p>
 
@@ -759,7 +708,7 @@ export function BookInstructorFlow({
             >
               <span
                 className={`text-sm font-medium ${
-                  selectedTime ? "text-slate-900" : "text-slate-400"
+                  selectedTime ? "text-slate-900" : "text-[#4b5563]"
                 }`}
               >
                 {selectedTime ??
@@ -787,7 +736,7 @@ export function BookInstructorFlow({
         {showScheduleStep && selectedTime && (
           <section className="space-y-3">
             <div className="rounded-2xl bg-[#f9f9f9] p-4">
-              <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
+              <p className="text-xs font-medium uppercase tracking-wide text-[#4b5563]">
                 Selected time
               </p>
 
@@ -808,30 +757,51 @@ export function BookInstructorFlow({
                 Change time
               </button>
             </div>
+          </section>
+        )}
 
-            {canConfirm && !showSignUp && !showSummary && (
-              <button
-                type="button"
-                aria-busy={isContinuing}
-                onClick={() => {
-                  if (isContinuing) {
-                    return;
-                  }
+        {showAddressStep && (
+          <section ref={addressStepRef} className="space-y-3">
+            <h2 className="text-sm font-semibold text-slate-900">
+              Pick up address
+            </h2>
 
-                  setIsContinuing(true);
+            <GoogleAddressAutocomplete
+              id="pickup-address"
+              value={pickupAddress}
+              biasSuburb={preselectedSuburb || instructor.suburb || undefined}
+              biasPostcode={instructor.postcode || undefined}
+              onChange={handlePickupAddressChange}
+              onSelect={handlePickupAddressSelect}
+              placeholder="Enter pick up address"
+              inputClassName="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+            />
+          </section>
+        )}
 
-                  window.setTimeout(() => {
-                    setShowSignUp(true);
-                    scrollMainToTop();
-                  }, BUTTON_LOADING_MS);
-                }}
-                className={`inline-flex h-11 w-full items-center justify-center rounded-lg bg-blue-600 text-sm font-medium text-white transition hover:bg-blue-700 ${
-                  isContinuing ? "pointer-events-none" : ""
-                }`}
-              >
-                {isContinuing ? <ButtonSpinner inverse /> : "Continue"}
-              </button>
-            )}
+        {showScheduleStep && selectedTime && canConfirm && !showSignUp && !showSummary && (
+          <section className="space-y-3">
+            <button
+              type="button"
+              aria-busy={isContinuing}
+              onClick={() => {
+                if (isContinuing) {
+                  return;
+                }
+
+                setIsContinuing(true);
+
+                window.setTimeout(() => {
+                  setShowSignUp(true);
+                  scrollMainToTop();
+                }, BUTTON_LOADING_MS);
+              }}
+              className={`inline-flex h-11 w-full items-center justify-center rounded-lg bg-blue-600 text-sm font-medium text-white transition hover:bg-blue-700 ${
+                isContinuing ? "pointer-events-none" : ""
+              }`}
+            >
+              {isContinuing ? <ButtonSpinner inverse /> : "Continue"}
+            </button>
           </section>
         )}
 
@@ -843,7 +813,7 @@ export function BookInstructorFlow({
           trimmedPickupAddress && (
             <section ref={summaryStepRef} className="space-y-3">
               <div className="rounded-2xl bg-[#f9f9f9] p-4">
-                <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
+                <p className="text-xs font-medium uppercase tracking-wide text-[#4b5563]">
                   Booking summary
                 </p>
 
@@ -856,12 +826,12 @@ export function BookInstructorFlow({
                   {formatLessonTimeRange(selectedTime, selectedHours)}
                 </p>
 
-                <p className="mt-1 text-sm text-slate-500">
+                <p className="mt-1 text-sm text-[#4b5563]">
                   {selectedHours} {selectedHours === 1 ? "hour" : "hours"} ·{" "}
                   {instructor.name}
                 </p>
 
-                <p className="mt-1 text-sm text-slate-500">
+                <p className="mt-1 text-sm text-[#4b5563]">
                   Pick up: {trimmedPickupAddress}
                 </p>
 
