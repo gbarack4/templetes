@@ -68,9 +68,13 @@ function SuggestedInstructorCard({
           <InstructorProfileSummary instructor={instructor} />
 
           <div className="flex shrink-0 flex-col items-end gap-1.5">
-            <span className="rounded-full bg-blue-600 px-2.5 py-1 text-xs font-medium text-white">
-              {formatCurrency(instructor.pricePerHour)}/hr
-            </span>
+            {typeof instructor.lowestEligiblePrice === "number" &&
+            instructor.lowestEligiblePrice > 0 &&
+            instructor.lowestEligiblePrice <= 100 ? (
+              <span className="rounded-full bg-blue-600 px-2.5 py-1 text-xs font-medium text-white">
+                From {formatCurrency(instructor.lowestEligiblePrice)}
+              </span>
+            ) : null}
 
             <p className="text-xs text-[#4b5563]">
               {[instructor.suburb, instructor.postcode]
@@ -236,13 +240,13 @@ export function SuggestedInstructors({
                 Loading instructors...
               </p>
             ) : instructors.length > 0 ? (
-              instructors.map((instructor, index) => (
+              instructors.map((instructor) => (
                 <SuggestedInstructorCard
                   key={instructor.id}
                   instructor={instructor}
                   basePath={basePath}
                   queryString={searchParams}
-                  isBestMatch={index === 0}
+                  isBestMatch={(instructor.availableSlots?.length ?? 0) > 0}
                 />
               ))
             ) : (

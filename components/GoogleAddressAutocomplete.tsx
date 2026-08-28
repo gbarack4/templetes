@@ -31,6 +31,33 @@ declare global {
     google?: {
       maps?: {
         importLibrary?: (name: string) => Promise<unknown>;
+        Geocoder?: new () => {
+          geocode: (
+            request: {
+              componentRestrictions?: {
+                country?: string;
+                postalCode?: string;
+              };
+            },
+            callback: (
+              results: Array<{
+                place_id: string;
+                formatted_address: string;
+                postcode_localities?: string[];
+                address_components: Array<{
+                  long_name: string;
+                  short_name: string;
+                  types: string[];
+                }>;
+              }> | null,
+              status: string,
+            ) => void,
+          ) => void;
+        };
+        GeocoderStatus?: {
+          OK: string;
+          ZERO_RESULTS: string;
+        };
         places?: {
           AutocompleteService: new () => {
             getPlacePredictions: (
@@ -113,11 +140,81 @@ function loadGoogleMapsPlaces(apiKey: string): Promise<void> {
   return window.__googleMapsPlacesPromise;
 }
 
+async function fetchAustralianPostcodeSuggestions(
+  postcode: string,
+): Promise<AddressSuggestion[]> {
+  if (!GOOGLE_MAPS_API_KEY) return [];
+
+  await loadGoogleMapsPlaces(GOOGLE_MAPS_API_KEY);
+
+  const maps = window.google?.maps;
+
+  if (!maps?.importLibrary) {
+    return [];
+  }
+
+  const { Geocoder } = (await maps.importLibrary("geocoding")) as {
+    Geocoder: new () => {
+      geocode: (request: {
+        componentRestrictions: {
+          country: string;
+          postalCode: string;
+        };
+      }) => Promise<{
+        results: Array<{
+          place_id: string;
+          postcode_localities?: string[];
+          address_components: Array<{
+            long_name: string;
+            short_name: string;
+            types: string[];
+          }>;
+        }>;
+      }>;
+    };
+  };
+
+  const geocoder = new Geocoder();
+
+  const { results } = await geocoder.geocode({
+    componentRestrictions: {
+      country: "AU",
+      postalCode: postcode,
+    },
+  });
+
+  const postcodeResult = results.find(
+    (result) => (result.postcode_localities?.length ?? 0) > 0,
+  );
+
+  if (!postcodeResult?.postcode_localities?.length) {
+    return [];
+  }
+
+  const state =
+    postcodeResult.address_components.find((component) =>
+      component.types.includes("administrative_area_level_1"),
+    )?.short_name ?? "";
+
+  return postcodeResult.postcode_localities.map((locality) => ({
+    id: `${postcode}-${locality}`,
+    mainText: locality,
+    secondaryText: `${state} ${postcode}, Australia`,
+    description: `${locality}, ${state} ${postcode}, Australia`,
+  }));
+}
+
 async function fetchGoogleSuggestions(
   query: string,
   mode: "address" | "suburb",
 ): Promise<AddressSuggestion[]> {
   if (!GOOGLE_MAPS_API_KEY) return [];
+
+  const normalizedQuery = query.trim();
+
+  if (mode === "suburb" && /^\d{4}$/.test(normalizedQuery)) {
+    return fetchAustralianPostcodeSuggestions(normalizedQuery);
+  }
 
   await loadGoogleMapsPlaces(GOOGLE_MAPS_API_KEY);
 
@@ -180,6 +277,7 @@ export function GoogleAddressAutocomplete({
 
   useEffect(() => {
     if (!open || value.trim().length === 0 || !GOOGLE_MAPS_API_KEY) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSuggestions([]);
       return;
     }

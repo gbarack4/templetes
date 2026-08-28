@@ -324,4 +324,5 @@ export type PublicInstructor = {
   reviewCount: number;
   lessonsCompleted: number;
   availableSlots: AvailableSlot[];
+  lowestEligiblePrice: number | null;
 };
