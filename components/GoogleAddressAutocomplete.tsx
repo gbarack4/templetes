@@ -7,13 +7,18 @@ export type AddressSuggestion = Readonly<{
   mainText: string;
   secondaryText: string;
   description: string;
+  postcode?: string;
+}>;
+
+export type AddressSelectionDetails = Readonly<{
+  postcode?: string;
 }>;
 
 type GoogleAddressAutocompleteProps = Readonly<{
   id?: string;
   value: string;
   onChange: (value: string) => void;
-  onSelect?: (address: string) => void;
+  onSelect?: (value: string, details: AddressSelectionDetails) => void;
   placeholder?: string;
   className?: string;
   inputClassName?: string;
@@ -24,6 +29,46 @@ type GoogleAddressAutocompleteProps = Readonly<{
   mode?: "address" | "suburb";
 }>;
 
+type GoogleAddressComponent = {
+  long_name: string;
+  short_name: string;
+  types: string[];
+};
+
+type GoogleGeocoderResult = {
+  place_id: string;
+  formatted_address?: string;
+  postcode_localities?: string[];
+  address_components: GoogleAddressComponent[];
+};
+
+type GoogleGeocoderRequest =
+  | {
+      componentRestrictions: {
+        country: string;
+        postalCode: string;
+      };
+    }
+  | {
+      placeId: string;
+    }
+  | {
+      address: string;
+      componentRestrictions: {
+        country: string;
+      };
+    };
+
+type GoogleGeocoder = {
+  geocode: (request: GoogleGeocoderRequest) => Promise<{
+    results: GoogleGeocoderResult[];
+  }>;
+};
+
+type GoogleGeocodingLibrary = {
+  Geocoder: new () => GoogleGeocoder;
+};
+
 const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
 
 declare global {
@@ -31,40 +76,15 @@ declare global {
     google?: {
       maps?: {
         importLibrary?: (name: string) => Promise<unknown>;
-        Geocoder?: new () => {
-          geocode: (
-            request: {
-              componentRestrictions?: {
-                country?: string;
-                postalCode?: string;
-              };
-            },
-            callback: (
-              results: Array<{
-                place_id: string;
-                formatted_address: string;
-                postcode_localities?: string[];
-                address_components: Array<{
-                  long_name: string;
-                  short_name: string;
-                  types: string[];
-                }>;
-              }> | null,
-              status: string,
-            ) => void,
-          ) => void;
-        };
-        GeocoderStatus?: {
-          OK: string;
-          ZERO_RESULTS: string;
-        };
         places?: {
           AutocompleteService: new () => {
             getPlacePredictions: (
               request: {
                 input: string;
                 types?: string[];
-                componentRestrictions?: { country: string | string[] };
+                componentRestrictions?: {
+                  country: string | string[];
+                };
               },
               callback: (
                 predictions: Array<{
@@ -79,10 +99,14 @@ declare global {
               ) => void,
             ) => void;
           };
-          PlacesServiceStatus: { OK: string; ZERO_RESULTS: string };
+          PlacesServiceStatus: {
+            OK: string;
+            ZERO_RESULTS: string;
+          };
         };
       };
     };
+
     __googleMapsPlacesPromise?: Promise<void>;
   }
 }
@@ -120,61 +144,123 @@ function loadGoogleMapsPlaces(apiKey: string): Promise<void> {
 
     if (existing) {
       existing.addEventListener("load", () => resolve(), { once: true });
+
       existing.addEventListener(
         "error",
         () => reject(new Error("Failed to load Google Maps")),
         { once: true },
       );
+
       return;
     }
 
     const script = document.createElement("script");
+
     script.dataset.googleMapsPlaces = "true";
     script.async = true;
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}&libraries=places&v=weekly`;
+    script.src =
+      `https://maps.googleapis.com/maps/api/js?` +
+      `key=${encodeURIComponent(apiKey)}` +
+      "&libraries=places&v=weekly";
+
     script.onload = () => resolve();
     script.onerror = () => reject(new Error("Failed to load Google Maps"));
+
     document.head.appendChild(script);
   });
 
   return window.__googleMapsPlacesPromise;
 }
 
-async function fetchAustralianPostcodeSuggestions(
-  postcode: string,
-): Promise<AddressSuggestion[]> {
-  if (!GOOGLE_MAPS_API_KEY) return [];
+async function getGeocodingLibrary(): Promise<GoogleGeocodingLibrary | null> {
+  if (!GOOGLE_MAPS_API_KEY) {
+    return null;
+  }
 
   await loadGoogleMapsPlaces(GOOGLE_MAPS_API_KEY);
 
-  const maps = window.google?.maps;
+  const importLibrary = window.google?.maps?.importLibrary;
 
-  if (!maps?.importLibrary) {
+  if (!importLibrary) {
+    return null;
+  }
+
+  return (await importLibrary("geocoding")) as GoogleGeocodingLibrary;
+}
+
+function getAddressComponent(
+  components: readonly GoogleAddressComponent[],
+  type: string,
+): GoogleAddressComponent | undefined {
+  return components.find((component) => component.types.includes(type));
+}
+
+function getPostcode(
+  components: readonly GoogleAddressComponent[],
+): string | undefined {
+  return getAddressComponent(components, "postal_code")?.long_name;
+}
+
+function findPostcode(
+  results: readonly GoogleGeocoderResult[],
+): string | undefined {
+  for (const result of results) {
+    const postcode = getPostcode(result.address_components);
+
+    if (postcode) {
+      return postcode;
+    }
+  }
+
+  return undefined;
+}
+
+async function fetchPostcodeForPlace(
+  placeId: string,
+  description: string,
+): Promise<string | undefined> {
+  try {
+    const library = await getGeocodingLibrary();
+
+    if (!library) {
+      return undefined;
+    }
+
+    const geocoder = new library.Geocoder();
+
+    const placeResult = await geocoder.geocode({
+      placeId,
+    });
+
+    const postcodeFromPlace = findPostcode(placeResult.results);
+
+    if (postcodeFromPlace) {
+      return postcodeFromPlace;
+    }
+
+    const addressResult = await geocoder.geocode({
+      address: description,
+      componentRestrictions: {
+        country: "AU",
+      },
+    });
+
+    return findPostcode(addressResult.results);
+  } catch {
+    return undefined;
+  }
+}
+
+async function fetchAustralianPostcodeSuggestions(
+  postcode: string,
+): Promise<AddressSuggestion[]> {
+  const library = await getGeocodingLibrary();
+
+  if (!library) {
     return [];
   }
 
-  const { Geocoder } = (await maps.importLibrary("geocoding")) as {
-    Geocoder: new () => {
-      geocode: (request: {
-        componentRestrictions: {
-          country: string;
-          postalCode: string;
-        };
-      }) => Promise<{
-        results: Array<{
-          place_id: string;
-          postcode_localities?: string[];
-          address_components: Array<{
-            long_name: string;
-            short_name: string;
-            types: string[];
-          }>;
-        }>;
-      }>;
-    };
-  };
-
-  const geocoder = new Geocoder();
+  const geocoder = new library.Geocoder();
 
   const { results } = await geocoder.geocode({
     componentRestrictions: {
@@ -192,15 +278,29 @@ async function fetchAustralianPostcodeSuggestions(
   }
 
   const state =
-    postcodeResult.address_components.find((component) =>
-      component.types.includes("administrative_area_level_1"),
+    getAddressComponent(
+      postcodeResult.address_components,
+      "administrative_area_level_1",
     )?.short_name ?? "";
 
-  return postcodeResult.postcode_localities.map((locality) => ({
+  const country =
+    getAddressComponent(postcodeResult.address_components, "country")
+      ?.long_name ?? "Australia";
+
+  const localities = [...new Set(postcodeResult.postcode_localities)];
+
+  return localities.map((locality) => ({
     id: `${postcode}-${locality}`,
     mainText: locality,
-    secondaryText: `${state} ${postcode}, Australia`,
-    description: `${locality}, ${state} ${postcode}, Australia`,
+    secondaryText: [state, postcode, country].filter(Boolean).join(" "),
+    description: [
+      locality,
+      [state, postcode].filter(Boolean).join(" "),
+      country,
+    ]
+      .filter(Boolean)
+      .join(", "),
+    postcode,
   }));
 }
 
@@ -208,7 +308,9 @@ async function fetchGoogleSuggestions(
   query: string,
   mode: "address" | "suburb",
 ): Promise<AddressSuggestion[]> {
-  if (!GOOGLE_MAPS_API_KEY) return [];
+  if (!GOOGLE_MAPS_API_KEY) {
+    return [];
+  }
 
   const normalizedQuery = query.trim();
 
@@ -219,16 +321,21 @@ async function fetchGoogleSuggestions(
   await loadGoogleMapsPlaces(GOOGLE_MAPS_API_KEY);
 
   const places = window.google?.maps?.places;
-  if (!places) return [];
+
+  if (!places) {
+    return [];
+  }
 
   const service = new places.AutocompleteService();
 
   return new Promise((resolve) => {
     service.getPlacePredictions(
       {
-        input: query,
+        input: normalizedQuery,
         types: mode === "suburb" ? ["(regions)"] : ["address"],
-        componentRestrictions: { country: "au" },
+        componentRestrictions: {
+          country: "au",
+        },
       },
       (predictions, status) => {
         if (
@@ -267,8 +374,10 @@ export function GoogleAddressAutocomplete({
 }: GoogleAddressAutocompleteProps) {
   const listId = useId();
   const inputId = id ?? listId;
+
   const containerRef = useRef<HTMLDivElement>(null);
   const requestIdRef = useRef(0);
+
   const [open, setOpen] = useState(false);
   const [highlightIndex, setHighlightIndex] = useState(0);
   const [suggestions, setSuggestions] = useState<AddressSuggestion[]>([]);
@@ -283,15 +392,22 @@ export function GoogleAddressAutocomplete({
     }
 
     const requestId = ++requestIdRef.current;
+
     const timeoutId = window.setTimeout(() => {
       void fetchGoogleSuggestions(value.trim(), mode)
         .then((results) => {
-          if (requestId !== requestIdRef.current) return;
+          if (requestId !== requestIdRef.current) {
+            return;
+          }
+
           setSuggestions(results);
           setHighlightIndex(0);
         })
         .catch(() => {
-          if (requestId !== requestIdRef.current) return;
+          if (requestId !== requestIdRef.current) {
+            return;
+          }
+
           setSuggestions([]);
           setHighlightIndex(0);
         });
@@ -308,21 +424,38 @@ export function GoogleAddressAutocomplete({
     }
 
     document.addEventListener("mousedown", handlePointerDown);
-    return () => document.removeEventListener("mousedown", handlePointerDown);
+
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+    };
   }, []);
 
-  function selectAddress(suggestion: AddressSuggestion) {
+  async function selectAddress(suggestion: AddressSuggestion) {
     const selectedValue =
       mode === "suburb" ? suggestion.mainText : suggestion.description;
 
-    onChange(selectedValue);
-    onSelect?.(selectedValue);
     setOpen(false);
+
+    let postcode = suggestion.postcode;
+
+    if (mode === "suburb" && !postcode) {
+      postcode = await fetchPostcodeForPlace(
+        suggestion.id,
+        suggestion.description,
+      );
+    }
+
+    onChange(selectedValue);
+
+    onSelect?.(selectedValue, {
+      postcode,
+    });
   }
 
   return (
     <div ref={containerRef} className={className}>
       {icon}
+
       <input
         id={inputId}
         type="text"
@@ -343,27 +476,39 @@ export function GoogleAddressAutocomplete({
         }}
         onFocus={() => setOpen(true)}
         onKeyDown={(event) => {
-          if (!showOverlay) return;
+          if (!showOverlay) {
+            return;
+          }
 
           if (event.key === "ArrowDown") {
             event.preventDefault();
+
             setHighlightIndex((index) =>
               Math.min(index + 1, suggestions.length - 1),
             );
+
             return;
           }
 
           if (event.key === "ArrowUp") {
             event.preventDefault();
+
             setHighlightIndex((index) => Math.max(index - 1, 0));
+
             return;
           }
 
           if (event.key === "Enter") {
             const selected = suggestions[highlightIndex];
-            if (!selected) return;
+
+            if (!selected) {
+              return;
+            }
+
             event.preventDefault();
-            selectAddress(selected);
+
+            void selectAddress(selected);
+
             return;
           }
 
@@ -374,6 +519,7 @@ export function GoogleAddressAutocomplete({
         }}
         className={inputClassName}
       />
+
       {trailing}
 
       {showOverlay ? (
@@ -394,16 +540,18 @@ export function GoogleAddressAutocomplete({
                   aria-selected={isActive}
                   onMouseEnter={() => setHighlightIndex(index)}
                   onMouseDown={(event) => event.preventDefault()}
-                  onClick={() => selectAddress(suggestion)}
+                  onClick={() => void selectAddress(suggestion)}
                   className={`flex w-full items-start gap-3 px-3 py-2.5 text-left transition ${
                     isActive ? "bg-slate-100" : "bg-white hover:bg-slate-50"
                   }`}
                 >
                   <PinIcon className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
+
                   <span className="min-w-0">
                     <span className="block truncate text-sm font-medium text-slate-900">
                       {suggestion.mainText}
                     </span>
+
                     <span className="block truncate text-xs text-slate-500">
                       {suggestion.secondaryText}
                     </span>
@@ -412,6 +560,7 @@ export function GoogleAddressAutocomplete({
               </li>
             );
           })}
+
           <li className="border-t border-slate-100 px-3 py-2">
             <p className="flex items-center justify-end gap-1 text-[10px] font-medium tracking-wide text-slate-400">
               <GoogleMark />

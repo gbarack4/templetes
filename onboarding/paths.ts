@@ -39,6 +39,7 @@ export function buildOnboardingSearchPath(
   basePath: string,
   values: Readonly<{
     suburb: string;
+    postcode?: string;
     transmission: string;
     preferredDate?: string;
     lessonTime?: string;
@@ -50,6 +51,10 @@ export function buildOnboardingSearchPath(
     suburb: values.suburb.trim(),
     transmission: normalizeTransmission(values.transmission),
   });
+
+  if (values.postcode) {
+    params.set("postcode", values.postcode.trim());
+  }
 
   if (values.preferredDate) {
     params.set("preferredDate", values.preferredDate);
@@ -72,6 +77,7 @@ export function buildOnboardingSearchPath(
 
 const BOOKING_QUERY_KEYS = [
   "suburb",
+  "postcode",
   "transmission",
   "preferredDate",
   "lessonTime",

@@ -44,11 +44,15 @@ function SuggestedInstructorCard({
   instructor,
   basePath,
   queryString,
+  searchedSuburb,
+  searchedPostcode,
   isBestMatch = false,
 }: Readonly<{
   instructor: PublicInstructor;
   basePath: string;
   queryString: URLSearchParams;
+  searchedSuburb: string;
+  searchedPostcode: string;
   isBestMatch?: boolean;
 }>) {
   const profileHref = withOnboardingQuery(
@@ -77,17 +81,13 @@ function SuggestedInstructorCard({
             ) : null}
 
             <p className="text-xs text-[#4b5563]">
-              {[instructor.suburb, instructor.postcode]
-                .filter(Boolean)
-                .join(" · ")}
+              {[searchedSuburb, searchedPostcode].filter(Boolean).join(" · ")}
             </p>
 
             <p className="text-xs font-medium text-slate-700">
-              {instructor.availableSlots?.length ?? 0}{" "}
-              {(instructor.availableSlots?.length ?? 0) === 1
-                ? "slot"
-                : "slots"}{" "}
-              available
+              {instructor.monthlyAvailableSlotCount}{" "}
+              {instructor.monthlyAvailableSlotCount === 1 ? "slot" : "slots"}{" "}
+              available this month
             </p>
           </div>
         </div>
@@ -100,6 +100,7 @@ function SuggestedInstructorCard({
         >
           Book now
         </Link>
+
         {isBestMatch ? (
           <span className="inline-flex items-center rounded-full bg-green-600 px-2.5 py-1 text-[11px] font-semibold text-white">
             Best match
@@ -117,6 +118,7 @@ export function SuggestedInstructors({
   const searchParams = useSearchParams();
 
   const suburbParam = searchParams.get("suburb") ?? "";
+  const postcodeParam = searchParams.get("postcode")?.trim() ?? "";
   const transmissionParam = normalizeTransmission(
     searchParams.get("transmission"),
   );
@@ -246,6 +248,8 @@ export function SuggestedInstructors({
                   instructor={instructor}
                   basePath={basePath}
                   queryString={searchParams}
+                  searchedSuburb={suburbParam.trim()}
+                  searchedPostcode={postcodeParam}
                   isBestMatch={(instructor.availableSlots?.length ?? 0) > 0}
                 />
               ))

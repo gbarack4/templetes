@@ -242,6 +242,8 @@ export function ModernTemplate({ data }: Readonly<TemplateProps>) {
   );
 
   const [suburb, setSuburb] = useState("");
+  const [postcode, setPostcode] = useState("");
+
   const [transmission, setTransmission] = useState(
     site.transmissionOptions[0] ?? "Auto",
   );
@@ -258,7 +260,20 @@ export function ModernTemplate({ data }: Readonly<TemplateProps>) {
   const brandColorStyle = { color: site.primaryColor };
   const brandBgStyle = { backgroundColor: site.primaryColor };
 
-  function handleSearch(event: React.FormEvent<HTMLFormElement>) {
+  function handleSuburbChange(value: string) {
+    setSuburb(value);
+    setPostcode("");
+  }
+
+  function handleSuburbSelect(
+    value: string,
+    details: Readonly<{ postcode?: string }>,
+  ) {
+    setSuburb(value);
+    setPostcode(details.postcode ?? "");
+  }
+
+  function handleSearch(event: React.SyntheticEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!canSearch || !selectedDate || !selectedTime) return;
 
@@ -267,6 +282,7 @@ export function ModernTemplate({ data }: Readonly<TemplateProps>) {
     router.push(
       buildOnboardingSearchPath(getOnboardingBasePath(pathname), {
         suburb,
+        postcode,
         transmission,
         preferredDate: lessonDate,
         lessonTime: selectedTime,
@@ -352,8 +368,8 @@ export function ModernTemplate({ data }: Readonly<TemplateProps>) {
                   id="pickup-location"
                   mode="suburb"
                   value={suburb}
-                  onChange={setSuburb}
-                  onSelect={setSuburb}
+                  onChange={handleSuburbChange}
+                  onSelect={handleSuburbSelect}
                   placeholder="Enter suburb or postcode"
                   className={`${fieldClassName} relative`}
                   inputClassName="min-w-0 flex-1 bg-transparent text-slate-900 outline-none placeholder:text-slate-400"

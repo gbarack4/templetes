@@ -11,7 +11,6 @@ import {
 } from "@/onboarding/paths";
 import { submitFormEmbedSearch } from "./form-embed-search";
 import { mockModernTransmissionOptions } from "./resolve-modern-site";
-import { SuburbAutocomplete } from "./SuburbAutocomplete";
 import type { TemplateProps } from "./types";
 import { GoogleAddressAutocomplete } from "@/components/GoogleAddressAutocomplete";
 
@@ -57,6 +56,7 @@ export function FormEmbedTemplate({ data }: Readonly<TemplateProps>) {
   ];
 
   const [suburb, setSuburb] = useState("");
+  const [postcode, setPostcode] = useState("");
   const [transmission, setTransmission] = useState(
     transmissionOptions[0] ?? "Auto",
   );
@@ -68,6 +68,19 @@ export function FormEmbedTemplate({ data }: Readonly<TemplateProps>) {
   const futureDates = useMemo(() => buildFutureDates(), []);
   const selectedTestDate = getSelectedRescheduleDate(futureDates, testDateId);
   const canSearch = suburb.trim().length > 0;
+
+  function handleSuburbChange(value: string) {
+    setSuburb(value);
+    setPostcode("");
+  }
+
+  function handleSuburbSelect(
+    value: string,
+    details: Readonly<{ postcode?: string }>,
+  ) {
+    setSuburb(value);
+    setPostcode(details.postcode ?? "");
+  }
 
   async function handleSearch(event: React.SyntheticEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -96,6 +109,7 @@ export function FormEmbedTemplate({ data }: Readonly<TemplateProps>) {
       router.push(
         buildOnboardingSearchPath(getOnboardingBasePath(pathname), {
           suburb,
+          postcode,
           transmission,
           preferredDate: testDate,
         }),
@@ -121,8 +135,8 @@ export function FormEmbedTemplate({ data }: Readonly<TemplateProps>) {
               id="embed-pickup"
               mode="suburb"
               value={suburb}
-              onChange={setSuburb}
-              onSelect={setSuburb}
+              onChange={handleSuburbChange}
+              onSelect={handleSuburbSelect}
               placeholder="Enter suburb or postcode"
               className={`${fieldClassName} relative`}
               inputClassName="min-w-0 flex-1 bg-transparent outline-none placeholder:text-slate-400"

@@ -325,4 +325,5 @@ export type PublicInstructor = {
   lessonsCompleted: number;
   availableSlots: AvailableSlot[];
   lowestEligiblePrice: number | null;
+  monthlyAvailableSlotCount: number;
 };

@@ -87,6 +87,7 @@ export function ClassicTemplate({ data }: Readonly<TemplateProps>) {
   const pathname = usePathname();
 
   const [suburb, setSuburb] = useState("");
+  const [postcode, setPostcode] = useState("");
   const [transmission, setTransmission] = useState("Auto");
   const [preferredDateId, setPreferredDateId] = useState<string | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -122,11 +123,25 @@ export function ClassicTemplate({ data }: Readonly<TemplateProps>) {
       router.push(
         buildOnboardingSearchPath(getOnboardingBasePath(pathname), {
           suburb,
+          postcode,
           transmission,
           preferredDate,
         }),
       );
     }, SEARCH_LOADING_MS);
+  }
+
+  function handleSuburbChange(value: string) {
+    setSuburb(value);
+    setPostcode("");
+  }
+
+  function handleSuburbSelect(
+    value: string,
+    details: Readonly<{ postcode?: string }>,
+  ) {
+    setSuburb(value);
+    setPostcode(details.postcode ?? "");
   }
 
   return (
@@ -191,8 +206,8 @@ export function ClassicTemplate({ data }: Readonly<TemplateProps>) {
                 id="pickup-address"
                 mode="suburb"
                 value={suburb}
-                onChange={setSuburb}
-                onSelect={setSuburb}
+                onChange={handleSuburbChange}
+                onSelect={handleSuburbSelect}
                 placeholder="Enter suburb or postcode"
                 inputClassName={`${fieldClassName} py-3.5 pr-4 pl-11 placeholder:text-slate-400`}
                 icon={
