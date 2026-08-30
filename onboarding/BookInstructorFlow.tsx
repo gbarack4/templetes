@@ -1,5 +1,6 @@
 "use client";
 
+import { useAuth } from "@clerk/nextjs";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
@@ -26,6 +27,12 @@ import {
   fetchAvailableSlots,
   fetchPublicPackages,
 } from "@/lib/public-booking-api";
+import {
+  createBooking,
+  createPackagePayment,
+  getPackagePaymentStatus,
+  syncStudent,
+} from "@/lib/booking-payment-api";
 
 import { calculateOnboardingLessonPayment } from "./book-lesson-payment";
 import { BookingSignUp } from "./BookingSignUp";
@@ -95,6 +102,7 @@ export function BookInstructorFlow({
   initialTime = null,
 }: BookInstructorFlowProps) {
   const router = useRouter();
+  const { getToken } = useAuth();
 
   const preselectedDate = useMemo(
     () => resolveRescheduleDateFromIso(initialDate),
@@ -149,6 +157,7 @@ export function BookInstructorFlow({
   const [isContinuing, setIsContinuing] = useState(false);
 
   const [isContinuingToPayment, setIsContinuingToPayment] = useState(false);
+  const [paymentError, setPaymentError] = useState("");
 
   const mainScrollRef = useRef<HTMLDivElement>(null);
 
@@ -165,6 +174,12 @@ export function BookInstructorFlow({
   const skipInitialScroll = useRef(true);
 
   const previousFlowStep = useRef<FlowStep | null>(null);
+
+  const [clientSecret, setClientSecret] = useState<string | null>(null);
+
+  const [stripeAccountId, setStripeAccountId] = useState<string | null>(null);
+
+  const [bookingId, setBookingId] = useState<string | null>(null);
 
   function scrollMainToTop() {
     mainScrollRef.current?.scrollTo({
@@ -230,6 +245,12 @@ export function BookInstructorFlow({
   const availableTimeSlots = useMemo(
     () => Array.from(new Set(availableSlots.map((slot) => slot.startTime))),
     [availableSlots],
+  );
+
+  const selectedSlot = useMemo(
+    () =>
+      availableSlots.find((slot) => slot.startTime === selectedTime) ?? null,
+    [availableSlots, selectedTime],
   );
 
   const selectedHours = selectedPackage
@@ -383,19 +404,109 @@ export function BookInstructorFlow({
     setShowTimePicker(false);
   }
 
-  function handleConfirm() {
+  async function handleContinueToPayment() {
     if (
-      !canConfirm ||
-      !selectedDate ||
-      !selectedTime ||
+      isContinuingToPayment ||
+      !selectedPackage ||
+      !selectedSlot ||
       !trimmedPickupAddress
     ) {
       return;
     }
 
-    setShowPayment(false);
-    setIsConfirmed(true);
-    scrollMainToTop();
+    setIsContinuingToPayment(true);
+    setPaymentError("");
+
+    try {
+      const token = await getToken();
+
+      if (!token) {
+        throw new Error("Authentication required");
+      }
+
+      await syncStudent(instructor.schoolId, token);
+
+      const booking = await createBooking(instructor.schoolId, token, {
+        instructorId: instructor.id,
+        packageId: selectedPackage.id,
+        pickupSuburb: trimmedPickupAddress,
+        startDatetime: selectedSlot.startDatetime,
+      });
+
+      setBookingId(booking.id);
+
+      const paymentResult = await createPackagePayment(
+        instructor.schoolId,
+        booking.id,
+        token,
+      );
+
+      if (!paymentResult.clientSecret) {
+        throw new Error("Stripe client secret was not returned");
+      }
+
+      setClientSecret(paymentResult.clientSecret);
+      setStripeAccountId(paymentResult.stripeAccountId);
+      setShowPayment(true);
+      scrollMainToTop();
+    } catch (error) {
+      console.error(error);
+
+      setPaymentError(
+        error instanceof Error ? error.message : "Failed to prepare payment",
+      );
+    } finally {
+      setIsContinuingToPayment(false);
+    }
+  }
+
+  async function handleConfirm() {
+    if (!bookingId) {
+      throw new Error("Booking ID is missing");
+    }
+
+    const token = await getToken();
+
+    if (!token) {
+      throw new Error("Authentication required");
+    }
+
+    const maxAttempts = 20;
+
+    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+      const status = await getPackagePaymentStatus(
+        instructor.schoolId,
+        bookingId,
+        token,
+      );
+
+      if (
+        status.paymentStatus === "paid" &&
+        status.bookingStatus === "confirmed"
+      ) {
+        setShowPayment(false);
+        setIsConfirmed(true);
+        scrollMainToTop();
+        return;
+      }
+
+      if (status.paymentStatus === "failed") {
+        throw new Error("Payment failed");
+      }
+
+      if (
+        status.bookingStatus === "cancelled" ||
+        status.bookingStatus === "expired"
+      ) {
+        throw new Error("Booking is no longer available");
+      }
+
+      await new Promise((resolve) => window.setTimeout(resolve, 500));
+    }
+
+    throw new Error(
+      "Payment succeeded, but booking confirmation is still processing.",
+    );
   }
 
   const paymentForLesson = {
@@ -477,6 +588,8 @@ export function BookInstructorFlow({
 
   if (
     showPayment &&
+    clientSecret &&
+    stripeAccountId &&
     canConfirm &&
     hasRegistered &&
     selectedDate &&
@@ -494,6 +607,8 @@ export function BookInstructorFlow({
             timeLabel={formatLessonTimeRange(selectedTime, selectedHours)}
             hours={selectedHours}
             payment={paymentForLesson}
+            clientSecret={clientSecret}
+            stripeAccountId={stripeAccountId}
             hourRate={effectiveHourRate}
             onBack={() => setShowPayment(false)}
             onComplete={handleConfirm}
@@ -840,21 +955,14 @@ export function BookInstructorFlow({
                 </p>
               </div>
 
+              {paymentError && (
+                <p className="text-sm text-red-500">{paymentError}</p>
+              )}
+
               <button
                 type="button"
                 aria-busy={isContinuingToPayment}
-                onClick={() => {
-                  if (isContinuingToPayment) {
-                    return;
-                  }
-
-                  setIsContinuingToPayment(true);
-
-                  window.setTimeout(() => {
-                    setShowPayment(true);
-                    scrollMainToTop();
-                  }, BUTTON_LOADING_MS);
-                }}
+                onClick={handleContinueToPayment}
                 className={`inline-flex h-11 w-full items-center justify-center rounded-lg bg-blue-600 text-sm font-medium text-white transition hover:bg-blue-700 ${
                   isContinuingToPayment ? "pointer-events-none" : ""
                 }`}
