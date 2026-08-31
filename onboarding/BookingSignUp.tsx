@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { useClerk } from "@clerk/nextjs";
+import { useRouter } from "next/navigation";
+
 import { FlowPageHeader } from "@/dashboard/components/FlowPageHeader";
 import { useSchoolId } from "@/dashboard/SchoolContext";
 
@@ -19,7 +20,7 @@ export function BookingSignUp({
 }: BookingSignUpProps) {
   const clerk = useClerk();
   const schoolId = useSchoolId();
-
+  const router = useRouter();
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
@@ -260,12 +261,19 @@ export function BookingSignUp({
 
         <p className="mt-8 text-center text-sm text-[#4b5563]">
           Already have an account?{" "}
-          <Link
-            href="/login"
+          <button
+            type="button"
+            onClick={() => {
+              const redirectUrl = `${window.location.pathname}${window.location.search}`;
+
+              router.push(
+                `/login?redirect_url=${encodeURIComponent(redirectUrl)}`,
+              );
+            }}
             className="font-medium text-blue-600 hover:text-blue-700"
           >
             Sign in
-          </Link>
+          </button>
         </p>
       </main>
     </div>

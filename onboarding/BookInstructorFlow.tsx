@@ -33,6 +33,11 @@ import {
   getPackagePaymentStatus,
   syncStudent,
 } from "@/lib/booking-payment-api";
+import {
+  clearFirstBookingDraft,
+  getFirstBookingDraft,
+  saveFirstBookingDraft,
+} from "./first-booking-draft";
 
 import { calculateOnboardingLessonPayment } from "./book-lesson-payment";
 import { BookingSignUp } from "./BookingSignUp";
@@ -102,7 +107,7 @@ export function BookInstructorFlow({
   initialTime = null,
 }: BookInstructorFlowProps) {
   const router = useRouter();
-  const { getToken } = useAuth();
+  const { getToken, isLoaded: isAuthLoaded, isSignedIn } = useAuth();
 
   const preselectedDate = useMemo(
     () => resolveRescheduleDateFromIso(initialDate),
@@ -203,6 +208,69 @@ export function BookInstructorFlow({
   const trimmedPickupAddress = pickupAddress.trim();
 
   const addressComplete = addressSelected && trimmedPickupAddress.length > 0;
+
+  useEffect(() => {
+    if (
+      !selectedPackageId ||
+      !selectedDateId ||
+      !selectedTime ||
+      !addressComplete
+    ) {
+      return;
+    }
+
+    saveFirstBookingDraft({
+      schoolId: instructor.schoolId,
+      instructorId: instructor.id,
+      selectedPackageId,
+      selectedDateId,
+      selectedTime,
+      pickupAddress: trimmedPickupAddress,
+    });
+  }, [
+    addressComplete,
+    instructor.id,
+    instructor.schoolId,
+    selectedDateId,
+    selectedPackageId,
+    selectedTime,
+    trimmedPickupAddress,
+  ]);
+
+  useEffect(() => {
+    if (!isAuthLoaded || !isSignedIn) {
+      return;
+    }
+
+    const draft = getFirstBookingDraft();
+
+    if (
+      draft?.schoolId !== instructor.schoolId ||
+      draft.instructorId !== instructor.id
+    ) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setSelectedPackageId(draft.selectedPackageId);
+      setSelectedDateId(draft.selectedDateId);
+      setSelectedTime(draft.selectedTime);
+      setPickupAddress(draft.pickupAddress);
+
+      setAddressSelected(true);
+      setDurationConfirmed(true);
+
+      setShowDurationPicker(false);
+      setShowDatePicker(false);
+      setShowTimePicker(false);
+      setShowSignUp(false);
+
+      setHasRegistered(true);
+      setShowSummary(true);
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [instructor.id, instructor.schoolId, isAuthLoaded, isSignedIn]);
 
   const packageSuburb = preselectedSuburb;
 
@@ -484,6 +552,8 @@ export function BookInstructorFlow({
         status.paymentStatus === "paid" &&
         status.bookingStatus === "confirmed"
       ) {
+        clearFirstBookingDraft();
+
         setShowPayment(false);
         setIsConfirmed(true);
         scrollMainToTop();
@@ -903,7 +973,14 @@ export function BookInstructorFlow({
                   setIsContinuing(true);
 
                   window.setTimeout(() => {
-                    setShowSignUp(true);
+                    if (isSignedIn) {
+                      setHasRegistered(true);
+                      setShowSummary(true);
+                    } else {
+                      setShowSignUp(true);
+                    }
+
+                    setIsContinuing(false);
                     scrollMainToTop();
                   }, BUTTON_LOADING_MS);
                 }}

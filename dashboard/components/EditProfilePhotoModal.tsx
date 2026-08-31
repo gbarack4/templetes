@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
+import Image from "next/image";
+
 import { DEFAULT_STUDENT_AVATAR, PRESET_AVATARS } from "../student-avatar";
 import { useIsClient } from "@/shared/hooks/useIsClient";
 import { useUpdateStudentAvatar } from "@/shared/hooks/useStudent";
@@ -85,8 +87,7 @@ export function EditProfilePhotoModal({
         onClick={onClose}
         className="absolute inset-0 bg-slate-900/40"
       />
-      <div
-        role="dialog"
+      <dialog
         aria-modal="true"
         aria-labelledby="edit-photo-title"
         className="absolute inset-x-0 bottom-0 z-10 mx-auto flex h-[85dvh] w-full max-w-md flex-col rounded-t-2xl bg-white pb-[env(safe-area-inset-bottom,0px)] shadow-xl"
@@ -119,9 +120,11 @@ export function EditProfilePhotoModal({
 
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-5 pb-6 [-webkit-overflow-scrolling:touch]">
           <div className="flex flex-col items-center">
-            <img
+            <Image
               src={selectedUrl}
               alt={`${userName}'s profile preview`}
+              width={96}
+              height={96}
               className="h-24 w-24 rounded-full bg-slate-100 object-cover ring-4 ring-slate-100"
             />
             <p className="mt-3 text-center text-sm text-slate-500">
@@ -155,9 +158,9 @@ export function EditProfilePhotoModal({
                       : "ring-1 ring-slate-200 hover:ring-slate-300"
                   }`}
                 >
-                  <img
+                  <Image
                     src={avatarUrl}
-                    alt=""
+                    alt="avatar"
                     className="h-full w-full object-cover"
                   />
                 </button>
@@ -187,7 +190,7 @@ export function EditProfilePhotoModal({
             </button>
           )}
         </div>
-      </div>
+      </dialog>
     </div>,
     document.body,
   );

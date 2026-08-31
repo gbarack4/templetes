@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { usePathname } from "next/navigation";
+import { useCallback, useSyncExternalStore } from "react";
+
 import {
   CREDIT_UPDATED_EVENT,
   getStudentCreditHours,
@@ -9,30 +9,44 @@ import {
 } from "./student-credit";
 
 export function useStudentCreditHours(fallback: number) {
-  const pathname = usePathname();
-  const [creditHours, setCreditHoursState] = useState(fallback);
-
-  useEffect(() => {
-    setCreditHoursState(getStudentCreditHours(fallback));
-
-    function handleCreditUpdate(event: Event) {
-      setCreditHoursState((event as CustomEvent<number>).detail);
+  const subscribe = useCallback((onStoreChange: () => void) => {
+    function handleCreditUpdate() {
+      onStoreChange();
     }
 
     window.addEventListener(CREDIT_UPDATED_EVENT, handleCreditUpdate);
-    return () => window.removeEventListener(CREDIT_UPDATED_EVENT, handleCreditUpdate);
-  }, [fallback, pathname]);
 
-  const setCreditHours = useCallback((hours: number | ((current: number) => number)) => {
-    setCreditHoursState((current) => {
+    return () => {
+      window.removeEventListener(CREDIT_UPDATED_EVENT, handleCreditUpdate);
+    };
+  }, []);
+
+  const getSnapshot = useCallback(
+    () => getStudentCreditHours(fallback),
+    [fallback],
+  );
+
+  const getServerSnapshot = useCallback(() => fallback, [fallback]);
+
+  const creditHours = useSyncExternalStore(
+    subscribe,
+    getSnapshot,
+    getServerSnapshot,
+  );
+
+  const setCreditHours = useCallback(
+    (hours: number | ((current: number) => number)) => {
+      const current = getStudentCreditHours(fallback);
+
       const next =
         typeof hours === "function"
           ? Math.max(0, hours(current))
           : Math.max(0, hours);
+
       setStudentCreditHours(next);
-      return next;
-    });
-  }, []);
+    },
+    [fallback],
+  );
 
   return [creditHours, setCreditHours] as const;
 }
