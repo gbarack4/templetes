@@ -28,7 +28,7 @@ type LessonPaymentProps = Readonly<{
   stripeAccountId: string;
   hourRate?: number;
   onBack: () => void;
-  onComplete: () => Promise<void>;
+  onComplete: () => void | Promise<void>;
 }>;
 
 type StripePaymentFormProps = Readonly<{
@@ -39,7 +39,7 @@ type StripePaymentFormProps = Readonly<{
   payment: ReturnType<typeof calculateLessonPayment>;
   hourRate: number;
   onBack: () => void;
-  onComplete: () => Promise<void>;
+  onComplete: () => void | Promise<void>;
 }>;
 
 const STRIPE_PUBLISHABLE_KEY =
