@@ -52,19 +52,22 @@ export function InstructorReviewsModal({
         onClick={onClose}
         className="absolute inset-0 bg-slate-900/40"
       />
-      <div
-        role="dialog"
+      <dialog
         aria-modal="true"
         aria-labelledby="reviews-modal-title"
         className="relative z-10 flex h-[85vh] max-h-[85vh] w-full max-w-md flex-col rounded-t-2xl bg-white shadow-xl"
       >
         <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-5 py-4">
           <div>
-            <h2 id="reviews-modal-title" className="text-lg font-bold text-slate-900">
+            <h2
+              id="reviews-modal-title"
+              className="text-lg font-bold text-slate-900"
+            >
               Reviews
             </h2>
             <p className="mt-0.5 text-sm text-amber-600">
-              ★ {instructor.rating.toFixed(1)} · {instructor.reviewCount} reviews
+              ★ {instructor.rating.toFixed(1)} · {instructor.reviewCount}{" "}
+              reviews
             </p>
           </div>
           <button
@@ -89,20 +92,29 @@ export function InstructorReviewsModal({
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-5 pb-6">
           <div>
             {reviews.map((review) => (
-              <article key={review.id} className="border-b border-slate-100 py-4 last:border-0">
+              <article
+                key={review.id}
+                className="border-b border-slate-100 py-4 last:border-0"
+              >
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="text-sm font-semibold text-slate-900">{review.author}</p>
-                    <p className="mt-0.5 text-xs text-slate-400">{review.date}</p>
+                    <p className="text-sm font-semibold text-slate-900">
+                      {review.author}
+                    </p>
+                    <p className="mt-0.5 text-xs text-slate-400">
+                      {review.date}
+                    </p>
                   </div>
                   <ReviewStars rating={review.rating} />
                 </div>
-                <p className="mt-3 text-sm leading-relaxed text-slate-600">{review.comment}</p>
+                <p className="mt-3 text-sm leading-relaxed text-slate-600">
+                  {review.comment}
+                </p>
               </article>
             ))}
           </div>
         </div>
-      </div>
+      </dialog>
     </div>
   );
 }
