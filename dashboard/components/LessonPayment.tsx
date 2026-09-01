@@ -23,6 +23,7 @@ type LessonPaymentProps = Readonly<{
   dateLabel: string;
   timeLabel: string;
   hours: number;
+  lessonHours?: number;
   payment: ReturnType<typeof calculateLessonPayment>;
   clientSecret: string;
   stripeAccountId: string;
@@ -36,6 +37,7 @@ type StripePaymentFormProps = Readonly<{
   dateLabel: string;
   timeLabel: string;
   hours: number;
+  lessonHours: number;
   payment: ReturnType<typeof calculateLessonPayment>;
   hourRate: number;
   onBack: () => void;
@@ -50,6 +52,7 @@ function StripePaymentForm({
   dateLabel,
   timeLabel,
   hours,
+  lessonHours,
   payment,
   hourRate,
   onBack,
@@ -125,7 +128,7 @@ function StripePaymentForm({
         <p className="mt-1 text-sm text-slate-600">{timeLabel}</p>
 
         <p className="mt-1 text-sm text-[#4b5563]">
-          {hours} {hours === 1 ? "hour" : "hours"}
+          {lessonHours} {lessonHours === 1 ? "hour" : "hours"}
         </p>
 
         <div className="mt-4 border-t border-slate-200 pt-4">
@@ -212,6 +215,7 @@ export function LessonPayment({
   dateLabel,
   timeLabel,
   hours,
+  lessonHours = hours,
   payment,
   clientSecret,
   stripeAccountId,
@@ -261,6 +265,7 @@ export function LessonPayment({
         dateLabel={dateLabel}
         timeLabel={timeLabel}
         hours={hours}
+        lessonHours={lessonHours}
         payment={payment}
         hourRate={hourRate}
         onBack={onBack}

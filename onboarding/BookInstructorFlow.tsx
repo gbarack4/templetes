@@ -325,6 +325,8 @@ export function BookInstructorFlow({
     ? selectedPackage.durationMinutes / 60
     : 0;
 
+  const initialLessonHours = selectedHours >= 3 ? 1 : selectedHours;
+
   const selectedPackagePrice = selectedPackage
     ? Number(selectedPackage.price)
     : 0;
@@ -674,8 +676,9 @@ export function BookInstructorFlow({
           <LessonPayment
             instructor={instructor}
             dateLabel={`${selectedDate.month} ${selectedDate.day} · ${selectedDate.weekday}`}
-            timeLabel={formatLessonTimeRange(selectedTime, selectedHours)}
+            timeLabel={formatLessonTimeRange(selectedTime, initialLessonHours)}
             hours={selectedHours}
+            lessonHours={initialLessonHours}
             payment={paymentForLesson}
             clientSecret={clientSecret}
             stripeAccountId={stripeAccountId}
@@ -920,7 +923,7 @@ export function BookInstructorFlow({
               </p>
 
               <p className="mt-2 font-semibold text-slate-900">
-                {formatLessonTimeRange(selectedTime, selectedHours)}
+                {formatLessonTimeRange(selectedTime, initialLessonHours)}
               </p>
 
               <button
@@ -1011,7 +1014,7 @@ export function BookInstructorFlow({
                 </p>
 
                 <p className="mt-1 text-sm text-slate-600">
-                  {formatLessonTimeRange(selectedTime, selectedHours)}
+                  {formatLessonTimeRange(selectedTime, initialLessonHours)}
                 </p>
 
                 <p className="mt-1 text-sm text-[#4b5563]">
