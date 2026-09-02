@@ -11,6 +11,7 @@ export type AddressSuggestion = Readonly<{
 }>;
 
 export type AddressSelectionDetails = Readonly<{
+  formattedAddress?: string;
   suburb?: string;
   postcode?: string;
   latitude?: number;
@@ -254,6 +255,7 @@ async function fetchAddressDetailsForPlace(
     }
 
     return {
+      formattedAddress: result.formatted_address,
       suburb: getSuburb(result.address_components),
       postcode: getPostcode(result.address_components),
       latitude: result.geometry?.location.lat(),
@@ -497,18 +499,27 @@ export function GoogleAddressAutocomplete({
   }, []);
 
   async function selectAddress(suggestion: AddressSuggestion) {
-    const selectedValue =
-      mode === "suburb" ? suggestion.mainText : suggestion.description;
-
     setOpen(false);
+
+    if (mode === "address") {
+      const details = await fetchAddressDetailsForPlace(suggestion.id);
+
+      const selectedValue =
+        details.formattedAddress?.trim() || suggestion.description;
+
+      onChange(selectedValue);
+      onSelect?.(selectedValue, details);
+
+      return;
+    }
+
+    const selectedValue = suggestion.mainText;
 
     let details: AddressSelectionDetails = {
       postcode: suggestion.postcode,
     };
 
-    if (mode === "address") {
-      details = await fetchAddressDetailsForPlace(suggestion.id);
-    } else if (!suggestion.postcode) {
+    if (!suggestion.postcode) {
       const postcode = await fetchPostcodeForPlace(
         suggestion.id,
         suggestion.description,

@@ -1,8 +1,14 @@
 export interface CreateBookingPayload {
   instructorId: string;
   packageId: string;
+
+  pickupAddress: string;
   pickupSuburb: string;
   pickupPostcode?: string;
+  pickupLatitude: number;
+  pickupLongitude: number;
+  pickupGooglePlaceId?: string;
+
   startDatetime: string;
   notes?: string;
 }

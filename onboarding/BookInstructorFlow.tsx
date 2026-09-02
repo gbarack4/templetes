@@ -6,7 +6,10 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 
 import { ButtonSpinner } from "@/components/ButtonSpinner";
-import { GoogleAddressAutocomplete } from "@/components/GoogleAddressAutocomplete";
+import {
+  GoogleAddressAutocomplete,
+  type AddressSelectionDetails,
+} from "@/components/GoogleAddressAutocomplete";
 import { CalendarPickerModal } from "@/dashboard/components/CalendarPickerModal";
 import { FlowPageHeader } from "@/dashboard/components/FlowPageHeader";
 import { CheckIcon, ChevronRightIcon } from "@/dashboard/components/icons";
@@ -145,6 +148,9 @@ export function BookInstructorFlow({
 
   const [pickupAddress, setPickupAddress] = useState("");
 
+  const [pickupAddressDetails, setPickupAddressDetails] =
+    useState<AddressSelectionDetails | null>(null);
+
   const [addressSelected, setAddressSelected] = useState(false);
 
   const [durationConfirmed, setDurationConfirmed] = useState(false);
@@ -162,6 +168,7 @@ export function BookInstructorFlow({
   const [isContinuing, setIsContinuing] = useState(false);
 
   const [isContinuingToPayment, setIsContinuingToPayment] = useState(false);
+
   const [paymentError, setPaymentError] = useState("");
 
   const mainScrollRef = useRef<HTMLDivElement>(null);
@@ -207,7 +214,13 @@ export function BookInstructorFlow({
 
   const trimmedPickupAddress = pickupAddress.trim();
 
-  const addressComplete = addressSelected && trimmedPickupAddress.length > 0;
+  const addressComplete = Boolean(
+    addressSelected &&
+    trimmedPickupAddress.length > 0 &&
+    pickupAddressDetails?.suburb &&
+    typeof pickupAddressDetails.latitude === "number" &&
+    typeof pickupAddressDetails.longitude === "number",
+  );
 
   useEffect(() => {
     if (
@@ -219,6 +232,17 @@ export function BookInstructorFlow({
       return;
     }
 
+    if (!pickupAddressDetails?.suburb) {
+      return;
+    }
+
+    if (
+      typeof pickupAddressDetails.latitude !== "number" ||
+      typeof pickupAddressDetails.longitude !== "number"
+    ) {
+      return;
+    }
+
     saveFirstBookingDraft({
       schoolId: instructor.schoolId,
       instructorId: instructor.id,
@@ -226,11 +250,21 @@ export function BookInstructorFlow({
       selectedDateId,
       selectedTime,
       pickupAddress: trimmedPickupAddress,
+      pickupSuburb: pickupAddressDetails.suburb,
+      pickupPostcode: pickupAddressDetails.postcode,
+      pickupLatitude: pickupAddressDetails.latitude,
+      pickupLongitude: pickupAddressDetails.longitude,
+      pickupGooglePlaceId: pickupAddressDetails.googlePlaceId,
     });
   }, [
     addressComplete,
     instructor.id,
     instructor.schoolId,
+    pickupAddressDetails?.googlePlaceId,
+    pickupAddressDetails?.latitude,
+    pickupAddressDetails?.longitude,
+    pickupAddressDetails?.postcode,
+    pickupAddressDetails?.suburb,
     selectedDateId,
     selectedPackageId,
     selectedTime,
@@ -256,6 +290,14 @@ export function BookInstructorFlow({
       setSelectedDateId(draft.selectedDateId);
       setSelectedTime(draft.selectedTime);
       setPickupAddress(draft.pickupAddress);
+
+      setPickupAddressDetails({
+        suburb: draft.pickupSuburb,
+        postcode: draft.pickupPostcode,
+        latitude: draft.pickupLatitude,
+        longitude: draft.pickupLongitude,
+        googlePlaceId: draft.pickupGooglePlaceId,
+      });
 
       setAddressSelected(true);
       setDurationConfirmed(true);
@@ -432,13 +474,26 @@ export function BookInstructorFlow({
 
   function handlePickupAddressChange(address: string) {
     setPickupAddress(address);
+    setPickupAddressDetails(null);
     setAddressSelected(false);
     resetDownstreamFromAddress();
   }
 
-  function handlePickupAddressSelect(address: string) {
+  function handlePickupAddressSelect(
+    address: string,
+    details: AddressSelectionDetails,
+  ) {
     setPickupAddress(address);
-    setAddressSelected(true);
+    setPickupAddressDetails(details);
+
+    setAddressSelected(
+      Boolean(
+        details.suburb &&
+        typeof details.latitude === "number" &&
+        typeof details.longitude === "number",
+      ),
+    );
+
     resetDownstreamFromAddress();
   }
 
@@ -479,7 +534,10 @@ export function BookInstructorFlow({
       isContinuingToPayment ||
       !selectedPackage ||
       !selectedSlot ||
-      !trimmedPickupAddress
+      !trimmedPickupAddress ||
+      !pickupAddressDetails?.suburb ||
+      typeof pickupAddressDetails.latitude !== "number" ||
+      typeof pickupAddressDetails.longitude !== "number"
     ) {
       return;
     }
@@ -499,7 +557,12 @@ export function BookInstructorFlow({
       const booking = await createBooking(instructor.schoolId, token, {
         instructorId: instructor.id,
         packageId: selectedPackage.id,
-        pickupSuburb: trimmedPickupAddress,
+        pickupAddress: trimmedPickupAddress,
+        pickupSuburb: pickupAddressDetails.suburb,
+        pickupPostcode: pickupAddressDetails.postcode,
+        pickupLatitude: pickupAddressDetails.latitude,
+        pickupLongitude: pickupAddressDetails.longitude,
+        pickupGooglePlaceId: pickupAddressDetails.googlePlaceId,
         startDatetime: selectedSlot.startDatetime,
       });
 
