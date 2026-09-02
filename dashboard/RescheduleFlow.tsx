@@ -73,8 +73,11 @@ export function RescheduleFlow({ lesson }: RescheduleFlowProps) {
   const defaultInstructor = getInstructorByName(lesson.instructor);
 
   const [showInstructorSearch, setShowInstructorSearch] = useState(false);
+  const [instructorSearchQuery, setInstructorSearchQuery] = useState("");
   const [instructorConfirmed, setInstructorConfirmed] = useState(false);
-  const [selectedInstructorId, setSelectedInstructorId] = useState(defaultInstructor.id);
+  const [selectedInstructorId, setSelectedInstructorId] = useState(
+    defaultInstructor.id,
+  );
   const [selectedDateId, setSelectedDateId] = useState<string | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [showTimePicker, setShowTimePicker] = useState(true);
@@ -82,13 +85,33 @@ export function RescheduleFlow({ lesson }: RescheduleFlowProps) {
   const [isConfirming, setIsConfirming] = useState(false);
 
   const selectedInstructor =
-    mockInstructors.find((instructor) => instructor.id === selectedInstructorId) ??
-    defaultInstructor;
-  const selectedDate = getSelectedRescheduleDate(mockRescheduleDates, selectedDateId);
+    mockInstructors.find(
+      (instructor) => instructor.id === selectedInstructorId,
+    ) ?? defaultInstructor;
+  const selectedDate = getSelectedRescheduleDate(
+    mockRescheduleDates,
+    selectedDateId,
+  );
+
+  const normalizedInstructorSearch = instructorSearchQuery.trim().toLowerCase();
+
+  const visibleInstructors = normalizedInstructorSearch
+    ? mockInstructors.filter((instructor) => {
+        const name = instructor.name.toLowerCase();
+        const location = instructor.location?.toLowerCase() ?? "";
+
+        return (
+          name.includes(normalizedInstructorSearch) ||
+          location.includes(normalizedInstructorSearch)
+        );
+      })
+    : mockInstructors;
+
   const canConfirm = instructorConfirmed && selectedDate && selectedTime;
 
   function handleInstructorSelect(instructorId: string) {
     setSelectedInstructorId(instructorId);
+    setInstructorSearchQuery("");
     setShowInstructorSearch(false);
     setInstructorConfirmed(true);
     setSelectedDateId(null);
@@ -97,6 +120,7 @@ export function RescheduleFlow({ lesson }: RescheduleFlowProps) {
   }
 
   function handleChangeInstructorClick() {
+    setInstructorSearchQuery("");
     setShowInstructorSearch(true);
     setSelectedDateId(null);
     setSelectedTime(null);
@@ -127,7 +151,9 @@ export function RescheduleFlow({ lesson }: RescheduleFlowProps) {
           <div className="flex h-16 w-16 items-center justify-center rounded-full bg-green-50 text-2xl text-green-600">
             ✓
           </div>
-          <h1 className="mt-6 text-xl font-bold text-slate-900">Lesson rescheduled</h1>
+          <h1 className="mt-6 text-xl font-bold text-slate-900">
+            Lesson rescheduled
+          </h1>
           <p className="mt-2 text-sm text-slate-500">
             Your lesson has been updated with the details below.
           </p>
@@ -184,15 +210,22 @@ export function RescheduleFlow({ lesson }: RescheduleFlowProps) {
 
         {showInstructorSearch && (
           <InstructorSearch
-            instructors={mockInstructors}
+            instructors={visibleInstructors}
+            query={instructorSearchQuery}
+            onQueryChange={setInstructorSearchQuery}
             onSelect={handleInstructorSelect}
-            onCancel={() => setShowInstructorSearch(false)}
+            onCancel={() => {
+              setInstructorSearchQuery("");
+              setShowInstructorSearch(false);
+            }}
           />
         )}
 
         {instructorConfirmed && !showInstructorSearch && !selectedDate && (
           <section className="space-y-3">
-            <h2 className="text-sm font-semibold text-slate-900">Pick a new date</h2>
+            <h2 className="text-sm font-semibold text-slate-900">
+              Pick a new date
+            </h2>
             <RescheduleCalendar
               availableDates={mockRescheduleDates}
               selectedDateId={selectedDateId}
@@ -213,7 +246,9 @@ export function RescheduleFlow({ lesson }: RescheduleFlowProps) {
             <p className="mt-2 font-semibold text-slate-900">
               {selectedDate.month} {selectedDate.day} · {selectedDate.weekday}
             </p>
-            <p className="mt-0.5 text-sm text-slate-500">{selectedDate.label}</p>
+            <p className="mt-0.5 text-sm text-slate-500">
+              {selectedDate.label}
+            </p>
             <button
               type="button"
               onClick={() => {
@@ -230,7 +265,9 @@ export function RescheduleFlow({ lesson }: RescheduleFlowProps) {
 
         {instructorConfirmed && selectedDate && !showInstructorSearch && (
           <section className="space-y-3">
-            <h2 className="text-sm font-semibold text-slate-900">Pick a time</h2>
+            <h2 className="text-sm font-semibold text-slate-900">
+              Pick a time
+            </h2>
             <button
               type="button"
               onClick={() => setShowTimePicker((open) => !open)}
