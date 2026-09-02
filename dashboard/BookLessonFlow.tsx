@@ -4,14 +4,13 @@ import { useEffect, useRef, useState, type RefObject } from "react";
 import { useRouter } from "next/navigation";
 
 import { ButtonSpinner } from "@/components/ButtonSpinner";
+import { useStudentCreditBalance } from "@/shared/hooks/useStudentCreditBalance";
+import { useBookingInstructors } from "@/shared/hooks/useBookingInstructors";
+import type { InstructorOption } from "@/types/instructor";
 
-import { markLessonBooked } from "./book-lesson";
 import {
-  buildLessonDurationOptions,
   formatLessonHoursLabel,
   formatLessonTimeRange,
-  mockDashboardData,
-  mockInstructors,
   mockRescheduleDates,
   mockRescheduleTimeSlots,
 } from "./mock-data";
@@ -24,16 +23,9 @@ import {
   InstructorSearch,
 } from "./components/InstructorSearch";
 import { CalendarIcon, ChevronRightIcon, CloseIcon } from "./components/icons";
-import type { Lesson } from "./types";
-import { useStudentCreditHours } from "./useStudentCreditHours";
-
-type BookLessonFlowProps = Readonly<{
-  initialCreditHours?: number;
-}>;
 
 type FlowStep = "instructor" | "date" | "time" | "summary";
 
-const BOOKING_LOADING_MS = 800;
 const MAX_CREDIT_BOOKING_HOURS = 3;
 
 function scrollStepIntoView(element: HTMLElement | null) {
@@ -59,28 +51,68 @@ function getStepRef(
   return refs.instructor;
 }
 
-export function BookLessonFlow({
-  initialCreditHours = mockDashboardData.availableCreditHours,
-}: BookLessonFlowProps) {
+export function BookLessonFlow() {
   const router = useRouter();
 
-  const [availableCreditHours, setAvailableCreditHours] =
-    useStudentCreditHours(initialCreditHours);
+  const [instructorSearchQuery, setInstructorSearchQuery] = useState("");
+
+  const {
+    instructors: bookingInstructors,
+    loading: isInstructorsLoading,
+    error: instructorsError,
+    refetch: refetchInstructors,
+  } = useBookingInstructors(instructorSearchQuery);
+
+  const instructors: InstructorOption[] = bookingInstructors.map(
+    (instructor) => {
+      const pricePerHour =
+        instructor.pricePerHour === null
+          ? null
+          : Number(instructor.pricePerHour);
+
+      return {
+        id: instructor.id,
+        name: instructor.name,
+        initials: "",
+        avatarUrl: instructor.avatarUrl ?? "",
+        location: [instructor.suburb, instructor.postcode]
+          .filter(Boolean)
+          .join(", "),
+        pricePerHour:
+          pricePerHour !== null && Number.isFinite(pricePerHour)
+            ? pricePerHour
+            : null,
+      };
+    },
+  );
+
+  const {
+    balanceMinutes,
+    loading: isBalanceLoading,
+    error: balanceError,
+    refetch: refetchCreditBalance,
+  } = useStudentCreditBalance();
+
+  const availableCreditHours = (balanceMinutes ?? 0) / 60;
+
+  let creditBalanceLabel = formatLessonHoursLabel(availableCreditHours);
+
+  if (isBalanceLoading) {
+    creditBalanceLabel = "Loading...";
+  } else if (balanceError || balanceMinutes === null) {
+    creditBalanceLabel = "Unavailable";
+  }
 
   const [selectedHours, setSelectedHours] = useState(1);
   const [showDurationPicker, setShowDurationPicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
 
-  const [selectedInstructorId, setSelectedInstructorId] = useState<
-    string | null
-  >(null);
-
   const [showInstructorSearch, setShowInstructorSearch] = useState(true);
   const [selectedDateId, setSelectedDateId] = useState<string | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
 
-  const [isConfirmed, setIsConfirmed] = useState(false);
-  const [isBooking, setIsBooking] = useState(false);
+  const [isConfirmed] = useState(false);
+  const [isBooking] = useState(false);
   const [bookingError, setBookingError] = useState("");
 
   const instructorStepRef = useRef<HTMLElement>(null);
@@ -91,29 +123,36 @@ export function BookLessonFlow({
   const skipInitialScroll = useRef(true);
   const previousFlowStep = useRef<FlowStep | null>(null);
 
-  const selectedInstructor = mockInstructors.find(
-    (instructor) => instructor.id === selectedInstructorId,
-  );
+  const [selectedInstructor, setSelectedInstructor] =
+    useState<InstructorOption | null>(null);
 
   const selectedDate = getSelectedRescheduleDate(
     mockRescheduleDates,
     selectedDateId,
   );
 
-  const maxCreditBookingHours = Math.min(
-    availableCreditHours,
-    MAX_CREDIT_BOOKING_HOURS,
+  const maxDurationMinutes = Math.min(
+    balanceMinutes ?? 0,
+    MAX_CREDIT_BOOKING_HOURS * 60,
   );
 
-  const durationOptions =
-    maxCreditBookingHours >= 1
-      ? buildLessonDurationOptions(maxCreditBookingHours)
-      : [];
+  const durationOptions: number[] = [];
+
+  for (let minutes = 60; minutes <= maxDurationMinutes; minutes += 15) {
+    durationOptions.push(minutes / 60);
+  }
+
+  const selectedDurationMinutes = selectedHours * 60;
 
   const hasEnoughCredit =
-    selectedHours > 0 &&
-    selectedHours <= MAX_CREDIT_BOOKING_HOURS &&
-    availableCreditHours >= selectedHours;
+    !isBalanceLoading &&
+    !balanceError &&
+    balanceMinutes !== null &&
+    Number.isInteger(selectedDurationMinutes) &&
+    selectedDurationMinutes >= 60 &&
+    selectedDurationMinutes <= MAX_CREDIT_BOOKING_HOURS * 60 &&
+    selectedDurationMinutes % 15 === 0 &&
+    balanceMinutes >= selectedDurationMinutes;
 
   const remainingCreditHours = Math.max(
     0,
@@ -128,14 +167,15 @@ export function BookLessonFlow({
     hasEnoughCredit,
   );
 
-  const flowStep: FlowStep =
-    selectedInstructor && selectedDate && selectedTime && !showInstructorSearch
-      ? "summary"
-      : selectedDate && selectedInstructor && !showInstructorSearch
-        ? "time"
-        : selectedInstructor && !showInstructorSearch
-          ? "date"
-          : "instructor";
+  let flowStep: FlowStep = "instructor";
+
+  if (selectedInstructor && !showInstructorSearch) {
+    flowStep = "date";
+
+    if (selectedDate) {
+      flowStep = selectedTime ? "summary" : "time";
+    }
+  }
 
   useEffect(() => {
     if (skipInitialScroll.current) {
@@ -163,7 +203,14 @@ export function BookLessonFlow({
   }, [flowStep]);
 
   function handleInstructorSelect(instructorId: string) {
-    setSelectedInstructorId(instructorId);
+    const instructor = instructors.find((item) => item.id === instructorId);
+
+    if (!instructor) {
+      return;
+    }
+
+    setSelectedInstructor(instructor);
+    setInstructorSearchQuery("");
     setShowInstructorSearch(false);
     setSelectedDateId(null);
     setSelectedTime(null);
@@ -171,11 +218,7 @@ export function BookLessonFlow({
   }
 
   function handleHoursChange(hours: number) {
-    if (
-      hours <= 0 ||
-      hours > MAX_CREDIT_BOOKING_HOURS ||
-      hours > availableCreditHours
-    ) {
+    if (!durationOptions.includes(hours)) {
       return;
     }
 
@@ -184,7 +227,7 @@ export function BookLessonFlow({
     setShowDurationPicker(false);
     setBookingError("");
 
-    if (!selectedInstructorId) {
+    if (!selectedInstructor) {
       requestAnimationFrame(() => {
         scrollStepIntoView(instructorStepRef.current);
       });
@@ -197,72 +240,12 @@ export function BookLessonFlow({
     setBookingError("");
   }
 
-  async function handleConfirm() {
-    if (
-      isBooking ||
-      !canBook ||
-      !selectedInstructor ||
-      !selectedDate ||
-      !selectedTime
-    ) {
+  function handleConfirm() {
+    if (!canBook) {
       return;
     }
 
-    if (selectedHours > availableCreditHours) {
-      setBookingError("You do not have enough credit for this lesson.");
-      return;
-    }
-
-    if (selectedHours > MAX_CREDIT_BOOKING_HOURS) {
-      setBookingError(
-        `Credit bookings are limited to ${MAX_CREDIT_BOOKING_HOURS} hours.`,
-      );
-      return;
-    }
-
-    setIsBooking(true);
-    setBookingError("");
-
-    try {
-      await new Promise((resolve) => {
-        window.setTimeout(resolve, BOOKING_LOADING_MS);
-      });
-
-      const lesson: Lesson = {
-        id: `upcoming-${Date.now()}`,
-        month: selectedDate.month,
-        day: selectedDate.day,
-        weekday: selectedDate.weekday,
-        timeRange: formatLessonTimeRange(selectedTime, selectedHours),
-        instructor: selectedInstructor.name,
-        location: selectedInstructor.location,
-        hours: selectedHours,
-        status: "upcoming",
-      };
-
-      setAvailableCreditHours((current) =>
-        Math.max(0, current - selectedHours),
-      );
-
-      markLessonBooked(lesson);
-
-      setIsConfirmed(true);
-
-      window.scrollTo({
-        top: 0,
-        behavior: "smooth",
-      });
-    } catch (error) {
-      console.error(error);
-
-      setBookingError(
-        error instanceof Error
-          ? error.message
-          : "Unable to book the lesson. Please try again.",
-      );
-    } finally {
-      setIsBooking(false);
-    }
+    setBookingError("Booking submission is not connected yet.");
   }
 
   function goToDashboard() {
@@ -315,7 +298,9 @@ export function BookLessonFlow({
                 <span className="text-slate-500">Remaining credit</span>
 
                 <span className="font-medium text-slate-900">
-                  {formatLessonHoursLabel(remainingCreditHours)}
+                  {balanceMinutes === null
+                    ? "Unavailable"
+                    : formatLessonHoursLabel(remainingCreditHours)}
                 </span>
               </div>
             </div>
@@ -364,10 +349,27 @@ export function BookLessonFlow({
             <p className="text-sm text-slate-600">Available credit</p>
 
             <p className="text-base font-bold text-slate-900">
-              {formatLessonHoursLabel(availableCreditHours)}
+              {creditBalanceLabel}
             </p>
           </div>
         </section>
+
+        {balanceError && (
+          <div
+            role="alert"
+            className="rounded-xl bg-red-50 p-3 text-sm text-red-600"
+          >
+            <p>{balanceError}</p>
+
+            <button
+              type="button"
+              onClick={() => void refetchCreditBalance()}
+              className="mt-2 font-medium underline"
+            >
+              Try again
+            </button>
+          </div>
+        )}
 
         <section className="space-y-3">
           <h2 className="text-sm font-semibold text-slate-900">
@@ -397,7 +399,7 @@ export function BookLessonFlow({
             />
           </button>
 
-          {durationOptions.length === 0 && (
+          {balanceMinutes !== null && durationOptions.length === 0 && (
             <p className="text-sm text-red-500">
               You do not have enough credit to book a lesson.
             </p>
@@ -446,7 +448,10 @@ export function BookLessonFlow({
 
               <button
                 type="button"
-                onClick={() => setShowInstructorSearch(true)}
+                onClick={() => {
+                  setInstructorSearchQuery("");
+                  setShowInstructorSearch(true);
+                }}
                 className="mt-3 text-sm font-medium text-blue-600 hover:text-blue-700"
               >
                 Change instructor
@@ -454,19 +459,48 @@ export function BookLessonFlow({
             </div>
           )}
 
-          {showInstructorSearch && (
-            <InstructorSearch
-              title={
-                selectedInstructor ? "Change instructor" : "Select instructor"
-              }
-              instructors={mockInstructors}
-              onSelect={handleInstructorSelect}
-              onCancel={
-                selectedInstructor
-                  ? () => setShowInstructorSearch(false)
-                  : undefined
-              }
-            />
+          {(showInstructorSearch || !selectedInstructor) && (
+            <>
+              {instructorsError && (
+                <div
+                  role="alert"
+                  className="rounded-xl bg-red-50 p-3 text-sm text-red-600"
+                >
+                  <p>{instructorsError}</p>
+
+                  <button
+                    type="button"
+                    onClick={() => void refetchInstructors()}
+                    className="mt-2 font-medium underline"
+                  >
+                    Try again
+                  </button>
+                </div>
+              )}
+
+              {!instructorsError && (
+                <InstructorSearch
+                  title={
+                    selectedInstructor
+                      ? "Change instructor"
+                      : "Select instructor"
+                  }
+                  instructors={instructors}
+                  query={instructorSearchQuery}
+                  loading={isInstructorsLoading}
+                  onQueryChange={setInstructorSearchQuery}
+                  onSelect={handleInstructorSelect}
+                  onCancel={
+                    selectedInstructor
+                      ? () => {
+                          setInstructorSearchQuery("");
+                          setShowInstructorSearch(false);
+                        }
+                      : undefined
+                  }
+                />
+              )}
+            </>
           )}
         </section>
 
@@ -598,7 +632,7 @@ export function BookLessonFlow({
                     <span className="text-slate-500">Available credit</span>
 
                     <span className="font-medium text-slate-900">
-                      {formatLessonHoursLabel(availableCreditHours)}
+                      {creditBalanceLabel}
                     </span>
                   </div>
 
@@ -614,7 +648,9 @@ export function BookLessonFlow({
                     <span className="text-slate-500">Remaining credit</span>
 
                     <span className="font-semibold text-slate-900">
-                      {formatLessonHoursLabel(remainingCreditHours)}
+                      {balanceMinutes === null
+                        ? "Unavailable"
+                        : formatLessonHoursLabel(remainingCreditHours)}
                     </span>
                   </div>
                 </div>

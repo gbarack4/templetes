@@ -1,12 +1,17 @@
 "use client";
 
 import Image from "next/image";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 
-import { formatCurrency, type InstructorOption } from "../mock-data";
+import type { InstructorOption } from "@/types/instructor";
+
+import { formatCurrency } from "../mock-data";
 
 type InstructorSearchProps = Readonly<{
   instructors: InstructorOption[];
+  query: string;
+  loading?: boolean;
+  onQueryChange: (query: string) => void;
   onSelect: (instructorId: string) => void;
   onCancel?: () => void;
   title?: string;
@@ -32,7 +37,7 @@ export function InstructorProfileSummary({
   const showImage = Boolean(instructor.avatarUrl) && !imageError;
 
   const initials = instructor.initials || getInitials(instructor.name);
-  const rating = instructor.rating ?? null;
+  const rating = instructor.rating ?? 0;
   const reviewCount = instructor.reviewCount ?? 0;
   const lessonsCompleted = instructor.lessonsCompleted ?? 0;
 
@@ -64,40 +69,33 @@ export function InstructorProfileSummary({
           {instructor.name}
         </p>
 
-        {rating !== null && reviewCount > 0 ? (
-          <div className="mt-0.5 flex items-center gap-1.5">
-            <div
-              className="flex gap-0.5"
-              aria-label={`${rating.toFixed(1)} out of 5 stars`}
-            >
-              {[1, 2, 3, 4, 5].map((star) => (
-                <span
-                  key={star}
-                  className={`text-xs leading-none ${
-                    star <= Math.round(rating)
-                      ? "text-yellow-500"
-                      : "text-slate-200"
-                  }`}
-                >
-                  ★
-                </span>
-              ))}
-            </div>
-            <p className="text-xs font-medium text-[#4b5563]">
-              {rating.toFixed(1)} · {reviewCount} reviews
-            </p>
+        <div className="mt-0.5 flex items-center gap-1.5">
+          <div
+            className="flex gap-0.5"
+            aria-label={`${rating.toFixed(1)} out of 5 stars`}
+          >
+            {[1, 2, 3, 4, 5].map((star) => (
+              <span
+                key={star}
+                className={`text-xs leading-none ${
+                  star <= Math.round(rating)
+                    ? "text-yellow-500"
+                    : "text-slate-200"
+                }`}
+              >
+                ★
+              </span>
+            ))}
           </div>
-        ) : (
-          <p className="mt-0.5 text-xs text-slate-400">No reviews yet</p>
-        )}
 
-        {!compact ? (
-          <p className="mt-0.5 text-xs text-[#4b5563]">
-            {lessonsCompleted > 0
-              ? `${lessonsCompleted.toLocaleString()} lessons completed`
-              : "No completed lessons yet"}
+          <p className="text-xs font-medium text-[#4b5563]">
+            {rating.toFixed(1)} · {reviewCount} reviews
           </p>
-        ) : null}
+        </div>
+
+        <p className="mt-0.5 text-xs text-[#4b5563]">
+          {lessonsCompleted.toLocaleString()} lessons completed
+        </p>
       </div>
     </div>
   );
@@ -133,27 +131,13 @@ function InstructorProfileCard({
 
 export function InstructorSearch({
   instructors,
+  query,
+  loading = false,
+  onQueryChange,
   onSelect,
   onCancel,
   title = "Change instructor",
 }: InstructorSearchProps) {
-  const [query, setQuery] = useState("");
-
-  const suggestions = useMemo(() => {
-    const trimmed = query.trim().toLowerCase();
-
-    if (!trimmed) {
-      return instructors;
-    }
-
-    return instructors.filter((instructor) => {
-      const name = instructor.name?.toLowerCase() ?? "";
-      const location = instructor.location?.toLowerCase() ?? "";
-
-      return name.includes(trimmed) || location.includes(trimmed);
-    });
-  }, [instructors, query]);
-
   return (
     <section className="space-y-3">
       <div className="flex items-center justify-between">
@@ -173,15 +157,19 @@ export function InstructorSearch({
       <input
         type="search"
         value={query}
-        onChange={(event) => setQuery(event.target.value)}
-        placeholder="Search instructors..."
+        onChange={(event) => onQueryChange(event.target.value)}
+        placeholder="Search by instructor, suburb or postcode..."
         autoFocus
         className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
       />
 
       <div className="space-y-2">
-        {suggestions.length > 0 ? (
-          suggestions.map((instructor) => (
+        {loading ? (
+          <p className="py-4 text-center text-sm text-slate-400">
+            Loading instructors...
+          </p>
+        ) : instructors.length > 0 ? (
+          instructors.map((instructor) => (
             <InstructorProfileCard
               key={instructor.id}
               instructor={instructor}

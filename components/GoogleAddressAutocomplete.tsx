@@ -11,7 +11,11 @@ export type AddressSuggestion = Readonly<{
 }>;
 
 export type AddressSelectionDetails = Readonly<{
+  suburb?: string;
   postcode?: string;
+  latitude?: number;
+  longitude?: number;
+  googlePlaceId?: string;
 }>;
 
 type GoogleAddressAutocompleteProps = Readonly<{
@@ -40,6 +44,12 @@ type GoogleGeocoderResult = {
   formatted_address?: string;
   postcode_localities?: string[];
   address_components: GoogleAddressComponent[];
+  geometry?: {
+    location: {
+      lat: () => number;
+      lng: () => number;
+    };
+  };
 };
 
 type GoogleGeocoderRequest =
@@ -199,6 +209,62 @@ function getPostcode(
   components: readonly GoogleAddressComponent[],
 ): string | undefined {
   return getAddressComponent(components, "postal_code")?.long_name;
+}
+
+function getSuburb(
+  components: readonly GoogleAddressComponent[],
+): string | undefined {
+  const preferredTypes = ["locality", "postal_town", "sublocality_level_1"];
+
+  for (const type of preferredTypes) {
+    const component = getAddressComponent(components, type);
+
+    if (component?.long_name) {
+      return component.long_name;
+    }
+  }
+
+  return undefined;
+}
+
+async function fetchAddressDetailsForPlace(
+  placeId: string,
+): Promise<AddressSelectionDetails> {
+  try {
+    const library = await getGeocodingLibrary();
+
+    if (!library) {
+      return {
+        googlePlaceId: placeId,
+      };
+    }
+
+    const geocoder = new library.Geocoder();
+
+    const { results } = await geocoder.geocode({
+      placeId,
+    });
+
+    const result = results[0];
+
+    if (!result) {
+      return {
+        googlePlaceId: placeId,
+      };
+    }
+
+    return {
+      suburb: getSuburb(result.address_components),
+      postcode: getPostcode(result.address_components),
+      latitude: result.geometry?.location.lat(),
+      longitude: result.geometry?.location.lng(),
+      googlePlaceId: result.place_id || placeId,
+    };
+  } catch {
+    return {
+      googlePlaceId: placeId,
+    };
+  }
 }
 
 function findPostcode(
@@ -436,20 +502,25 @@ export function GoogleAddressAutocomplete({
 
     setOpen(false);
 
-    let postcode = suggestion.postcode;
+    let details: AddressSelectionDetails = {
+      postcode: suggestion.postcode,
+    };
 
-    if (mode === "suburb" && !postcode) {
-      postcode = await fetchPostcodeForPlace(
+    if (mode === "address") {
+      details = await fetchAddressDetailsForPlace(suggestion.id);
+    } else if (!suggestion.postcode) {
+      const postcode = await fetchPostcodeForPlace(
         suggestion.id,
         suggestion.description,
       );
+
+      details = {
+        postcode,
+      };
     }
 
     onChange(selectedValue);
-
-    onSelect?.(selectedValue, {
-      postcode,
-    });
+    onSelect?.(selectedValue, details);
   }
 
   return (

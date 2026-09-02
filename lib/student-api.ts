@@ -23,7 +23,6 @@ export async function fetchStudentProfile(
 export interface UpdateStudentPersonalInfoPayload {
   fullName: string;
   phone: string | null;
-  address: string | null;
 }
 
 export async function updateStudentPersonalInfo(
@@ -69,6 +68,39 @@ export async function updateStudentAvatar(
 
   if (!response.ok) {
     throw new Error("Failed to update student avatar");
+  }
+
+  return response.json();
+}
+
+export interface UpdateStudentAddressPayload {
+  address: string;
+  suburb: string;
+  postcode: string | null;
+  latitude: number;
+  longitude: number;
+  googlePlaceId: string | null;
+}
+
+export async function updateStudentAddress(
+  schoolId: string,
+  data: UpdateStudentAddressPayload,
+  token: string | null,
+) {
+  const response = await fetch(
+    `${process.env.NEXT_PUBLIC_API_URL}/students/school/${schoolId}/me/address`,
+    {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify(data),
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error("Failed to update student address");
   }
 
   return response.json();

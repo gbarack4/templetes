@@ -4,6 +4,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@clerk/nextjs";
 import {
   fetchStudentProfile,
+  updateStudentAddress,
+  UpdateStudentAddressPayload,
   updateStudentAvatar,
   updateStudentPersonalInfo,
   type UpdateStudentPersonalInfoPayload,
@@ -82,6 +84,29 @@ export function useUpdateStudentPersonalInfo() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["student", schoolId] });
+    },
+  });
+}
+
+export function useUpdateStudentAddress() {
+  const schoolId = useSchoolId();
+  const { getToken } = useAuth();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (data: UpdateStudentAddressPayload) => {
+      const token = await getToken();
+
+      return updateStudentAddress(schoolId, data, token);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["student", schoolId],
+      });
+
+      queryClient.invalidateQueries({
+        queryKey: ["booking-instructors", schoolId],
+      });
     },
   });
 }
