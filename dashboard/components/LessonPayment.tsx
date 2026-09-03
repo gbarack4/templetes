@@ -9,7 +9,7 @@ import {
 import { loadStripe } from "@stripe/stripe-js";
 import { useMemo, useState } from "react";
 
-import type { InstructorOption } from "../mock-data";
+import type { InstructorOption } from "@/types/instructor";
 import {
   calculateLessonPayment,
   formatCurrency,

@@ -21,6 +21,9 @@ export interface StudentData {
   avatarUrl: string | null;
   addressSuburb: string | null;
   addressPostcode: string | null;
+  addressLatitude: number | null;
+  addressLongitude: number | null;
+  addressGooglePlaceId: string | null;
   user: {
     id: string;
     firstName: string | null;

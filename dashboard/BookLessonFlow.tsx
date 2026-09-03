@@ -2,20 +2,31 @@
 
 import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { useAuth } from "@clerk/nextjs";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 
 import { ButtonSpinner } from "@/components/ButtonSpinner";
 import { useSchoolId } from "@/dashboard/SchoolContext";
+import {
+  createBooking,
+  createPackagePayment,
+  getPackagePaymentStatus,
+} from "@/lib/booking-payment-api";
 import { createCreditBooking, CreditApiError } from "@/lib/credit-booking-api";
+import {
+  fetchPublicPackages,
+  type PublicPackage,
+} from "@/lib/public-booking-api";
 import { useBookingInstructors } from "@/shared/hooks/useBookingInstructors";
 import { useCreditAvailability } from "@/shared/hooks/useCreditAvailability";
+import { useStudent } from "@/shared/hooks/useStudent";
 import { useStudentCreditBalance } from "@/shared/hooks/useStudentCreditBalance";
-import type { CreateCreditBookingInput } from "@/types/credit-booking";
 import { getCurrentMonth } from "@/shared/utils/get-current-month";
+import type { CreateCreditBookingInput } from "@/types/credit-booking";
 import type { InstructorOption } from "@/types/instructor";
 
 import { CalendarPickerModal } from "./components/CalendarPickerModal";
+import { LessonPayment } from "./components/LessonPayment";
 import {
   InstructorProfileSummary,
   InstructorSearch,
@@ -24,7 +35,6 @@ import { CalendarIcon, ChevronRightIcon, CloseIcon } from "./components/icons";
 import { getSelectedRescheduleDate } from "./components/RescheduleCalendar";
 import { TimePickerModal } from "./components/TimePickerModal";
 import { formatLessonHoursLabel, formatLessonTimeRange } from "./mock-data";
-import { useStudent } from "@/shared/hooks/useStudent";
 
 type FlowStep = "instructor" | "date" | "time" | "summary";
 
@@ -58,6 +68,7 @@ export function BookLessonFlow() {
   const schoolId = useSchoolId();
   const queryClient = useQueryClient();
   const { getToken, userId } = useAuth();
+
   const studentCreditBalanceQueryKey = [
     "student-credit-balance",
     schoolId,
@@ -107,10 +118,18 @@ export function BookLessonFlow() {
 
   const pickupSuburb = student?.addressSuburb?.trim() ?? "";
   const pickupPostcode = student?.addressPostcode?.trim() || undefined;
+  const pickupAddress = student?.user.address?.trim() ?? "";
+  const pickupLatitude = student?.addressLatitude ?? null;
+  const pickupLongitude = student?.addressLongitude ?? null;
+  const pickupGooglePlaceId =
+    student?.addressGooglePlaceId?.trim() || undefined;
 
   const availableCreditHours = (balanceMinutes ?? 0) / 60;
 
   const [selectedHours, setSelectedHours] = useState(1);
+  const [selectedPackageId, setSelectedPackageId] = useState<string | null>(
+    null,
+  );
   const [showDurationPicker, setShowDurationPicker] = useState(false);
   const [calendarMonth, setCalendarMonth] = useState(getCurrentMonth);
   const [showTimePicker, setShowTimePicker] = useState(false);
@@ -128,6 +147,17 @@ export function BookLessonFlow() {
   const [confirmedBalanceMinutes, setConfirmedBalanceMinutes] = useState<
     number | null
   >(null);
+  const [showPayment, setShowPayment] = useState(false);
+  const [isContinuingToPayment, setIsContinuingToPayment] = useState(false);
+  const [paymentError, setPaymentError] = useState("");
+
+  const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [stripeAccountId, setStripeAccountId] = useState<string | null>(null);
+  const [packageBookingId, setPackageBookingId] = useState<string | null>(null);
+
+  const [confirmedBookingMode, setConfirmedBookingMode] = useState<
+    "credit" | "package" | null
+  >(null);
 
   const instructorStepRef = useRef<HTMLElement>(null);
   const dateStepRef = useRef<HTMLElement>(null);
@@ -141,6 +171,64 @@ export function BookLessonFlow() {
   const [selectedInstructor, setSelectedInstructor] =
     useState<InstructorOption | null>(null);
 
+  const bookingMode =
+    balanceMinutes === null
+      ? null
+      : balanceMinutes >= 60
+        ? "credit"
+        : "package";
+
+  const isPackageMode = bookingMode === "package";
+
+  const {
+    data: packages = [],
+    isLoading: isPackagesLoading,
+    error: packagesQueryError,
+    refetch: refetchPackages,
+  } = useQuery<PublicPackage[]>({
+    queryKey: ["public-packages", schoolId, pickupSuburb],
+    enabled: isPackageMode && pickupSuburb.length > 0,
+    staleTime: 60_000,
+    retry: false,
+    queryFn: () => fetchPublicPackages(schoolId, pickupSuburb),
+  });
+
+  const packagesError =
+    packagesQueryError instanceof Error ? packagesQueryError.message : "";
+
+  const selectedPackage =
+    packages.find((pkg) => pkg.id === selectedPackageId) ?? null;
+
+  const selectedPackageHours = selectedPackage
+    ? selectedPackage.durationMinutes / 60
+    : 0;
+
+  const selectedPackagePrice = selectedPackage
+    ? Number(selectedPackage.price)
+    : 0;
+
+  const packageLessonDurationMinutes = selectedPackage
+    ? selectedPackage.durationMinutes >= 180
+      ? 60
+      : selectedPackage.durationMinutes
+    : null;
+
+  const packageLessonHours =
+    packageLessonDurationMinutes === null
+      ? 0
+      : packageLessonDurationMinutes / 60;
+
+  const packageHourRate =
+    selectedPackageHours > 0 ? selectedPackagePrice / selectedPackageHours : 0;
+
+  const packagePayment = {
+    creditHoursUsed: 0,
+    payableHours: selectedPackageHours,
+    subtotal: selectedPackagePrice,
+    creditDiscount: 0,
+    totalDue: selectedPackagePrice,
+  };
+
   const maxDurationMinutes = Math.min(
     balanceMinutes ?? 0,
     MAX_CREDIT_BOOKING_HOURS * 60,
@@ -153,6 +241,11 @@ export function BookLessonFlow() {
   }
 
   const selectedDurationMinutes = selectedHours * 60;
+
+  const lessonDurationMinutes =
+    bookingMode === "credit"
+      ? selectedDurationMinutes
+      : packageLessonDurationMinutes;
 
   const hasEnoughCredit =
     !isBalanceLoading &&
@@ -169,12 +262,22 @@ export function BookLessonFlow() {
     availableCreditHours - selectedHours,
   );
 
+  const canLoadAvailability =
+    bookingMode === "credit"
+      ? hasEnoughCredit
+      : bookingMode === "package" && selectedPackage !== null;
+
+  const canChooseInstructor =
+    bookingMode === "credit"
+      ? hasEnoughCredit
+      : bookingMode === "package" && selectedPackage !== null;
+
   const availabilitySearch =
-    selectedInstructor && hasEnoughCredit
+    selectedInstructor && canLoadAvailability && lessonDurationMinutes !== null
       ? {
           instructorId: selectedInstructor.id,
           month: calendarMonth,
-          durationMinutes: selectedDurationMinutes,
+          durationMinutes: lessonDurationMinutes,
         }
       : null;
 
@@ -247,7 +350,11 @@ export function BookLessonFlow() {
     hasEnoughCredit,
   );
 
-  const selectionLocked = isBooking || pendingAttempt !== null;
+  const selectionLocked =
+    isBooking ||
+    isContinuingToPayment ||
+    pendingAttempt !== null ||
+    packageBookingId !== null;
   const canSubmit = pendingAttempt !== null || canBook;
 
   const confirmedRemainingCreditHours =
@@ -311,6 +418,7 @@ export function BookLessonFlow() {
     setSelectedTime(null);
     setShowDatePicker(true);
     setBookingError("");
+    setPaymentError("");
   }
 
   function handleHoursChange(hours: number) {
@@ -323,6 +431,37 @@ export function BookLessonFlow() {
     setSelectedTime(null);
     setShowDurationPicker(false);
     setBookingError("");
+    setPaymentError("");
+
+    if (selectedInstructor) {
+      setCalendarMonth(getCurrentMonth());
+      setShowDatePicker(true);
+      return;
+    }
+
+    requestAnimationFrame(() => {
+      scrollStepIntoView(instructorStepRef.current);
+    });
+  }
+
+  function handlePackageChange(packageId: string) {
+    if (selectionLocked) {
+      return;
+    }
+
+    const bookingPackage = packages.find((pkg) => pkg.id === packageId);
+
+    if (!bookingPackage) {
+      return;
+    }
+
+    setSelectedPackageId(bookingPackage.id);
+    setSelectedDateId(null);
+    setSelectedTime(null);
+    setShowDurationPicker(false);
+    setShowTimePicker(false);
+    setBookingError("");
+    setPaymentError("");
 
     if (selectedInstructor) {
       setCalendarMonth(getCurrentMonth());
@@ -343,6 +482,7 @@ export function BookLessonFlow() {
     setSelectedTime(time);
     setShowTimePicker(false);
     setBookingError("");
+    setPaymentError("");
   }
 
   async function handleConfirm() {
@@ -404,6 +544,7 @@ export function BookLessonFlow() {
       const result = await createCreditBooking(schoolId, token, input);
 
       setConfirmedBalanceMinutes(result.balanceMinutes);
+      setConfirmedBookingMode("credit");
       setIsConfirmed(true);
       setPendingAttempt(null);
 
@@ -447,8 +588,174 @@ export function BookLessonFlow() {
     }
   }
 
+  async function handleContinueToPayment() {
+    if (
+      isContinuingToPayment ||
+      bookingMode !== "package" ||
+      !selectedPackage ||
+      !selectedInstructor ||
+      !selectedSlot
+    ) {
+      return;
+    }
+
+    if (
+      !pickupAddress ||
+      !pickupSuburb ||
+      pickupLatitude === null ||
+      pickupLongitude === null
+    ) {
+      setPaymentError(
+        "Your saved pickup address is incomplete. Please update your address.",
+      );
+      return;
+    }
+
+    setIsContinuingToPayment(true);
+    setPaymentError("");
+
+    try {
+      const token = await getToken();
+
+      if (!token) {
+        throw new Error("Authentication required");
+      }
+
+      let bookingId = packageBookingId;
+
+      if (!bookingId) {
+        const booking = await createBooking(schoolId, token, {
+          instructorId: selectedInstructor.id,
+          packageId: selectedPackage.id,
+          pickupAddress,
+          pickupSuburb,
+          pickupPostcode,
+          pickupLatitude,
+          pickupLongitude,
+          pickupGooglePlaceId,
+          startDatetime: selectedSlot.startDatetime,
+        });
+
+        bookingId = booking.id;
+        setPackageBookingId(booking.id);
+      }
+
+      if (clientSecret && stripeAccountId) {
+        setShowPayment(true);
+        return;
+      }
+
+      const paymentResult = await createPackagePayment(
+        schoolId,
+        bookingId,
+        token,
+      );
+
+      if (!paymentResult.clientSecret) {
+        throw new Error("Stripe client secret was not returned");
+      }
+
+      setClientSecret(paymentResult.clientSecret);
+      setStripeAccountId(paymentResult.stripeAccountId);
+      setShowPayment(true);
+    } catch (error) {
+      setPaymentError(
+        error instanceof Error ? error.message : "Failed to prepare payment",
+      );
+    } finally {
+      setIsContinuingToPayment(false);
+    }
+  }
+
+  async function handlePackagePaymentConfirmed() {
+    if (!packageBookingId) {
+      throw new Error("Booking ID is missing");
+    }
+
+    const token = await getToken();
+
+    if (!token) {
+      throw new Error("Authentication required");
+    }
+
+    const maxAttempts = 20;
+
+    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+      const status = await getPackagePaymentStatus(
+        schoolId,
+        packageBookingId,
+        token,
+      );
+
+      if (
+        status.paymentStatus === "paid" &&
+        status.bookingStatus === "confirmed"
+      ) {
+        setShowPayment(false);
+        setConfirmedBookingMode("package");
+        setIsConfirmed(true);
+
+        const balanceResult = await refetchCreditBalance();
+
+        if (balanceResult.data) {
+          setConfirmedBalanceMinutes(balanceResult.data.balanceMinutes);
+        }
+
+        void queryClient.invalidateQueries({
+          queryKey: ["credit-availability", schoolId, userId],
+        });
+
+        return;
+      }
+
+      if (status.paymentStatus === "failed") {
+        throw new Error("Payment failed");
+      }
+
+      if (
+        status.bookingStatus === "cancelled" ||
+        status.bookingStatus === "expired"
+      ) {
+        throw new Error("Booking is no longer available");
+      }
+
+      await new Promise((resolve) => window.setTimeout(resolve, 500));
+    }
+
+    throw new Error(
+      "Payment succeeded, but booking confirmation is still processing.",
+    );
+  }
+
   function goToDashboard() {
     router.push("/dashboard");
+  }
+
+  if (
+    showPayment &&
+    bookingMode === "package" &&
+    selectedPackage &&
+    selectedInstructor &&
+    selectedDate &&
+    selectedTime &&
+    clientSecret &&
+    stripeAccountId
+  ) {
+    return (
+      <LessonPayment
+        instructor={selectedInstructor}
+        dateLabel={`${selectedDate.month} ${selectedDate.day} · ${selectedDate.weekday}`}
+        timeLabel={formatLessonTimeRange(selectedTime, packageLessonHours)}
+        hours={selectedPackageHours}
+        lessonHours={packageLessonHours}
+        payment={packagePayment}
+        clientSecret={clientSecret}
+        stripeAccountId={stripeAccountId}
+        hourRate={packageHourRate}
+        onBack={() => setShowPayment(false)}
+        onComplete={handlePackagePaymentConfirmed}
+      />
+    );
   }
 
   if (isConfirmed && selectedInstructor && selectedDate && selectedTime) {
@@ -464,12 +771,18 @@ export function BookLessonFlow() {
           </h1>
 
           <p className="mt-2 text-sm text-slate-500">
-            Your lesson has been booked using your available credit.
+            {confirmedBookingMode === "package"
+              ? "Payment complete. Your lesson is confirmed."
+              : "Your lesson has been booked using your available credit."}
           </p>
 
           <div className="mt-6 w-full rounded-2xl bg-[#f9f9f9] p-4 text-left">
             <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
-              {formatLessonHoursLabel(selectedHours)}
+              {formatLessonHoursLabel(
+                confirmedBookingMode === "package"
+                  ? packageLessonHours
+                  : selectedHours,
+              )}
             </p>
 
             <p className="mt-2 font-semibold text-slate-900">
@@ -477,7 +790,12 @@ export function BookLessonFlow() {
             </p>
 
             <p className="mt-1 text-sm text-slate-600">
-              {formatLessonTimeRange(selectedTime, selectedHours)}
+              {formatLessonTimeRange(
+                selectedTime,
+                confirmedBookingMode === "package"
+                  ? packageLessonHours
+                  : selectedHours,
+              )}
             </p>
 
             <div className="mt-4 border-t border-slate-200 pt-4">
@@ -485,23 +803,55 @@ export function BookLessonFlow() {
             </div>
 
             <div className="mt-4 border-t border-slate-200 pt-4">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-slate-500">Credit used</span>
+              {confirmedBookingMode === "package" && selectedPackage ? (
+                <>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-slate-500">Package</span>
 
-                <span className="font-medium text-slate-900">
-                  {formatLessonHoursLabel(selectedHours)}
-                </span>
-              </div>
+                    <span className="font-medium text-slate-900">
+                      {selectedPackage.name}
+                    </span>
+                  </div>
 
-              <div className="mt-2 flex items-center justify-between text-sm">
-                <span className="text-slate-500">Remaining credit</span>
+                  <div className="mt-2 flex items-center justify-between text-sm">
+                    <span className="text-slate-500">Package hours</span>
 
-                <span className="font-medium text-slate-900">
-                  {confirmedRemainingCreditHours === null
-                    ? "Unavailable"
-                    : formatLessonHoursLabel(confirmedRemainingCreditHours)}
-                </span>
-              </div>
+                    <span className="font-medium text-slate-900">
+                      {formatLessonHoursLabel(selectedPackageHours)}
+                    </span>
+                  </div>
+
+                  <div className="mt-2 flex items-center justify-between text-sm">
+                    <span className="text-slate-500">Available credit</span>
+
+                    <span className="font-medium text-slate-900">
+                      {confirmedRemainingCreditHours === null
+                        ? "Unavailable"
+                        : formatLessonHoursLabel(confirmedRemainingCreditHours)}
+                    </span>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-slate-500">Credit used</span>
+
+                    <span className="font-medium text-slate-900">
+                      {formatLessonHoursLabel(selectedHours)}
+                    </span>
+                  </div>
+
+                  <div className="mt-2 flex items-center justify-between text-sm">
+                    <span className="text-slate-500">Remaining credit</span>
+
+                    <span className="font-medium text-slate-900">
+                      {confirmedRemainingCreditHours === null
+                        ? "Unavailable"
+                        : formatLessonHoursLabel(confirmedRemainingCreditHours)}
+                    </span>
+                  </div>
+                </>
+              )}
             </div>
           </div>
 
@@ -546,6 +896,7 @@ export function BookLessonFlow() {
 
           <div className="min-w-0 flex-1">
             <p className="text-sm text-slate-600">You have</p>
+
             <p className="text-base font-bold text-slate-900">
               {isBalanceLoading
                 ? "Loading..."
@@ -553,6 +904,7 @@ export function BookLessonFlow() {
                   ? "Unavailable"
                   : `${Number(availableCreditHours.toFixed(2))} Hours`}
             </p>
+
             <p className="text-sm text-slate-600">available credit</p>
           </div>
 
@@ -582,143 +934,237 @@ export function BookLessonFlow() {
           </div>
         )}
 
-        <section className="space-y-3">
-          <h2 className="text-sm font-semibold text-slate-900">
-            Lesson duration
-          </h2>
+        {bookingMode === "credit" && (
+          <section className="space-y-3">
+            <h2 className="text-sm font-semibold text-slate-900">
+              Lesson duration
+            </h2>
 
-          <button
-            type="button"
-            disabled={durationOptions.length === 0 || selectionLocked}
-            onClick={() => {
-              if (durationOptions.length === 0) {
-                return;
-              }
+            <button
+              type="button"
+              disabled={durationOptions.length === 0 || selectionLocked}
+              onClick={() => {
+                if (durationOptions.length === 0) {
+                  return;
+                }
 
-              setShowDurationPicker((open) => !open);
-            }}
-            className="flex w-full items-center justify-between rounded-xl bg-[#f9f9f9] px-4 py-3 text-left transition hover:bg-[#f0f0f0] disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            <span className="text-sm font-medium text-slate-900">
-              {formatLessonHoursLabel(selectedHours)}
-            </span>
+                setShowDurationPicker((open) => !open);
+              }}
+              className="flex w-full items-center justify-between rounded-xl bg-[#f9f9f9] px-4 py-3 text-left transition hover:bg-[#f0f0f0] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <span className="text-sm font-medium text-slate-900">
+                {formatLessonHoursLabel(selectedHours)}
+              </span>
 
-            <ChevronRightIcon
-              className={`h-4 w-4 shrink-0 text-slate-400 transition ${
-                showDurationPicker ? "rotate-90" : ""
-              }`}
-            />
-          </button>
+              <ChevronRightIcon
+                className={`h-4 w-4 shrink-0 text-slate-400 transition ${
+                  showDurationPicker ? "rotate-90" : ""
+                }`}
+              />
+            </button>
 
-          {balanceMinutes !== null && durationOptions.length === 0 && (
-            <p className="text-sm text-red-500">
-              You do not have enough credit to book a lesson.
-            </p>
-          )}
+            {durationOptions.length > 0 && (
+              <p className="text-xs text-slate-500">
+                Credit bookings can be up to {MAX_CREDIT_BOOKING_HOURS} hours.
+              </p>
+            )}
 
-          {durationOptions.length > 0 && (
-            <p className="text-xs text-slate-500">
-              Credit bookings can be up to {MAX_CREDIT_BOOKING_HOURS} hours.
-            </p>
-          )}
+            {showDurationPicker && durationOptions.length > 0 && (
+              <div className="flex max-h-44 flex-col gap-2 overflow-y-auto overscroll-y-contain rounded-xl border border-slate-200 bg-white p-2">
+                {durationOptions.map((hours) => {
+                  const isSelected = selectedHours === hours;
 
-          {showDurationPicker && durationOptions.length > 0 && (
-            <div className="flex max-h-44 flex-col gap-2 overflow-y-auto overscroll-y-contain rounded-xl border border-slate-200 bg-white p-2">
-              {durationOptions.map((hours) => {
-                const isSelected = selectedHours === hours;
+                  return (
+                    <button
+                      key={hours}
+                      type="button"
+                      onClick={() => handleHoursChange(hours)}
+                      className={`w-full shrink-0 rounded-lg px-3 py-2.5 text-left text-sm font-medium transition ${
+                        isSelected
+                          ? "bg-blue-600 text-white"
+                          : "text-slate-700 hover:bg-[#f9f9f9]"
+                      }`}
+                    >
+                      {formatLessonHoursLabel(hours)}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+        )}
 
-                return (
-                  <button
-                    key={hours}
-                    type="button"
-                    onClick={() => handleHoursChange(hours)}
-                    className={`w-full shrink-0 rounded-lg px-3 py-2.5 text-left text-sm font-medium transition ${
-                      isSelected
-                        ? "bg-blue-600 text-white"
-                        : "text-slate-700 hover:bg-[#f9f9f9]"
+        {bookingMode === "package" && (
+          <section className="space-y-3">
+            <h2 className="text-sm font-semibold text-slate-900">
+              Lesson package
+            </h2>
+
+            {!pickupSuburb ? (
+              <p className="text-sm text-red-500">
+                Your pickup suburb is unavailable. Please update your address.
+              </p>
+            ) : isPackagesLoading ? (
+              <p className="text-sm text-slate-500">
+                Loading lesson packages...
+              </p>
+            ) : packagesError ? (
+              <div className="rounded-xl bg-red-50 p-3 text-sm text-red-600">
+                <p>{packagesError}</p>
+
+                <button
+                  type="button"
+                  onClick={() => void refetchPackages()}
+                  className="mt-2 font-medium underline"
+                >
+                  Try again
+                </button>
+              </div>
+            ) : packages.length === 0 ? (
+              <p className="text-sm text-slate-500">
+                No lesson packages are available for this location.
+              </p>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  disabled={selectionLocked}
+                  onClick={() => setShowDurationPicker((open) => !open)}
+                  className="flex w-full items-center justify-between rounded-xl bg-[#f9f9f9] px-4 py-3 text-left transition hover:bg-[#f0f0f0] disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <span
+                    className={`text-sm font-medium ${
+                      selectedPackage ? "text-slate-900" : "text-slate-400"
                     }`}
                   >
-                    {formatLessonHoursLabel(hours)}
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </section>
+                    {selectedPackage
+                      ? `${selectedPackage.name} · ${formatLessonHoursLabel(
+                          selectedPackage.durationMinutes / 60,
+                        )} · $${Number(selectedPackage.price).toFixed(2)}`
+                      : "Select lesson package"}
+                  </span>
 
-        <section ref={instructorStepRef} className="space-y-3">
-          {selectedInstructor && !showInstructorSearch && (
-            <div className="rounded-2xl bg-[#f9f9f9] p-4">
-              <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
-                Instructor
-              </p>
+                  <ChevronRightIcon
+                    className={`h-4 w-4 shrink-0 text-slate-400 transition ${
+                      showDurationPicker ? "rotate-90" : ""
+                    }`}
+                  />
+                </button>
 
-              <div className="mt-3">
-                <InstructorProfileSummary instructor={selectedInstructor} />
-              </div>
+                {showDurationPicker && (
+                  <div className="flex max-h-64 flex-col overflow-y-auto overscroll-y-contain rounded-xl border border-slate-200 bg-white px-4 py-2">
+                    {packages.map((pkg) => {
+                      const hours = pkg.durationMinutes / 60;
+                      const isSelected = selectedPackageId === pkg.id;
 
-              <button
-                type="button"
-                disabled={selectionLocked}
-                onClick={() => {
-                  if (selectionLocked) {
-                    return;
-                  }
+                      return (
+                        <button
+                          key={pkg.id}
+                          type="button"
+                          onClick={() => handlePackageChange(pkg.id)}
+                          className="flex w-full items-center justify-between gap-3 py-3.5 text-left transition hover:opacity-80"
+                        >
+                          <span className="min-w-0">
+                            <span className="block text-sm font-semibold text-slate-900">
+                              {pkg.name}
+                            </span>
 
-                  setInstructorSearchQuery("");
-                  setShowInstructorSearch(true);
-                }}
-                className="mt-3 text-sm font-medium text-blue-600 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                Change instructor
-              </button>
-            </div>
-          )}
+                            <span className="mt-0.5 block text-xs text-slate-500">
+                              {formatLessonHoursLabel(hours)} · $
+                              {Number(pkg.price).toFixed(2)}
+                            </span>
+                          </span>
 
-          {(showInstructorSearch || !selectedInstructor) && (
-            <>
-              {instructorsError && (
-                <div
-                  role="alert"
-                  className="rounded-xl bg-red-50 p-3 text-sm text-red-600"
-                >
-                  <p>{instructorsError}</p>
+                          {isSelected && (
+                            <span className="text-sm font-semibold text-blue-600">
+                              ✓
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </>
+            )}
+          </section>
+        )}
 
-                  <button
-                    type="button"
-                    onClick={() => void refetchInstructors()}
-                    className="mt-2 font-medium underline"
-                  >
-                    Try again
-                  </button>
+        {canChooseInstructor && (
+          <section ref={instructorStepRef} className="space-y-3">
+            {selectedInstructor && !showInstructorSearch && (
+              <div className="rounded-2xl bg-[#f9f9f9] p-4">
+                <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
+                  Instructor
+                </p>
+
+                <div className="mt-3">
+                  <InstructorProfileSummary instructor={selectedInstructor} />
                 </div>
-              )}
 
-              {!instructorsError && (
-                <InstructorSearch
-                  title={
-                    selectedInstructor
-                      ? "Change instructor"
-                      : "Select instructor"
-                  }
-                  instructors={instructors}
-                  query={instructorSearchQuery}
-                  loading={isInstructorsLoading}
-                  onQueryChange={setInstructorSearchQuery}
-                  onSelect={handleInstructorSelect}
-                  onCancel={
-                    selectedInstructor
-                      ? () => {
-                          setInstructorSearchQuery("");
-                          setShowInstructorSearch(false);
-                        }
-                      : undefined
-                  }
-                />
-              )}
-            </>
-          )}
-        </section>
+                <button
+                  type="button"
+                  disabled={selectionLocked}
+                  onClick={() => {
+                    if (selectionLocked) {
+                      return;
+                    }
+
+                    setInstructorSearchQuery("");
+                    setShowInstructorSearch(true);
+                  }}
+                  className="mt-3 text-sm font-medium text-blue-600 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Change instructor
+                </button>
+              </div>
+            )}
+
+            {(showInstructorSearch || !selectedInstructor) && (
+              <>
+                {instructorsError && (
+                  <div
+                    role="alert"
+                    className="rounded-xl bg-red-50 p-3 text-sm text-red-600"
+                  >
+                    <p>{instructorsError}</p>
+
+                    <button
+                      type="button"
+                      onClick={() => void refetchInstructors()}
+                      className="mt-2 font-medium underline"
+                    >
+                      Try again
+                    </button>
+                  </div>
+                )}
+
+                {!instructorsError && (
+                  <InstructorSearch
+                    title={
+                      selectedInstructor
+                        ? "Change instructor"
+                        : "Select instructor"
+                    }
+                    instructors={instructors}
+                    query={instructorSearchQuery}
+                    loading={isInstructorsLoading}
+                    onQueryChange={setInstructorSearchQuery}
+                    onSelect={handleInstructorSelect}
+                    onCancel={
+                      selectedInstructor
+                        ? () => {
+                            setInstructorSearchQuery("");
+                            setShowInstructorSearch(false);
+                          }
+                        : undefined
+                    }
+                  />
+                )}
+              </>
+            )}
+          </section>
+        )}
 
         {selectedInstructor && !showInstructorSearch && showDatePicker && (
           <CalendarPickerModal
@@ -738,6 +1184,7 @@ export function BookLessonFlow() {
               setSelectedDateId(null);
               setSelectedTime(null);
               setBookingError("");
+              setPaymentError("");
             }}
             onSelectDate={(dateId) => {
               if (selectionLocked) {
@@ -749,6 +1196,7 @@ export function BookLessonFlow() {
               setSelectedTime(null);
               setShowTimePicker(true);
               setBookingError("");
+              setPaymentError("");
             }}
             onClose={() => setShowDatePicker(false)}
           />
@@ -771,6 +1219,7 @@ export function BookLessonFlow() {
                 <span className="text-sm font-medium text-slate-400">
                   Select date
                 </span>
+
                 <ChevronRightIcon className="h-4 w-4 shrink-0 text-slate-400" />
               </button>
             </section>
@@ -845,7 +1294,8 @@ export function BookLessonFlow() {
             </section>
           )}
 
-        {selectedInstructor &&
+        {bookingMode === "credit" &&
+          selectedInstructor &&
           selectedDate &&
           selectedTime &&
           !showInstructorSearch && (
@@ -921,12 +1371,96 @@ export function BookLessonFlow() {
               >
                 {isBooking ? <ButtonSpinner inverse /> : bookingButtonLabel}
               </button>
+            </section>
+          )}
 
-              {!hasEnoughCredit && (
-                <p className="text-center text-sm text-red-500">
-                  You do not have enough credit for this lesson.
+        {bookingMode === "package" &&
+          selectedPackage &&
+          selectedInstructor &&
+          selectedDate &&
+          selectedTime &&
+          selectedSlot &&
+          !showInstructorSearch && (
+            <section ref={summaryStepRef} className="space-y-3">
+              <div className="rounded-2xl bg-[#f9f9f9] p-4">
+                <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
+                  Booking summary
                 </p>
+
+                <p className="mt-2 font-semibold text-slate-900">
+                  {selectedDate.month} {selectedDate.day} ·{" "}
+                  {selectedDate.weekday}
+                </p>
+
+                <p className="mt-1 text-sm text-slate-600">
+                  {formatLessonTimeRange(selectedTime, packageLessonHours)}
+                </p>
+
+                <p className="mt-1 text-sm text-slate-500">
+                  {formatLessonHoursLabel(packageLessonHours)} lesson ·{" "}
+                  {selectedInstructor.name}
+                </p>
+
+                <div className="mt-4 border-t border-slate-200 pt-4">
+                  <InstructorProfileSummary instructor={selectedInstructor} />
+                </div>
+
+                <div className="mt-4 border-t border-slate-200 pt-4">
+                  <div className="flex items-center justify-between gap-4 text-sm">
+                    <span className="text-slate-500">Package</span>
+
+                    <span className="text-right font-medium text-slate-900">
+                      {selectedPackage.name}
+                    </span>
+                  </div>
+
+                  <div className="mt-2 flex items-center justify-between text-sm">
+                    <span className="text-slate-500">Package hours</span>
+
+                    <span className="font-medium text-slate-900">
+                      {formatLessonHoursLabel(selectedPackageHours)}
+                    </span>
+                  </div>
+
+                  <div className="mt-2 flex items-center justify-between text-sm">
+                    <span className="text-slate-500">First lesson</span>
+
+                    <span className="font-medium text-slate-900">
+                      {formatLessonHoursLabel(packageLessonHours)}
+                    </span>
+                  </div>
+
+                  <div className="mt-3 flex items-center justify-between border-t border-slate-200 pt-3">
+                    <span className="font-semibold text-slate-900">
+                      Total due
+                    </span>
+
+                    <span className="font-bold text-slate-900">
+                      ${selectedPackagePrice.toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {paymentError && (
+                <div className="rounded-xl bg-red-50 p-3 text-sm text-red-600">
+                  {paymentError}
+                </div>
               )}
+
+              <button
+                type="button"
+                aria-busy={isContinuingToPayment}
+                disabled={isContinuingToPayment}
+                onClick={() => void handleContinueToPayment()}
+                className="inline-flex h-11 w-full items-center justify-center rounded-lg bg-blue-600 px-4 text-sm font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
+              >
+                {isContinuingToPayment ? (
+                  <ButtonSpinner inverse />
+                ) : (
+                  `Continue to payment · $${selectedPackagePrice.toFixed(2)}`
+                )}
+              </button>
             </section>
           )}
       </main>
