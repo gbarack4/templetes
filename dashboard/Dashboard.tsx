@@ -28,7 +28,7 @@ const tabs: { key: TabKey; label: string }[] = [
 
 const tabBadgeStyles: Record<TabKey, string> = {
   upcoming: "bg-blue-100 text-blue-600",
-  completed: "bg-slate-100 text-slate-500",
+  completed: "bg-[#f9f9f9] text-[#4b5563]",
   cancelled: "bg-red-50 text-red-400",
 };
 
@@ -256,7 +256,7 @@ export function Dashboard({ data = mockDashboardData }: DashboardProps) {
             type="button"
             aria-label="Notifications"
             onClick={() => setShowNotifications(true)}
-            className="relative shrink-0 rounded-lg bg-slate-100 p-2 text-slate-500 hover:bg-slate-200"
+            className="relative shrink-0 rounded-lg bg-[#f9f9f9] p-2 text-[#4b5563] hover:bg-[#f0f0f0]"
           >
             <BellIcon className="h-6 w-6" />
             {unreadNotificationCount > 0 && (
@@ -267,7 +267,7 @@ export function Dashboard({ data = mockDashboardData }: DashboardProps) {
           </button>
         </section>
 
-        <section className="mt-6 flex shrink-0 items-center gap-3 rounded-2xl bg-slate-50 px-4 py-4">
+        <section className="mt-6 flex shrink-0 items-center gap-3 rounded-2xl bg-[#f9f9f9] px-4 py-4">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-blue-600">
             <CalendarIcon className="h-5 w-5" />
           </div>

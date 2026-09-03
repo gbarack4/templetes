@@ -44,7 +44,7 @@ export function InstructorProfileSummary({
   return (
     <div className={`flex min-w-0 flex-1 ${compact ? "gap-2.5" : "gap-3"}`}>
       <div
-        className={`relative flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-slate-200 font-semibold text-slate-600 ${sizeClass}`}
+        className={`relative flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-slate-200 font-semibold text-[#4b5563] ${sizeClass}`}
       >
         {showImage ? (
           <Image

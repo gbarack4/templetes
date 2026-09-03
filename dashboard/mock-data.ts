@@ -7,8 +7,8 @@ export const mockDashboardData: DashboardData = {
   availableCreditHours: 0,
   tabCounts: {
     upcoming: 1,
-    completed: 0,
-    cancelled: 0,
+    completed: 1,
+    cancelled: 2,
   },
   upcomingLessons: [
     {
@@ -23,8 +23,45 @@ export const mockDashboardData: DashboardData = {
       status: "upcoming",
     },
   ],
-  completedLessons: [],
-  cancelledLessons: [],
+  completedLessons: [
+    {
+      id: "completed-1",
+      month: "JUN",
+      day: 21,
+      weekday: "SAT",
+      timeRange: "10:00 AM – 11:30 AM",
+      instructor: "Sarah Johnson",
+      location: "123 Main Street, Downtown",
+      hours: 1.5,
+      status: "completed",
+    },
+  ],
+  cancelledLessons: [
+    {
+      id: "cancelled-1",
+      month: "JUN",
+      day: 14,
+      weekday: "SAT",
+      timeRange: "10:00 AM – 11:30 AM",
+      instructor: "Sarah Johnson",
+      location: "123 Main Street, Downtown",
+      hours: 1.5,
+      status: "cancelled",
+      cancelledBy: "student",
+    },
+    {
+      id: "cancelled-2",
+      month: "MAY",
+      day: 10,
+      weekday: "SAT",
+      timeRange: "2:00 PM – 3:30 PM",
+      instructor: "Mike Chen",
+      location: "789 Pine Road, Eastside",
+      hours: 1.5,
+      status: "cancelled",
+      cancelledBy: "instructor",
+    },
+  ],
   notifications: [],
 };
 

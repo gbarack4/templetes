@@ -22,7 +22,7 @@ const actionLabels = {
 
 const actionButtonStyles = {
   upcoming: "bg-blue-600 text-white hover:bg-blue-700",
-  completed: "border border-slate-200 text-slate-700 hover:bg-slate-50",
+  completed: "border border-slate-200 text-[#4b5563] hover:bg-slate-50",
 } as const;
 
 const BUTTON_LOADING_MS = 2000;
@@ -50,7 +50,7 @@ function DateBlock({ month, day, weekday }: Pick<Lesson, "month" | "day" | "week
     <div className="flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-lg bg-white">
       <span className="text-[10px] font-semibold tracking-wide text-blue-600">{month}</span>
       <span className="text-xl font-bold leading-none text-slate-900">{day}</span>
-      <span className="text-[10px] font-medium text-slate-900">{weekday}</span>
+      <span className="text-[10px] font-medium text-[#4b5563]">{weekday}</span>
     </div>
   );
 }
@@ -110,7 +110,7 @@ export function LessonCard({
           handleCardClick();
         }
       }}
-      className="relative cursor-pointer rounded-2xl bg-slate-50 p-3 transition hover:bg-slate-100"
+      className="relative cursor-pointer rounded-2xl bg-[#f9f9f9] p-3 transition hover:bg-[#f0f0f0]"
     >
       <div className="flex gap-3">
         <DateBlock month={lesson.month} day={lesson.day} weekday={lesson.weekday} />
@@ -186,7 +186,7 @@ export function LessonCard({
             event.stopPropagation();
             handleCancel();
           }}
-          className="absolute right-2 top-2 rounded-lg p-1 text-slate-400 transition hover:bg-white hover:text-slate-600"
+          className="absolute right-2 top-2 rounded-lg p-1 text-[#4b5563] transition hover:bg-white hover:text-slate-700"
         >
           <MoreVerticalIcon className="h-4 w-4" />
         </button>

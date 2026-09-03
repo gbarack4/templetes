@@ -261,7 +261,7 @@ export function BookLessonFlow() {
             Your lesson has been booked using your available credit.
           </p>
 
-          <div className="mt-6 w-full rounded-2xl bg-slate-50 p-4 text-left">
+          <div className="mt-6 w-full rounded-2xl bg-[#f9f9f9] p-4 text-left">
             <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
               {formatLessonHoursLabel(selectedHours)}
             </p>
@@ -318,7 +318,7 @@ export function BookLessonFlow() {
           type="button"
           onClick={goToDashboard}
           aria-label="Close"
-          className="rounded-lg p-2 text-slate-600 transition hover:bg-slate-50"
+          className="rounded-lg p-2 text-slate-600 transition hover:bg-[#f9f9f9]"
         >
           <CloseIcon className="h-5 w-5" />
         </button>
@@ -333,7 +333,7 @@ export function BookLessonFlow() {
           </p>
         </section>
 
-        <section className="flex items-center gap-3 rounded-2xl bg-slate-50 px-4 py-4">
+        <section className="flex items-center gap-3 rounded-2xl bg-[#f9f9f9] px-4 py-4">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-blue-600">
             <CalendarIcon className="h-5 w-5" />
           </div>
@@ -391,7 +391,7 @@ export function BookLessonFlow() {
 
               setShowDurationPicker((open) => !open);
             }}
-            className="flex w-full items-center justify-between rounded-xl bg-slate-50 px-4 py-3 text-left transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex w-full items-center justify-between rounded-xl bg-[#f9f9f9] px-4 py-3 text-left transition hover:bg-[#f0f0f0] disabled:cursor-not-allowed disabled:opacity-50"
           >
             <span className="text-sm font-medium text-slate-900">
               {formatLessonHoursLabel(selectedHours)}
@@ -429,7 +429,7 @@ export function BookLessonFlow() {
                     className={`w-full shrink-0 rounded-lg px-3 py-2.5 text-left text-sm font-medium transition ${
                       isSelected
                         ? "bg-blue-600 text-white"
-                        : "text-slate-700 hover:bg-slate-50"
+                        : "text-slate-700 hover:bg-[#f9f9f9]"
                     }`}
                   >
                     {formatLessonHoursLabel(hours)}
@@ -442,7 +442,7 @@ export function BookLessonFlow() {
 
         <section ref={instructorStepRef} className="space-y-3">
           {selectedInstructor && !showInstructorSearch && (
-            <div className="rounded-2xl bg-slate-50 p-4">
+            <div className="rounded-2xl bg-[#f9f9f9] p-4">
               <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
                 Instructor
               </p>
@@ -537,7 +537,7 @@ export function BookLessonFlow() {
               <button
                 type="button"
                 onClick={() => setShowDatePicker(true)}
-                className="flex w-full items-center justify-between rounded-xl bg-slate-50 px-4 py-3 text-left transition hover:bg-slate-100"
+                className="flex w-full items-center justify-between rounded-xl bg-[#f9f9f9] px-4 py-3 text-left transition hover:bg-[#f0f0f0]"
               >
                 <span className="text-sm font-medium text-slate-400">
                   Select date
@@ -552,7 +552,7 @@ export function BookLessonFlow() {
           !showInstructorSearch &&
           !showDatePicker && (
           <section ref={timeStepRef} className="space-y-3">
-            <div className="rounded-2xl bg-slate-50 p-4">
+            <div className="rounded-2xl bg-[#f9f9f9] p-4">
               <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
                 Selected date
               </p>
@@ -581,7 +581,7 @@ export function BookLessonFlow() {
             <button
               type="button"
               onClick={() => setShowTimePicker(true)}
-              className="flex w-full items-center justify-between rounded-xl bg-slate-50 px-4 py-3 text-left transition hover:bg-slate-100"
+              className="flex w-full items-center justify-between rounded-xl bg-[#f9f9f9] px-4 py-3 text-left transition hover:bg-[#f0f0f0]"
             >
               <span
                 className={`text-sm font-medium ${
@@ -610,7 +610,7 @@ export function BookLessonFlow() {
           selectedTime &&
           !showInstructorSearch && (
             <section ref={summaryStepRef} className="space-y-3">
-              <div className="rounded-2xl bg-slate-50 p-4">
+              <div className="rounded-2xl bg-[#f9f9f9] p-4">
                 <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
                   Booking summary
                 </p>

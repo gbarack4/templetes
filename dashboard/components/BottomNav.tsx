@@ -40,7 +40,7 @@ export function BottomNav() {
       <div className="relative flex px-2 py-1.5">
         <div
           aria-hidden
-          className="absolute inset-y-2 rounded-xl bg-slate-100 transition-transform duration-200 ease-out"
+          className="absolute inset-y-2 rounded-xl bg-[#f9f9f9] transition-transform duration-200 ease-out"
           style={{
             width: itemWidth,
             left: "8px",

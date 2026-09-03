@@ -48,7 +48,7 @@ function StarRating({
           </button>
         ))}
       </div>
-      <p className="h-4 text-sm font-medium text-slate-500">
+      <p className="h-4 text-sm font-medium text-[#4b5563]">
         {active > 0 ? ratingLabels[active - 1] : "Tap to rate"}
       </p>
     </div>
@@ -149,7 +149,7 @@ export function InstructorReviewModal({
                 type="button"
                 onClick={onClose}
                 aria-label="Close"
-                className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+                className="rounded-lg p-1.5 text-[#4b5563] transition hover:bg-[#f9f9f9] hover:text-slate-700"
               >
                 <svg
                   className="h-5 w-5"
@@ -164,9 +164,9 @@ export function InstructorReviewModal({
               </button>
             </div>
 
-            <div className="rounded-2xl bg-slate-50 p-4">
+            <div className="rounded-2xl bg-[#f9f9f9] p-4">
               <InstructorProfileSummary instructor={instructor} />
-              <p className="mt-3 text-xs text-slate-500">{lessonLabel}</p>
+              <p className="mt-3 text-xs text-[#4b5563]">{lessonLabel}</p>
             </div>
 
             <div className="mt-6">
@@ -200,7 +200,7 @@ export function InstructorReviewModal({
               type="button"
               onClick={handleSubmit}
               disabled={rating === 0}
-              className="mt-6 w-full rounded-lg bg-blue-600 py-3 text-sm font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
+              className="mt-6 w-full rounded-lg bg-blue-600 py-3 text-sm font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-[#f9f9f9] disabled:text-[#4b5563]"
             >
               Submit review
             </button>
