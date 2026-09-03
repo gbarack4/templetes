@@ -142,7 +142,12 @@ export function PaymentsSettings() {
       <section className="space-y-3">
         <h2 className="text-sm font-semibold text-slate-900">Recent payments</h2>
         <div className="overflow-hidden rounded-2xl bg-slate-50">
-          {mockRecentPayments.map((payment, index) => (
+          {mockRecentPayments.length === 0 ? (
+            <p className="px-4 py-3.5 text-sm text-slate-500">
+              No recent payments yet.
+            </p>
+          ) : (
+            mockRecentPayments.map((payment, index) => (
             <article
               key={payment.id}
               className={`flex items-start justify-between gap-3 px-4 py-3.5 ${
@@ -175,7 +180,8 @@ export function PaymentsSettings() {
                 </p>
               </div>
             </article>
-          ))}
+          ))
+          )}
         </div>
       </section>
     </main>

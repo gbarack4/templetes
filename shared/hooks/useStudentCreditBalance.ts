@@ -55,19 +55,26 @@ export function useStudentCreditBalance() {
 
       const data: unknown = await response.json();
 
-      if (
-        typeof data !== "object" ||
-        data === null ||
-        !("balanceMinutes" in data) ||
-        typeof data.balanceMinutes !== "number" ||
-        !Number.isSafeInteger(data.balanceMinutes) ||
-        data.balanceMinutes < 0
-      ) {
+      const rawMinutes =
+        typeof data === "object" &&
+        data !== null &&
+        "balanceMinutes" in data
+          ? data.balanceMinutes
+          : null;
+
+      const parsedMinutes =
+        typeof rawMinutes === "number"
+          ? rawMinutes
+          : typeof rawMinutes === "string"
+            ? Number(rawMinutes)
+            : NaN;
+
+      if (!Number.isFinite(parsedMinutes) || parsedMinutes < 0) {
         throw new Error("The server returned an invalid credit balance.");
       }
 
       return {
-        balanceMinutes: data.balanceMinutes,
+        balanceMinutes: Math.round(parsedMinutes),
       };
     },
   });

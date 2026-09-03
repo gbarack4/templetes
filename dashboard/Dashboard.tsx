@@ -10,9 +10,9 @@ import { consumeBookedLesson } from "./book-lesson";
 import { LessonCard } from "./components/LessonCard";
 import { NotificationsPanel } from "./components/NotificationsPanel";
 import { DEFAULT_STUDENT_AVATAR } from "./student-avatar";
-import { useStudentCreditHours } from "./useStudentCreditHours";
 import { BellIcon, CalendarIcon } from "./components/icons";
 import { useStudent } from "@/shared/hooks/useStudent";
+import { useStudentCreditBalance } from "@/shared/hooks/useStudentCreditBalance";
 
 type DashboardProps = Readonly<{
   data?: DashboardData;
@@ -44,6 +44,12 @@ const sectionTitles: Record<TabKey, string> = {
   cancelled: "Cancelled Lessons",
 };
 
+const emptyLessonMessages: Record<TabKey, string> = {
+  upcoming: "No upcoming lessons",
+  completed: "No completed lessons",
+  cancelled: "No cancelled lessons",
+};
+
 function getLessonsForTab(
   upcoming: Lesson[],
   completed: Lesson[],
@@ -57,12 +63,14 @@ function getLessonsForTab(
 
 function LessonSection({
   title,
+  emptyMessage,
   lessons,
   reviewedLessonIds,
   onReviewSubmit,
   onViewAll,
 }: Readonly<{
   title: string;
+  emptyMessage: string;
   lessons: Lesson[];
   reviewedLessonIds: Set<string>;
   onReviewSubmit: (lessonId: string, rating: number, comment: string) => void;
@@ -92,7 +100,7 @@ function LessonSection({
           ))
         ) : (
           <p className="rounded-2xl border border-dashed border-slate-200 py-8 text-center text-sm text-slate-400">
-            No lessons in this category.
+            {emptyMessage}
           </p>
         )}
       </div>
@@ -104,15 +112,20 @@ export function Dashboard({ data = mockDashboardData }: DashboardProps) {
   const router = useRouter();
   const pathname = usePathname();
   const { student, loading: studentLoading } = useStudent();
+  const {
+    balanceMinutes,
+    loading: isCreditLoading,
+    error: creditError,
+    refetch: refetchCreditBalance,
+  } = useStudentCreditBalance();
+  const availableCreditHours =
+    balanceMinutes === null ? null : balanceMinutes / 60;
   const [activeTab, setActiveTab] = useState<TabKey>("upcoming");
   const [upcomingLessons, setUpcomingLessons] = useState(data.upcomingLessons);
   const [cancelledLessons, setCancelledLessons] = useState(
     data.cancelledLessons,
   );
   const [tabCounts, setTabCounts] = useState(data.tabCounts);
-  const [availableCreditHours, setAvailableCreditHours] = useStudentCreditHours(
-    data.availableCreditHours,
-  );
   const [reviewedLessonIds, setReviewedLessonIds] = useState<Set<string>>(
     () => new Set(),
   );
@@ -151,16 +164,14 @@ export function Dashboard({ data = mockDashboardData }: DashboardProps) {
   const handleBookLesson = useCallback(
     (lesson: Lesson) => {
       setUpcomingLessons((current) => [lesson, ...current]);
-      setAvailableCreditHours((hours) =>
-        Math.max(0, hours - Math.min(lesson.hours, hours)),
-      );
+      void refetchCreditBalance();
       setTabCounts((counts) => ({
         ...counts,
         upcoming: counts.upcoming + 1,
       }));
       setActiveTab("upcoming");
     },
-    [setAvailableCreditHours],
+    [refetchCreditBalance],
   );
 
   const handleCancelLesson = useCallback((lessonId: string) => {
@@ -263,7 +274,11 @@ export function Dashboard({ data = mockDashboardData }: DashboardProps) {
           <div className="min-w-0 flex-1">
             <p className="text-sm text-slate-600">You have</p>
             <p className="text-base font-bold text-slate-900">
-              {availableCreditHours} Hours
+              {isCreditLoading
+                ? "Loading..."
+                : availableCreditHours === null
+                  ? "Unavailable"
+                  : `${Number(availableCreditHours.toFixed(2))} Hours`}
             </p>
             <p className="text-sm text-slate-600">available credit</p>
           </div>
@@ -275,6 +290,22 @@ export function Dashboard({ data = mockDashboardData }: DashboardProps) {
             Buy More Hours
           </button>
         </section>
+
+        {creditError && (
+          <div
+            role="alert"
+            className="mt-3 shrink-0 rounded-xl bg-red-50 p-3 text-sm text-red-600"
+          >
+            <p>{creditError}</p>
+            <button
+              type="button"
+              onClick={() => void refetchCreditBalance()}
+              className="mt-2 font-medium underline"
+            >
+              Try again
+            </button>
+          </div>
+        )}
 
         <nav className="mt-6 flex shrink-0 border-b border-slate-100">
           {tabs.map(({ key, label }) => {
@@ -304,6 +335,7 @@ export function Dashboard({ data = mockDashboardData }: DashboardProps) {
         <div className="mt-6 flex min-h-0 flex-1 flex-col">
           <LessonSection
             title={sectionTitles[activeTab]}
+            emptyMessage={emptyLessonMessages[activeTab]}
             lessons={activeLessons}
             reviewedLessonIds={reviewedLessonIds}
             onReviewSubmit={handleReviewSubmit}

@@ -122,7 +122,11 @@ export function BookingsFlow() {
             <p className="rounded-2xl border border-dashed border-slate-200 py-8 text-center text-sm text-slate-400">
               {query.trim()
                 ? "No bookings match your search."
-                : "No lessons in this category."}
+                : activeTab === "upcoming"
+                  ? "No upcoming lessons"
+                  : activeTab === "completed"
+                    ? "No completed lessons"
+                    : "No cancelled lessons"}
             </p>
           )}
         </div>

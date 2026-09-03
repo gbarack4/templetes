@@ -1,5 +1,4 @@
 import type { InstructorOption } from "@/dashboard/mock-data";
-import { mockInstructors } from "@/dashboard/mock-data";
 
 export type StudentArea = Readonly<{
   name: string;
@@ -17,105 +16,13 @@ export type SuggestedInstructor = InstructorOption &
   }>;
 
 export const mockStudentArea: StudentArea = {
-  name: "Downtown",
-  fullLabel: "Downtown, Seattle",
-  suburb: "Downtown",
-  postcode: "98101",
+  name: "",
+  fullLabel: "",
+  suburb: "",
+  postcode: "",
 };
 
-export const suggestedInstructorsInArea: SuggestedInstructor[] = [
-  {
-    ...mockInstructors[0],
-    pricePerHour: 60,
-    suburb: "Downtown",
-    postcode: "98101",
-    availableSlots: 5,
-  },
-  {
-    ...mockInstructors[1],
-    pricePerHour: 58,
-    suburb: "Westside",
-    postcode: "98109",
-    availableSlots: 3,
-  },
-  {
-    ...mockInstructors[2],
-    pricePerHour: 62,
-    suburb: "Eastside",
-    postcode: "98112",
-    availableSlots: 7,
-  },
-  {
-    id: "james-rodriguez",
-    name: "James Rodriguez",
-    initials: "JR",
-    avatarUrl: "/avatars/instructors/james-rodriguez.jpg",
-    location: "220 Northgate Way, Northgate",
-    rating: 4.7,
-    reviewCount: 112,
-    lessonsCompleted: 730,
-    pricePerHour: 57,
-    suburb: "Northgate",
-    postcode: "98125",
-    availableSlots: 4,
-  },
-  {
-    id: "lisa-patel",
-    name: "Lisa Patel",
-    initials: "LP",
-    avatarUrl: "/avatars/instructors/lisa-patel.jpg",
-    location: "15 Broadway East, Capitol Hill",
-    rating: 4.9,
-    reviewCount: 89,
-    lessonsCompleted: 590,
-    pricePerHour: 61,
-    suburb: "Capitol Hill",
-    postcode: "98102",
-    availableSlots: 6,
-  },
-  {
-    id: "tom-anderson",
-    name: "Tom Anderson",
-    initials: "TA",
-    avatarUrl: "/avatars/instructors/tom-anderson.jpg",
-    location: "5300 Ballard Avenue NW, Ballard",
-    rating: 4.8,
-    reviewCount: 103,
-    lessonsCompleted: 680,
-    pricePerHour: 59,
-    suburb: "Ballard",
-    postcode: "98107",
-    availableSlots: 2,
-  },
-  {
-    id: "nina-brooks",
-    name: "Nina Brooks",
-    initials: "NB",
-    avatarUrl: "/avatars/instructors/nina-brooks.jpg",
-    location: "800 Queen Anne Avenue N, Queen Anne",
-    rating: 5.0,
-    reviewCount: 67,
-    lessonsCompleted: 445,
-    pricePerHour: 63,
-    suburb: "Queen Anne",
-    postcode: "98109",
-    availableSlots: 8,
-  },
-  {
-    id: "david-kim",
-    name: "David Kim",
-    initials: "DK",
-    avatarUrl: "/avatars/instructors/david-kim.jpg",
-    location: "9800 Rainier Avenue S, Rainier Valley",
-    rating: 4.8,
-    reviewCount: 91,
-    lessonsCompleted: 560,
-    pricePerHour: 56,
-    suburb: "Rainier Valley",
-    postcode: "98118",
-    availableSlots: 5,
-  },
-];
+export const suggestedInstructorsInArea: SuggestedInstructor[] = [];
 
 export function getSuggestedInstructorById(
   id: string,
@@ -124,16 +31,7 @@ export function getSuggestedInstructorById(
 }
 
 /** Suburbs each instructor covers beyond their home suburb. */
-const instructorServiceSuburbs: Record<string, readonly string[]> = {
-  "sarah-johnson": ["Downtown", "Belltown", "SoDo"],
-  "mike-chen": ["Westside", "Queen Anne"],
-  "emma-williams": ["Eastside", "Capitol Hill"],
-  "james-rodriguez": ["Northgate", "University District", "Green Lake"],
-  "lisa-patel": ["Capitol Hill", "Eastside", "Beacon Hill"],
-  "tom-anderson": ["Ballard", "Fremont", "Wallingford"],
-  "nina-brooks": ["Queen Anne", "Westside", "Downtown"],
-  "david-kim": ["Rainier Valley", "Beacon Hill", "Georgetown"],
-};
+const instructorServiceSuburbs: Record<string, readonly string[]> = {};
 
 function normalizeLocationQuery(query: string): string {
   return query.trim().toLowerCase().replace(/\s+/g, " ");
@@ -146,7 +44,7 @@ export function instructorMatchesSuburb(
   const trimmed = normalizeLocationQuery(query);
   if (!trimmed) return true;
 
-  const normalizedPostcode = trimmed.replace(/\s/g, "");
+  const normalizedPostcode = trimmed.replace(/\s+/g, "");
   const homeSuburb = instructor.suburb.toLowerCase();
   const homePostcode = instructor.postcode.toLowerCase();
 
@@ -195,112 +93,7 @@ export type InstructorCar = Readonly<{
 export const instructorProfileDetails: Record<
   string,
   Readonly<{ bio: string; phone: string; car: InstructorCar }>
-> = {
-  "sarah-johnson": {
-    bio: "Calm, patient instructor with 8 years of experience helping nervous first-time drivers build confidence on city roads.",
-    phone: "+15551234567",
-    car: {
-      make: "Toyota",
-      model: "Corolla",
-      year: 2022,
-      transmission: "Automatic",
-      fuel: "Hybrid",
-      color: "Blue",
-      imageUrl: "/cars/toyota-corolla.jpg",
-    },
-  },
-  "mike-chen": {
-    bio: "Structured lessons focused on defensive driving and test preparation for busy urban routes.",
-    phone: "+15552345678",
-    car: {
-      make: "Honda",
-      model: "Civic",
-      year: 2021,
-      transmission: "Automatic",
-      fuel: "Petrol",
-      color: "Teal",
-      imageUrl: "/cars/honda-civic.svg",
-    },
-  },
-  "emma-williams": {
-    bio: "Friendly instructor known for clear explanations and flexible scheduling around school and work hours.",
-    phone: "+15553456789",
-    car: {
-      make: "Mazda",
-      model: "3",
-      year: 2023,
-      transmission: "Automatic",
-      fuel: "Petrol",
-      color: "Purple",
-      imageUrl: "/cars/mazda-3.svg",
-    },
-  },
-  "james-rodriguez": {
-    bio: "Experienced with suburban routes and merge lanes. Great for students preparing for longer commutes.",
-    phone: "+15554567890",
-    car: {
-      make: "Hyundai",
-      model: "Elantra",
-      year: 2022,
-      transmission: "Automatic",
-      fuel: "Petrol",
-      color: "Silver",
-      imageUrl: "/cars/toyota-corolla.jpg",
-    },
-  },
-  "lisa-patel": {
-    bio: "Detail-oriented instructor who focuses on observation skills and safe decision-making in dense traffic.",
-    phone: "+15555678901",
-    car: {
-      make: "Volkswagen",
-      model: "Golf",
-      year: 2021,
-      transmission: "Automatic",
-      fuel: "Petrol",
-      color: "White",
-      imageUrl: "/cars/honda-civic.svg",
-    },
-  },
-  "tom-anderson": {
-    bio: "Relaxed teaching style with a strong emphasis on parking, tight streets, and neighborhood driving.",
-    phone: "+15556789012",
-    car: {
-      make: "Subaru",
-      model: "Impreza",
-      year: 2020,
-      transmission: "Automatic",
-      fuel: "Petrol",
-      color: "Green",
-      imageUrl: "/cars/mazda-3.svg",
-    },
-  },
-  "nina-brooks": {
-    bio: "Top-rated for teen drivers and first-lesson confidence building on hills and busy intersections.",
-    phone: "+15557890123",
-    car: {
-      make: "Kia",
-      model: "Cerato",
-      year: 2023,
-      transmission: "Automatic",
-      fuel: "Hybrid",
-      color: "Red",
-      imageUrl: "/cars/toyota-corolla.jpg",
-    },
-  },
-  "david-kim": {
-    bio: "Patient with beginners and fluent in explaining road rules for students from diverse driving backgrounds.",
-    phone: "+15558901234",
-    car: {
-      make: "Nissan",
-      model: "Sentra",
-      year: 2021,
-      transmission: "Automatic",
-      fuel: "Petrol",
-      color: "Grey",
-      imageUrl: "/cars/honda-civic.svg",
-    },
-  },
-};
+> = {};
 
 type AvailableSlot = {
   instructorId: string;

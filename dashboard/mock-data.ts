@@ -2,13 +2,13 @@ import { DEFAULT_STUDENT_AVATAR } from "./student-avatar";
 import type { DashboardData, StudentAccount } from "./types";
 
 export const mockDashboardData: DashboardData = {
-  userName: "George",
+  userName: "",
   avatarUrl: DEFAULT_STUDENT_AVATAR,
   availableCreditHours: 0,
   tabCounts: {
     upcoming: 1,
-    completed: 1,
-    cancelled: 2,
+    completed: 0,
+    cancelled: 0,
   },
   upcomingLessons: [
     {
@@ -23,102 +23,23 @@ export const mockDashboardData: DashboardData = {
       status: "upcoming",
     },
   ],
-  completedLessons: [
-    {
-      id: "completed-1",
-      month: "JUN",
-      day: 21,
-      weekday: "SAT",
-      timeRange: "10:00 AM – 11:30 AM",
-      instructor: "Sarah Johnson",
-      location: "123 Main Street, Downtown",
-      hours: 1.5,
-      status: "completed",
-    },
-  ],
-  cancelledLessons: [
-    {
-      id: "cancelled-1",
-      month: "JUN",
-      day: 14,
-      weekday: "SAT",
-      timeRange: "10:00 AM – 11:30 AM",
-      instructor: "Sarah Johnson",
-      location: "123 Main Street, Downtown",
-      hours: 1.5,
-      status: "cancelled",
-      cancelledBy: "student",
-    },
-    {
-      id: "cancelled-2",
-      month: "MAY",
-      day: 10,
-      weekday: "SAT",
-      timeRange: "2:00 PM – 3:30 PM",
-      instructor: "Mike Chen",
-      location: "789 Pine Road, Eastside",
-      hours: 1.5,
-      status: "cancelled",
-      cancelledBy: "instructor",
-    },
-  ],
-  notifications: [
-    {
-      id: "notification-1",
-      kind: "lesson_reminder",
-      title: "Lesson tomorrow",
-      message: "Your lesson with Sarah Johnson is tomorrow at 10:00 AM.",
-      timeLabel: "2h ago",
-      read: false,
-    },
-    {
-      id: "notification-2",
-      kind: "lesson_booked",
-      title: "Lesson confirmed",
-      message: "Your lesson on Jul 2 at 2:00 PM with Sarah Johnson is booked.",
-      timeLabel: "Yesterday",
-      read: false,
-    },
-    {
-      id: "notification-3",
-      kind: "review",
-      title: "Rate your lesson",
-      message:
-        "How was your lesson with Mike Chen on Jun 14? Leave a quick review.",
-      timeLabel: "2 days ago",
-      read: false,
-    },
-    {
-      id: "notification-4",
-      kind: "payment",
-      title: "Payment received",
-      message: "Your 5-hour package purchase was successful.",
-      timeLabel: "3 days ago",
-      read: true,
-    },
-    {
-      id: "notification-5",
-      kind: "promo",
-      title: "Weekend availability",
-      message: "New Saturday morning slots are open with Sarah Johnson.",
-      timeLabel: "1 week ago",
-      read: true,
-    },
-  ],
+  completedLessons: [],
+  cancelledLessons: [],
+  notifications: [],
 };
 
 export const mockStudentAccount: StudentAccount = {
-  firstName: "George",
-  lastName: "Smith",
-  avatarUrl: "/avatars/george.jpg",
-  email: "george.smith@email.com",
-  phone: "+1 (555) 234-5678",
-  address: "42 Maple Street, Springfield",
-  learnerPermitNumber: "LP-284719",
-  dateOfBirth: "March 15, 2004",
+  firstName: "",
+  lastName: "",
+  avatarUrl: DEFAULT_STUDENT_AVATAR,
+  email: "",
+  phone: "",
+  address: "",
+  learnerPermitNumber: "",
+  dateOfBirth: "",
   emergencyContact: {
-    name: "Jane Smith",
-    phone: "+1 (555) 987-6543",
+    name: "",
+    phone: "",
   },
   notifications: {
     lessonReminders: true,
@@ -401,40 +322,7 @@ export interface RecentPayment {
   status: "paid" | "refunded";
 }
 
-export const mockRecentPayments: RecentPayment[] = [
-  {
-    id: "payment-1",
-    title: "Lesson with Sarah Johnson",
-    description: "1.5 hours · Jun 28, 10:00 AM",
-    dateLabel: "Jun 26, 2026",
-    amount: 90,
-    status: "paid",
-  },
-  {
-    id: "payment-2",
-    title: "5-hour package",
-    description: "Credit top-up",
-    dateLabel: "Jun 18, 2026",
-    amount: 275,
-    status: "paid",
-  },
-  {
-    id: "payment-3",
-    title: "Lesson with Mike Chen",
-    description: "1.5 hours · Jun 14, 2:00 PM",
-    dateLabel: "Jun 12, 2026",
-    amount: 87,
-    status: "paid",
-  },
-  {
-    id: "payment-4",
-    title: "Lesson cancellation refund",
-    description: "Sarah Johnson · May 10",
-    dateLabel: "May 9, 2026",
-    amount: 90,
-    status: "refunded",
-  },
-];
+export const mockRecentPayments: RecentPayment[] = [];
 
 export interface HourPackage {
   id: string;
@@ -446,34 +334,7 @@ export interface HourPackage {
   pricePerHour: number;
 }
 
-export const mockHourPackages: HourPackage[] = [
-  {
-    id: "pkg-5",
-    hours: 5,
-    price: 275,
-    label: "5 Hours",
-    savingsLabel: "Save $25",
-    pricePerHour: 55,
-  },
-  {
-    id: "pkg-10",
-    hours: 10,
-    price: 520,
-    label: "10 Hours",
-    badge: "Popular",
-    savingsLabel: "Save $80",
-    pricePerHour: 52,
-  },
-  {
-    id: "pkg-20",
-    hours: 20,
-    price: 980,
-    label: "20 Hours",
-    badge: "Best value",
-    savingsLabel: "Save $220",
-    pricePerHour: 49,
-  },
-];
+export const mockHourPackages: HourPackage[] = [];
 
 export function formatLessonTimeRange(
   startTime: string,
@@ -515,46 +376,26 @@ export interface InstructorOption {
   pricePerHour: number;
 }
 
-export const mockInstructors: InstructorOption[] = [
-  {
-    id: "sarah-johnson",
-    name: "Sarah Johnson",
-    initials: "SJ",
-    avatarUrl: "/avatars/instructors/sarah-johnson.jpg",
-    location: "123 Main Street, Downtown",
-    rating: 4.9,
-    reviewCount: 128,
-    lessonsCompleted: 840,
-    pricePerHour: 60,
-  },
-  {
-    id: "mike-chen",
-    name: "Mike Chen",
-    initials: "MC",
-    avatarUrl: "/avatars/instructors/mike-chen.jpg",
-    location: "456 Oak Avenue, Westside",
-    rating: 4.8,
-    reviewCount: 96,
-    lessonsCompleted: 620,
-    pricePerHour: 58,
-  },
-  {
-    id: "emma-williams",
-    name: "Emma Williams",
-    initials: "EW",
-    avatarUrl: "/avatars/instructors/emma-williams.jpg",
-    location: "789 Pine Road, Eastside",
-    rating: 5.0,
-    reviewCount: 74,
-    lessonsCompleted: 510,
-    pricePerHour: 62,
-  },
-];
+export const mockInstructors: InstructorOption[] = [];
 
 export function getInstructorByName(name: string) {
   return (
-    mockInstructors.find((instructor) => instructor.name === name) ??
-    mockInstructors[0]
+    mockInstructors.find((instructor) => instructor.name === name) ?? {
+      id: "unknown",
+      name,
+      initials: name
+        .split(" ")
+        .map((part) => part[0] ?? "")
+        .join("")
+        .slice(0, 2)
+        .toUpperCase(),
+      avatarUrl: "",
+      location: "",
+      rating: 0,
+      reviewCount: 0,
+      lessonsCompleted: 0,
+      pricePerHour: 0,
+    }
   );
 }
 

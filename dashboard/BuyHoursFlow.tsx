@@ -3,31 +3,33 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ButtonSpinner } from "@/components/ButtonSpinner";
+import { useStudentCreditBalance } from "@/shared/hooks/useStudentCreditBalance";
 import {
   formatCurrency,
   formatLessonHoursLabel,
-  mockDashboardData,
   mockHourPackages,
 } from "./mock-data";
-import { useStudentCreditHours } from "./useStudentCreditHours";
 import { CardPaymentForm } from "./components/CardPaymentForm";
 import { FlowPageHeader } from "./components/FlowPageHeader";
 import { CalendarIcon } from "./components/icons";
 
-type BuyHoursFlowProps = Readonly<{
-  initialCreditHours?: number;
-}>;
-
 const BUTTON_LOADING_MS = 2000;
 
-export function BuyHoursFlow({
-  initialCreditHours = mockDashboardData.availableCreditHours,
-}: BuyHoursFlowProps) {
+export function BuyHoursFlow() {
   const router = useRouter();
-  const [currentCreditHours, setCurrentCreditHours] = useStudentCreditHours(
-    initialCreditHours,
+  const {
+    balanceMinutes,
+    loading: isBalanceLoading,
+    error: balanceError,
+    refetch: refetchCreditBalance,
+  } = useStudentCreditBalance();
+
+  const currentCreditHours =
+    balanceMinutes === null ? null : balanceMinutes / 60;
+
+  const [selectedPackageId, setSelectedPackageId] = useState<string | null>(
+    null,
   );
-  const [selectedPackageId, setSelectedPackageId] = useState<string | null>(null);
   const [showPayment, setShowPayment] = useState(false);
   const [isConfirmed, setIsConfirmed] = useState(false);
   const [isContinuingToPayment, setIsContinuingToPayment] = useState(false);
@@ -40,9 +42,9 @@ export function BuyHoursFlow({
     router.push("/dashboard");
   }
 
-  function handlePurchaseComplete() {
+  async function handlePurchaseComplete() {
     if (!selectedPackage) return;
-    setCurrentCreditHours((hours) => hours + selectedPackage.hours);
+    await refetchCreditBalance();
     setIsConfirmed(true);
   }
 
@@ -55,8 +57,8 @@ export function BuyHoursFlow({
           </div>
           <h1 className="mt-6 text-xl font-bold text-slate-900">Hours added</h1>
           <p className="mt-2 text-sm text-slate-500">
-            {formatLessonHoursLabel(selectedPackage.hours)} have been added to your
-            account.
+            {formatLessonHoursLabel(selectedPackage.hours)} have been added to
+            your account.
           </p>
           <div className="mt-6 w-full rounded-2xl bg-slate-50 p-4 text-left">
             <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
@@ -71,7 +73,9 @@ export function BuyHoursFlow({
             <p className="mt-3 text-sm text-slate-500">
               New balance:{" "}
               <span className="font-semibold text-slate-900">
-                {formatLessonHoursLabel(currentCreditHours + selectedPackage.hours)}
+                {currentCreditHours === null
+                  ? "Unavailable"
+                  : formatLessonHoursLabel(currentCreditHours)}
               </span>
             </p>
           </div>
@@ -101,7 +105,8 @@ export function BuyHoursFlow({
             </p>
             <p className="mt-1 text-sm text-slate-600">
               {formatCurrency(selectedPackage.pricePerHour)}/hour
-              {selectedPackage.savingsLabel && ` · ${selectedPackage.savingsLabel}`}
+              {selectedPackage.savingsLabel &&
+                ` · ${selectedPackage.savingsLabel}`}
             </p>
             <div className="mt-4 flex items-center justify-between border-t border-slate-200 pt-4 text-base font-bold text-slate-900">
               <span>Total due</span>
@@ -131,49 +136,79 @@ export function BuyHoursFlow({
           <div className="min-w-0 flex-1">
             <p className="text-sm text-slate-600">Current balance</p>
             <p className="text-base font-bold text-slate-900">
-              {formatLessonHoursLabel(currentCreditHours)}
+              {isBalanceLoading
+                ? "Loading..."
+                : currentCreditHours === null
+                  ? "Unavailable"
+                  : formatLessonHoursLabel(currentCreditHours)}
             </p>
           </div>
         </section>
 
-        <section className="space-y-3">
-          <h2 className="text-sm font-semibold text-slate-900">Choose a package</h2>
-          <div className="space-y-3">
-            {mockHourPackages.map((pkg) => {
-              const isSelected = selectedPackageId === pkg.id;
+        {balanceError && (
+          <div
+            role="alert"
+            className="rounded-xl bg-red-50 p-3 text-sm text-red-600"
+          >
+            <p>{balanceError}</p>
+            <button
+              type="button"
+              onClick={() => void refetchCreditBalance()}
+              className="mt-2 font-medium underline"
+            >
+              Try again
+            </button>
+          </div>
+        )}
 
-              return (
-                <button
-                  key={pkg.id}
-                  type="button"
-                  onClick={() => setSelectedPackageId(pkg.id)}
-                  className={`relative w-full rounded-2xl p-4 text-left transition ${
-                    isSelected
-                      ? "bg-blue-50 ring-2 ring-blue-600"
-                      : "bg-slate-50 hover:bg-slate-100"
-                  }`}
-                >
-                  {pkg.badge && (
-                    <span className="absolute right-4 top-4 rounded-full bg-blue-600 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
-                      {pkg.badge}
-                    </span>
-                  )}
-                  <p className="text-sm font-medium text-slate-600">{pkg.label}</p>
-                  <p className="mt-1 text-2xl font-bold text-slate-900">
-                    {formatCurrency(pkg.price)}
-                  </p>
-                  <p className="mt-1 text-sm text-slate-500">
-                    {formatCurrency(pkg.pricePerHour)}/hour
-                    {pkg.savingsLabel && (
-                      <span className="ml-1 font-medium text-green-600">
-                        · {pkg.savingsLabel}
+        <section className="space-y-3">
+          <h2 className="text-sm font-semibold text-slate-900">
+            Choose a package
+          </h2>
+          {mockHourPackages.length === 0 ? (
+            <p className="text-sm text-slate-500">
+              No hour packages are available right now.
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {mockHourPackages.map((pkg) => {
+                const isSelected = selectedPackageId === pkg.id;
+
+                return (
+                  <button
+                    key={pkg.id}
+                    type="button"
+                    onClick={() => setSelectedPackageId(pkg.id)}
+                    className={`relative w-full rounded-2xl p-4 text-left transition ${
+                      isSelected
+                        ? "bg-blue-50 ring-2 ring-blue-600"
+                        : "bg-slate-50 hover:bg-slate-100"
+                    }`}
+                  >
+                    {pkg.badge && (
+                      <span className="absolute right-4 top-4 rounded-full bg-blue-600 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
+                        {pkg.badge}
                       </span>
                     )}
-                  </p>
-                </button>
-              );
-            })}
-          </div>
+                    <p className="text-sm font-medium text-slate-600">
+                      {pkg.label}
+                    </p>
+                    <p className="mt-1 text-2xl font-bold text-slate-900">
+                      {formatCurrency(pkg.price)}
+                    </p>
+                    <p className="mt-1 text-sm text-slate-500">
+                      {formatCurrency(pkg.pricePerHour)}/hour
+                      {pkg.savingsLabel && (
+                        <span className="ml-1 font-medium text-green-600">
+                          · {pkg.savingsLabel}
+                        </span>
+                      )}
+                    </p>
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </section>
 
         {selectedPackage && (
