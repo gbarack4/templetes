@@ -22,6 +22,7 @@ import {
   RescheduleCalendar,
 } from "./components/RescheduleCalendar";
 import { ChevronRightIcon } from "./components/icons";
+import { getCurrentMonth } from "@/shared/utils/get-current-month";
 
 type RescheduleFlowProps = Readonly<{
   lesson: Lesson;
@@ -78,6 +79,7 @@ export function RescheduleFlow({ lesson }: RescheduleFlowProps) {
   const [selectedInstructorId, setSelectedInstructorId] = useState(
     defaultInstructor.id,
   );
+  const [calendarMonth, setCalendarMonth] = useState(getCurrentMonth);
   const [selectedDateId, setSelectedDateId] = useState<string | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [showTimePicker, setShowTimePicker] = useState(true);
@@ -227,12 +229,15 @@ export function RescheduleFlow({ lesson }: RescheduleFlowProps) {
               Pick a new date
             </h2>
             <RescheduleCalendar
+              month={calendarMonth}
               availableDates={mockRescheduleDates}
               selectedDateId={selectedDateId}
+              onMonthChange={(month) => {
+                setCalendarMonth(month);
+                setSelectedDateId(null);
+              }}
               onSelectDate={(dateId) => {
                 setSelectedDateId(dateId);
-                setSelectedTime(null);
-                setShowTimePicker(true);
               }}
             />
           </section>

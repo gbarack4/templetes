@@ -21,6 +21,7 @@ import {
 } from "@/onboarding/paths";
 
 import type { TemplateProps } from "./types";
+import { getCurrentMonth } from "@/shared/utils/get-current-month";
 
 function SearchIcon({ className }: Readonly<{ className?: string }>) {
   return (
@@ -90,6 +91,7 @@ export function ClassicTemplate({ data }: Readonly<TemplateProps>) {
   const [postcode, setPostcode] = useState("");
   const [transmission, setTransmission] = useState("Auto");
   const [preferredDateId, setPreferredDateId] = useState<string | null>(null);
+  const [calendarMonth, setCalendarMonth] = useState(getCurrentMonth);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
 
@@ -291,8 +293,13 @@ export function ClassicTemplate({ data }: Readonly<TemplateProps>) {
       {showDatePicker && (
         <CalendarPickerModal
           title="Choose date"
+          month={calendarMonth}
           availableDates={futureDates}
           selectedDateId={preferredDateId}
+          onMonthChange={(month) => {
+            setCalendarMonth(month);
+            setPreferredDateId(null);
+          }}
           onSelectDate={setPreferredDateId}
           onClose={() => setShowDatePicker(false)}
           showSlotLabels={false}

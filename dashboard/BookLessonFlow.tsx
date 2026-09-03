@@ -1,27 +1,30 @@
 "use client";
 
-import { useEffect, useRef, useState, type RefObject } from "react";
+import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
+import { useAuth } from "@clerk/nextjs";
+import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 
 import { ButtonSpinner } from "@/components/ButtonSpinner";
-import { useStudentCreditBalance } from "@/shared/hooks/useStudentCreditBalance";
+import { useSchoolId } from "@/dashboard/SchoolContext";
+import { createCreditBooking, CreditApiError } from "@/lib/credit-booking-api";
 import { useBookingInstructors } from "@/shared/hooks/useBookingInstructors";
+import { useCreditAvailability } from "@/shared/hooks/useCreditAvailability";
+import { useStudentCreditBalance } from "@/shared/hooks/useStudentCreditBalance";
+import type { CreateCreditBookingInput } from "@/types/credit-booking";
+import { getCurrentMonth } from "@/shared/utils/get-current-month";
 import type { InstructorOption } from "@/types/instructor";
 
-import {
-  formatLessonHoursLabel,
-  formatLessonTimeRange,
-  mockRescheduleDates,
-  mockRescheduleTimeSlots,
-} from "./mock-data";
 import { CalendarPickerModal } from "./components/CalendarPickerModal";
-import { getSelectedRescheduleDate } from "./components/RescheduleCalendar";
-import { TimePickerModal } from "./components/TimePickerModal";
 import {
   InstructorProfileSummary,
   InstructorSearch,
 } from "./components/InstructorSearch";
 import { CalendarIcon, ChevronRightIcon, CloseIcon } from "./components/icons";
+import { getSelectedRescheduleDate } from "./components/RescheduleCalendar";
+import { TimePickerModal } from "./components/TimePickerModal";
+import { formatLessonHoursLabel, formatLessonTimeRange } from "./mock-data";
+import { useStudent } from "@/shared/hooks/useStudent";
 
 type FlowStep = "instructor" | "date" | "time" | "summary";
 
@@ -52,6 +55,14 @@ function getStepRef(
 
 export function BookLessonFlow() {
   const router = useRouter();
+  const schoolId = useSchoolId();
+  const queryClient = useQueryClient();
+  const { getToken, userId } = useAuth();
+  const studentCreditBalanceQueryKey = [
+    "student-credit-balance",
+    schoolId,
+    userId,
+  ] as const;
 
   const [instructorSearchQuery, setInstructorSearchQuery] = useState("");
 
@@ -92,10 +103,16 @@ export function BookLessonFlow() {
     refetch: refetchCreditBalance,
   } = useStudentCreditBalance();
 
+  const { student } = useStudent();
+
+  const pickupSuburb = student?.addressSuburb?.trim() ?? "";
+  const pickupPostcode = student?.addressPostcode?.trim() || undefined;
+
   const availableCreditHours = (balanceMinutes ?? 0) / 60;
 
   const [selectedHours, setSelectedHours] = useState(1);
   const [showDurationPicker, setShowDurationPicker] = useState(false);
+  const [calendarMonth, setCalendarMonth] = useState(getCurrentMonth);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
 
@@ -103,9 +120,14 @@ export function BookLessonFlow() {
   const [selectedDateId, setSelectedDateId] = useState<string | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
 
-  const [isConfirmed] = useState(false);
-  const [isBooking] = useState(false);
+  const [isConfirmed, setIsConfirmed] = useState(false);
+  const [isBooking, setIsBooking] = useState(false);
   const [bookingError, setBookingError] = useState("");
+  const [pendingAttempt, setPendingAttempt] =
+    useState<CreateCreditBookingInput | null>(null);
+  const [confirmedBalanceMinutes, setConfirmedBalanceMinutes] = useState<
+    number | null
+  >(null);
 
   const instructorStepRef = useRef<HTMLElement>(null);
   const dateStepRef = useRef<HTMLElement>(null);
@@ -114,14 +136,10 @@ export function BookLessonFlow() {
 
   const skipInitialScroll = useRef(true);
   const previousFlowStep = useRef<FlowStep | null>(null);
+  const submissionLock = useRef(false);
 
   const [selectedInstructor, setSelectedInstructor] =
     useState<InstructorOption | null>(null);
-
-  const selectedDate = getSelectedRescheduleDate(
-    mockRescheduleDates,
-    selectedDateId,
-  );
 
   const maxDurationMinutes = Math.min(
     balanceMinutes ?? 0,
@@ -151,13 +169,93 @@ export function BookLessonFlow() {
     availableCreditHours - selectedHours,
   );
 
+  const availabilitySearch =
+    selectedInstructor && hasEnoughCredit
+      ? {
+          instructorId: selectedInstructor.id,
+          month: calendarMonth,
+          durationMinutes: selectedDurationMinutes,
+        }
+      : null;
+
+  const {
+    availability,
+    loading: isAvailabilityLoading,
+    error: availabilityError,
+    refetch: refetchAvailability,
+  } = useCreditAvailability(availabilitySearch);
+
+  const availableDates = useMemo(
+    () =>
+      availability.map((day) => {
+        const [year, month, date] = day.date.split("-").map(Number);
+        const monthIndex = month - 1;
+        const calendarDate = new Date(year, monthIndex, date);
+
+        return {
+          id: `date-${year}-${monthIndex}-${date}`,
+          year,
+          monthIndex,
+          month: calendarDate
+            .toLocaleDateString("en-US", { month: "short" })
+            .toUpperCase(),
+          day: date,
+          weekday: calendarDate
+            .toLocaleDateString("en-US", { weekday: "short" })
+            .toUpperCase(),
+          label: calendarDate.toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+            weekday: "long",
+          }),
+          slotCount: day.slotCount,
+          availability: "open" as const,
+        };
+      }),
+    [availability],
+  );
+
+  const selectedDate = getSelectedRescheduleDate(
+    availableDates,
+    selectedDateId,
+  );
+
+  const selectedDateIso = selectedDate
+    ? `${selectedDate.year}-${String(selectedDate.monthIndex + 1).padStart(
+        2,
+        "0",
+      )}-${String(selectedDate.day).padStart(2, "0")}`
+    : null;
+
+  const selectedAvailabilityDay = selectedDateIso
+    ? (availability.find((day) => day.date === selectedDateIso) ?? null)
+    : null;
+
+  const availableTimeSlots =
+    selectedAvailabilityDay?.slots.map((slot) => slot.startTime) ?? [];
+
+  const selectedSlot =
+    selectedAvailabilityDay?.slots.find(
+      (slot) => slot.startTime === selectedTime,
+    ) ?? null;
+
   const canBook = Boolean(
     selectedInstructor &&
     selectedDate &&
-    selectedTime &&
+    selectedSlot &&
     !showInstructorSearch &&
     hasEnoughCredit,
   );
+
+  const selectionLocked = isBooking || pendingAttempt !== null;
+  const canSubmit = pendingAttempt !== null || canBook;
+
+  const confirmedRemainingCreditHours =
+    confirmedBalanceMinutes === null ? null : confirmedBalanceMinutes / 60;
+
+  const bookingButtonLabel = pendingAttempt
+    ? "Retry confirmation"
+    : "Book with credit";
 
   let flowStep: FlowStep = "instructor";
 
@@ -165,7 +263,7 @@ export function BookLessonFlow() {
     flowStep = "date";
 
     if (selectedDate) {
-      flowStep = selectedTime ? "summary" : "time";
+      flowStep = selectedSlot ? "summary" : "time";
     }
   }
 
@@ -195,6 +293,10 @@ export function BookLessonFlow() {
   }, [flowStep]);
 
   function handleInstructorSelect(instructorId: string) {
+    if (selectionLocked) {
+      return;
+    }
+
     const instructor = instructors.find((item) => item.id === instructorId);
 
     if (!instructor) {
@@ -204,6 +306,7 @@ export function BookLessonFlow() {
     setSelectedInstructor(instructor);
     setInstructorSearchQuery("");
     setShowInstructorSearch(false);
+    setCalendarMonth(getCurrentMonth());
     setSelectedDateId(null);
     setSelectedTime(null);
     setShowDatePicker(true);
@@ -211,34 +314,137 @@ export function BookLessonFlow() {
   }
 
   function handleHoursChange(hours: number) {
-    if (!durationOptions.includes(hours)) {
+    if (selectionLocked || !durationOptions.includes(hours)) {
       return;
     }
 
     setSelectedHours(hours);
+    setSelectedDateId(null);
     setSelectedTime(null);
     setShowDurationPicker(false);
     setBookingError("");
 
-    if (!selectedInstructor) {
-      requestAnimationFrame(() => {
-        scrollStepIntoView(instructorStepRef.current);
-      });
+    if (selectedInstructor) {
+      setCalendarMonth(getCurrentMonth());
+      setShowDatePicker(true);
+      return;
     }
+
+    requestAnimationFrame(() => {
+      scrollStepIntoView(instructorStepRef.current);
+    });
   }
 
   function handleTimeChange(time: string) {
+    if (selectionLocked) {
+      return;
+    }
+
     setSelectedTime(time);
     setShowTimePicker(false);
     setBookingError("");
   }
 
-  function handleConfirm() {
-    if (!canBook) {
+  async function handleConfirm() {
+    if (submissionLock.current || isConfirmed) {
       return;
     }
 
-    setBookingError("Booking submission is not connected yet.");
+    let input: CreateCreditBookingInput | null = pendingAttempt;
+
+    if (!input) {
+      if (!canBook || !selectedInstructor || !selectedSlot || !pickupSuburb) {
+        if (!pickupSuburb) {
+          setBookingError(
+            "Your pickup suburb is unavailable. Please update your address.",
+          );
+        }
+
+        return;
+      }
+
+      if (Date.parse(selectedSlot.startDatetime) <= Date.now()) {
+        setSelectedTime(null);
+        setBookingError(
+          "This time has already passed. Please choose another slot.",
+        );
+        void refetchAvailability();
+        return;
+      }
+
+      input = {
+        instructorId: selectedInstructor.id,
+        startDatetime: selectedSlot.startDatetime,
+        durationMinutes: selectedDurationMinutes,
+        pickupSuburb,
+        pickupPostcode,
+        idempotencyKey: crypto.randomUUID(),
+      };
+    }
+
+    submissionLock.current = true;
+    setIsBooking(true);
+    setBookingError("");
+    setPendingAttempt(input);
+
+    try {
+      const token = await getToken();
+
+      if (!token) {
+        throw new CreditApiError(
+          "Your session expired. Please sign in again.",
+          401,
+        );
+      }
+
+      await queryClient.cancelQueries({
+        queryKey: studentCreditBalanceQueryKey,
+      });
+
+      const result = await createCreditBooking(schoolId, token, input);
+
+      setConfirmedBalanceMinutes(result.balanceMinutes);
+      setIsConfirmed(true);
+      setPendingAttempt(null);
+
+      await queryClient.cancelQueries({
+        queryKey: studentCreditBalanceQueryKey,
+      });
+
+      queryClient.setQueryData(studentCreditBalanceQueryKey, {
+        balanceMinutes: result.balanceMinutes,
+      });
+
+      void queryClient.invalidateQueries({
+        queryKey: ["credit-availability", schoolId, userId],
+        refetchType: "none",
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Unable to book the lesson.";
+
+      const rejected =
+        error instanceof CreditApiError &&
+        error.status >= 400 &&
+        error.status < 500 &&
+        error.status !== 408 &&
+        error.status !== 429;
+
+      if (rejected) {
+        setPendingAttempt(null);
+        setSelectedTime(null);
+        setBookingError(message);
+        void refetchCreditBalance();
+        void refetchAvailability();
+      } else {
+        setBookingError(
+          `${message} The booking status is not yet known. Retry confirmation to check the same booking.`,
+        );
+      }
+    } finally {
+      submissionLock.current = false;
+      setIsBooking(false);
+    }
   }
 
   function goToDashboard() {
@@ -291,9 +497,9 @@ export function BookLessonFlow() {
                 <span className="text-slate-500">Remaining credit</span>
 
                 <span className="font-medium text-slate-900">
-                  {balanceMinutes === null
+                  {confirmedRemainingCreditHours === null
                     ? "Unavailable"
-                    : formatLessonHoursLabel(remainingCreditHours)}
+                    : formatLessonHoursLabel(confirmedRemainingCreditHours)}
                 </span>
               </div>
             </div>
@@ -345,7 +551,7 @@ export function BookLessonFlow() {
                 ? "Loading..."
                 : balanceMinutes === null
                   ? "Unavailable"
-                  : `${Number((availableCreditHours).toFixed(2))} Hours`}
+                  : `${Number(availableCreditHours.toFixed(2))} Hours`}
             </p>
             <p className="text-sm text-slate-600">available credit</p>
           </div>
@@ -383,7 +589,7 @@ export function BookLessonFlow() {
 
           <button
             type="button"
-            disabled={durationOptions.length === 0}
+            disabled={durationOptions.length === 0 || selectionLocked}
             onClick={() => {
               if (durationOptions.length === 0) {
                 return;
@@ -453,11 +659,16 @@ export function BookLessonFlow() {
 
               <button
                 type="button"
+                disabled={selectionLocked}
                 onClick={() => {
+                  if (selectionLocked) {
+                    return;
+                  }
+
                   setInstructorSearchQuery("");
                   setShowInstructorSearch(true);
                 }}
-                className="mt-3 text-sm font-medium text-blue-600 hover:text-blue-700"
+                className="mt-3 text-sm font-medium text-blue-600 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Change instructor
               </button>
@@ -512,9 +723,27 @@ export function BookLessonFlow() {
         {selectedInstructor && !showInstructorSearch && showDatePicker && (
           <CalendarPickerModal
             title={selectedDate ? "Change date" : "Pick a date"}
-            availableDates={mockRescheduleDates}
+            month={calendarMonth}
+            availableDates={availableDates}
             selectedDateId={selectedDateId}
+            loading={isAvailabilityLoading}
+            error={availabilityError}
+            onRetry={() => void refetchAvailability()}
+            onMonthChange={(month) => {
+              if (selectionLocked) {
+                return;
+              }
+
+              setCalendarMonth(month);
+              setSelectedDateId(null);
+              setSelectedTime(null);
+              setBookingError("");
+            }}
             onSelectDate={(dateId) => {
+              if (selectionLocked) {
+                return;
+              }
+
               setSelectedDateId(dateId);
               setShowDatePicker(false);
               setSelectedTime(null);
@@ -551,59 +780,70 @@ export function BookLessonFlow() {
           selectedDate &&
           !showInstructorSearch &&
           !showDatePicker && (
-          <section ref={timeStepRef} className="space-y-3">
-            <div className="rounded-2xl bg-[#f9f9f9] p-4">
-              <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
-                Selected date
-              </p>
+            <section ref={timeStepRef} className="space-y-3">
+              <div className="rounded-2xl bg-[#f9f9f9] p-4">
+                <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
+                  Selected date
+                </p>
 
-              <p className="mt-2 font-semibold text-slate-900">
-                {selectedDate.month} {selectedDate.day} · {selectedDate.weekday}
-              </p>
+                <p className="mt-2 font-semibold text-slate-900">
+                  {selectedDate.month} {selectedDate.day} ·{" "}
+                  {selectedDate.weekday}
+                </p>
 
-              <p className="mt-0.5 text-sm text-slate-500">
-                {selectedDate.label}
-              </p>
+                <p className="mt-0.5 text-sm text-slate-500">
+                  {selectedDate.label}
+                </p>
+
+                <button
+                  type="button"
+                  disabled={selectionLocked}
+                  onClick={() => {
+                    if (!selectionLocked) {
+                      setShowDatePicker(true);
+                    }
+                  }}
+                  className="mt-3 text-sm font-medium text-blue-600 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Change date
+                </button>
+              </div>
+
+              <h2 className="text-sm font-semibold text-slate-900">
+                Pick a time
+              </h2>
 
               <button
                 type="button"
-                onClick={() => setShowDatePicker(true)}
-                className="mt-3 text-sm font-medium text-blue-600 hover:text-blue-700"
+                disabled={selectionLocked || availableTimeSlots.length === 0}
+                onClick={() => {
+                  if (!selectionLocked && availableTimeSlots.length > 0) {
+                    setShowTimePicker(true);
+                  }
+                }}
+                className="flex w-full items-center justify-between rounded-xl bg-[#f9f9f9] px-4 py-3 text-left transition hover:bg-[#f0f0f0] disabled:cursor-not-allowed disabled:opacity-50"
               >
-                Change date
+                <span
+                  className={`text-sm font-medium ${
+                    selectedTime ? "text-slate-900" : "text-slate-400"
+                  }`}
+                >
+                  {selectedTime ?? "Select time"}
+                </span>
+
+                <ChevronRightIcon className="h-4 w-4 shrink-0 text-slate-400" />
               </button>
-            </div>
 
-            <h2 className="text-sm font-semibold text-slate-900">
-              Pick a time
-            </h2>
-
-            <button
-              type="button"
-              onClick={() => setShowTimePicker(true)}
-              className="flex w-full items-center justify-between rounded-xl bg-[#f9f9f9] px-4 py-3 text-left transition hover:bg-[#f0f0f0]"
-            >
-              <span
-                className={`text-sm font-medium ${
-                  selectedTime ? "text-slate-900" : "text-slate-400"
-                }`}
-              >
-                {selectedTime ?? "Select time"}
-              </span>
-
-              <ChevronRightIcon className="h-4 w-4 shrink-0 text-slate-400" />
-            </button>
-
-            {showTimePicker && (
-              <TimePickerModal
-                timeSlots={mockRescheduleTimeSlots}
-                selectedTime={selectedTime}
-                onSelectTime={handleTimeChange}
-                onClose={() => setShowTimePicker(false)}
-              />
-            )}
-          </section>
-        )}
+              {showTimePicker && (
+                <TimePickerModal
+                  timeSlots={availableTimeSlots}
+                  selectedTime={selectedTime}
+                  onSelectTime={handleTimeChange}
+                  onClose={() => setShowTimePicker(false)}
+                />
+              )}
+            </section>
+          )}
 
         {selectedInstructor &&
           selectedDate &&
@@ -675,11 +915,11 @@ export function BookLessonFlow() {
               <button
                 type="button"
                 aria-busy={isBooking}
-                disabled={!canBook || isBooking}
-                onClick={handleConfirm}
+                disabled={!canSubmit || isBooking}
+                onClick={() => void handleConfirm()}
                 className="inline-flex h-11 w-full items-center justify-center rounded-lg bg-blue-600 text-sm font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
               >
-                {isBooking ? <ButtonSpinner inverse /> : "Book with credit"}
+                {isBooking ? <ButtonSpinner inverse /> : bookingButtonLabel}
               </button>
 
               {!hasEnoughCredit && (

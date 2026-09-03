@@ -13,6 +13,7 @@ import { submitFormEmbedSearch } from "./form-embed-search";
 import { mockModernTransmissionOptions } from "./resolve-modern-site";
 import type { TemplateProps } from "./types";
 import { GoogleAddressAutocomplete } from "@/components/GoogleAddressAutocomplete";
+import { getCurrentMonth } from "@/shared/utils/get-current-month";
 
 function ChevronDownIcon({ className }: Readonly<{ className?: string }>) {
   return (
@@ -61,6 +62,7 @@ export function FormEmbedTemplate({ data }: Readonly<TemplateProps>) {
     transmissionOptions[0] ?? "Auto",
   );
   const [testDateId, setTestDateId] = useState<string | null>(null);
+  const [calendarMonth, setCalendarMonth] = useState(getCurrentMonth);
   const [showTestDatePicker, setShowTestDatePicker] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -213,8 +215,13 @@ export function FormEmbedTemplate({ data }: Readonly<TemplateProps>) {
       {showTestDatePicker && (
         <CalendarPickerModal
           title="Choose date"
+          month={calendarMonth}
           availableDates={futureDates}
           selectedDateId={testDateId}
+          onMonthChange={(month) => {
+            setCalendarMonth(month);
+            setTestDateId(null);
+          }}
           onSelectDate={setTestDateId}
           onClose={() => setShowTestDatePicker(false)}
         />

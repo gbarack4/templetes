@@ -17,6 +17,7 @@ import {
 import { useSchool } from "@/dashboard/SchoolContext";
 import { GoogleAddressAutocomplete } from "@/components/GoogleAddressAutocomplete";
 import type { TemplateProps } from "./types";
+import { getCurrentMonth } from "@/shared/utils/get-current-month";
 
 type IconProps = Readonly<{ className?: string; style?: React.CSSProperties }>;
 
@@ -248,6 +249,7 @@ export function ModernTemplate({ data }: Readonly<TemplateProps>) {
     site.transmissionOptions[0] ?? "Auto",
   );
   const [lessonDateId, setLessonDateId] = useState<string | null>(null);
+  const [calendarMonth, setCalendarMonth] = useState(getCurrentMonth);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [lessonDuration, setLessonDuration] = useState(
     site.lessonDurations[0] ?? "1 Hour",
@@ -544,9 +546,18 @@ export function ModernTemplate({ data }: Readonly<TemplateProps>) {
       {showDatePicker && (
         <CalendarPickerModal
           title="Pick a date"
+          month={calendarMonth}
           availableDates={availableDates}
           selectedDateId={lessonDateId}
-          onSelectDate={setLessonDateId}
+          onMonthChange={(month) => {
+            setCalendarMonth(month);
+            setLessonDateId(null);
+            setSelectedTime(null);
+          }}
+          onSelectDate={(dateId) => {
+            setLessonDateId(dateId);
+            setSelectedTime(null);
+          }}
           onClose={() => setShowDatePicker(false)}
         />
       )}

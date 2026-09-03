@@ -45,6 +45,7 @@ import {
 import { calculateOnboardingLessonPayment } from "./book-lesson-payment";
 import { BookingSignUp } from "./BookingSignUp";
 import type { PublicInstructor } from "./suggested-instructors";
+import { getCurrentMonth } from "@/shared/utils/get-current-month";
 
 type BookInstructorFlowProps = Readonly<{
   instructor: PublicInstructor;
@@ -138,6 +139,14 @@ export function BookInstructorFlow({
 
   const [selectedDateId, setSelectedDateId] = useState<string | null>(
     preselectedDate?.id ?? null,
+  );
+
+  const [calendarMonth, setCalendarMonth] = useState(() =>
+    preselectedDate
+      ? `${preselectedDate.year}-${String(
+          preselectedDate.monthIndex + 1,
+        ).padStart(2, "0")}`
+      : getCurrentMonth(),
   );
 
   const [showDatePicker, setShowDatePicker] = useState(!preselectedDate);
@@ -876,8 +885,17 @@ export function BookInstructorFlow({
         {showScheduleStep && showDatePicker && (
           <CalendarPickerModal
             title={selectedDate ? "Change date" : "Pick a date"}
+            month={calendarMonth}
             availableDates={availableDates}
             selectedDateId={selectedDateId}
+            onMonthChange={(month) => {
+              setCalendarMonth(month);
+              setSelectedDateId(null);
+              setSelectedTime(null);
+              setShowSignUp(false);
+              setShowSummary(false);
+              setHasRegistered(false);
+            }}
             onSelectDate={(dateId) => {
               setSelectedDateId(dateId);
               setShowDatePicker(false);

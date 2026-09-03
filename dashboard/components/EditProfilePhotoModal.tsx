@@ -88,6 +88,7 @@ export function EditProfilePhotoModal({
         className="absolute inset-0 bg-slate-900/40"
       />
       <dialog
+      open
         aria-modal="true"
         aria-labelledby="edit-photo-title"
         className="absolute inset-x-0 bottom-0 z-10 mx-auto flex h-[85dvh] w-full max-w-md flex-col rounded-t-2xl bg-white pb-[env(safe-area-inset-bottom,0px)] shadow-xl"

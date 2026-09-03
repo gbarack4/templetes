@@ -53,6 +53,7 @@ export function InstructorReviewsModal({
         className="absolute inset-0 bg-slate-900/40"
       />
       <dialog
+        open
         aria-modal="true"
         aria-labelledby="reviews-modal-title"
         className="relative z-10 flex h-[85vh] max-h-[85vh] w-full max-w-md flex-col rounded-t-2xl bg-white shadow-xl"

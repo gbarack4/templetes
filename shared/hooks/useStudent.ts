@@ -19,6 +19,8 @@ export interface StudentData {
   email: string | null;
   phone: string | null;
   avatarUrl: string | null;
+  addressSuburb: string | null;
+  addressPostcode: string | null;
   user: {
     id: string;
     firstName: string | null;

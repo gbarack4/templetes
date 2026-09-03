@@ -1,15 +1,22 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
+
+import { getCurrentMonth } from "@/shared/utils/get-current-month";
+
 import type { RescheduleDateOption } from "../mock-data";
 import { ChevronLeftIcon } from "./icons";
 
 type RescheduleCalendarProps = Readonly<{
+  month: string;
   availableDates: RescheduleDateOption[];
   selectedDateId: string | null;
+  onMonthChange: (month: string) => void;
   onSelectDate: (dateId: string) => void;
   showSlotLabels?: boolean;
 }>;
+
+type DayStatus = "open" | "full" | "unavailable";
 
 const WEEKDAY_LABELS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 
@@ -28,51 +35,60 @@ function ChevronRightIcon({ className }: Readonly<{ className?: string }>) {
   );
 }
 
-type DayStatus = "open" | "full" | "unavailable";
+function parseMonth(value: string): { year: number; monthIndex: number } {
+  const match = /^(\d{4})-(0[1-9]|1[0-2])$/.exec(value);
+
+  if (!match) {
+    const now = new Date();
+    return { year: now.getFullYear(), monthIndex: now.getMonth() };
+  }
+
+  return {
+    year: Number(match[1]),
+    monthIndex: Number(match[2]) - 1,
+  };
+}
+
+function formatMonth(year: number, monthIndex: number): string {
+  return `${year}-${String(monthIndex + 1).padStart(2, "0")}`;
+}
+
+function moveMonth(month: string, offset: number): string {
+  const { year, monthIndex } = parseMonth(month);
+  const next = new Date(year, monthIndex + offset, 1);
+
+  return formatMonth(next.getFullYear(), next.getMonth());
+}
+
+function compareMonths(left: string, right: string): number {
+  const leftMonth = parseMonth(left);
+  const rightMonth = parseMonth(right);
+
+  const leftValue = leftMonth.year * 12 + leftMonth.monthIndex;
+  const rightValue = rightMonth.year * 12 + rightMonth.monthIndex;
+
+  return leftValue - rightValue;
+}
 
 export function RescheduleCalendar({
+  month,
   availableDates,
   selectedDateId,
+  onMonthChange,
   onSelectDate,
   showSlotLabels = true,
 }: RescheduleCalendarProps) {
+  const { year: viewYear, monthIndex: viewMonth } = parseMonth(month);
+
   const datesByDay = useMemo(() => {
     const map = new Map<string, RescheduleDateOption>();
+
     for (const date of availableDates) {
       map.set(`${date.year}-${date.monthIndex}-${date.day}`, date);
     }
+
     return map;
   }, [availableDates]);
-
-  const monthRange = useMemo(() => {
-    if (availableDates.length === 0) {
-      const now = new Date();
-      return {
-        minMonth: now.getMonth(),
-        minYear: now.getFullYear(),
-        maxMonth: now.getMonth(),
-        maxYear: now.getFullYear(),
-      };
-    }
-
-    const sorted = [...availableDates].sort((a, b) => {
-      if (a.year !== b.year) return a.year - b.year;
-      return a.monthIndex - b.monthIndex;
-    });
-
-    const first = sorted[0];
-    const last = sorted[sorted.length - 1];
-
-    return {
-      minMonth: first.monthIndex,
-      minYear: first.year,
-      maxMonth: last.monthIndex,
-      maxYear: last.year,
-    };
-  }, [availableDates]);
-
-  const [viewYear, setViewYear] = useState(monthRange.minYear);
-  const [viewMonth, setViewMonth] = useState(monthRange.minMonth);
 
   const monthLabel = new Date(viewYear, viewMonth, 1).toLocaleDateString(
     "en-US",
@@ -87,7 +103,7 @@ export function RescheduleCalendar({
     const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
     const cells: Array<{ day: number | null }> = [];
 
-    for (let i = 0; i < firstDay; i += 1) {
+    for (let index = 0; index < firstDay; index += 1) {
       cells.push({ day: null });
     }
 
@@ -102,43 +118,22 @@ export function RescheduleCalendar({
     return cells;
   }, [viewMonth, viewYear]);
 
-  const canGoPrevious =
-    viewYear > monthRange.minYear ||
-    (viewYear === monthRange.minYear && viewMonth > monthRange.minMonth);
-
-  const canGoNext =
-    viewYear < monthRange.maxYear ||
-    (viewYear === monthRange.maxYear && viewMonth < monthRange.maxMonth);
-
-  function goToPreviousMonth() {
-    if (!canGoPrevious) return;
-    if (viewMonth === 0) {
-      setViewMonth(11);
-      setViewYear((year) => year - 1);
-      return;
-    }
-    setViewMonth((month) => month - 1);
-  }
-
-  function goToNextMonth() {
-    if (!canGoNext) return;
-    if (viewMonth === 11) {
-      setViewMonth(0);
-      setViewYear((year) => year + 1);
-      return;
-    }
-    setViewMonth((month) => month + 1);
-  }
+  const canGoPrevious = compareMonths(month, getCurrentMonth()) > 0;
 
   function getDayStatus(day: number): {
     status: DayStatus;
     date: RescheduleDateOption | null;
   } {
     const date = datesByDay.get(`${viewYear}-${viewMonth}-${day}`) ?? null;
-    if (!date) return { status: "unavailable", date: null };
+
+    if (!date) {
+      return { status: "unavailable", date: null };
+    }
+
     if (date.availability === "full" || date.slotCount <= 0) {
       return { status: "full", date };
     }
+
     return { status: "open", date };
   }
 
@@ -148,19 +143,20 @@ export function RescheduleCalendar({
         <button
           type="button"
           aria-label="Previous month"
-          onClick={goToPreviousMonth}
+          onClick={() => onMonthChange(moveMonth(month, -1))}
           disabled={!canGoPrevious}
           className="rounded-lg p-1.5 text-slate-400 transition hover:bg-[#f9f9f9] hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-30"
         >
           <ChevronLeftIcon className="h-5 w-5" />
         </button>
+
         <p className="text-base font-semibold text-slate-900">{monthLabel}</p>
+
         <button
           type="button"
           aria-label="Next month"
-          onClick={goToNextMonth}
-          disabled={!canGoNext}
-          className="rounded-lg p-1.5 text-slate-400 transition hover:bg-[#f9f9f9] hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-30"
+          onClick={() => onMonthChange(moveMonth(month, 1))}
+          className="rounded-lg p-1.5 text-slate-400 transition hover:bg-[#f9f9f9] hover:text-slate-700"
         >
           <ChevronRightIcon className="h-5 w-5" />
         </button>
@@ -178,7 +174,7 @@ export function RescheduleCalendar({
 
         {calendarDays.map((cell, index) => {
           if (cell.day === null) {
-            return <div key={`empty-${index}`} className="min-h-[3.25rem]" />;
+            return <div key={`empty-${index}`} className="min-h-13" />;
           }
 
           const dateKey = `${viewYear}-${viewMonth}-${cell.day}`;
@@ -192,7 +188,7 @@ export function RescheduleCalendar({
               type="button"
               disabled={!isOpen}
               onClick={() => date && isOpen && onSelectDate(date.id)}
-              className={`flex min-h-[3.25rem] flex-col items-center justify-center gap-0.5 rounded-2xl px-0.5 py-1.5 transition ${
+              className={`flex min-h-13 flex-col items-center justify-center gap-0.5 rounded-2xl px-0.5 py-1.5 transition ${
                 isOpen
                   ? isSelected
                     ? "bg-slate-900 text-white"
@@ -211,6 +207,7 @@ export function RescheduleCalendar({
               >
                 {cell.day}
               </span>
+
               {showSlotLabels ? (
                 <span
                   className={`max-w-full truncate leading-none ${
@@ -244,8 +241,14 @@ export function getSelectedRescheduleDate(
 ) {
   const selected =
     availableDates.find((date) => date.id === selectedDateId) ?? null;
-  if (!selected || selected.availability === "full" || selected.slotCount <= 0) {
+
+  if (
+    !selected ||
+    selected.availability === "full" ||
+    selected.slotCount <= 0
+  ) {
     return null;
   }
+
   return selected;
 }
