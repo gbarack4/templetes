@@ -2,11 +2,13 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+
 import { ButtonSpinner } from "@/components/ButtonSpinner";
-import { getInstructorByName } from "../mock-data";
-import type { Lesson } from "../types";
-import { InstructorReviewModal } from "./InstructorReviewModal";
+import type { InstructorOption } from "@/types/instructor";
+
+import type { Lesson, LessonInstructor } from "../types";
 import { InstructorProfileSummary } from "./InstructorSearch";
+import { InstructorReviewModal } from "./InstructorReviewModal";
 import { MoreVerticalIcon } from "./icons";
 
 type LessonCardProps = Readonly<{
@@ -29,7 +31,10 @@ const BUTTON_LOADING_MS = 2000;
 
 const statusBadges: Record<
   Lesson["status"],
-  { label: (hours: number) => string; className: string }
+  {
+    label: (hours: number) => string;
+    className: string;
+  }
 > = {
   upcoming: {
     label: (hours) => `${hours} Hours`,
@@ -45,11 +50,60 @@ const statusBadges: Record<
   },
 };
 
-function DateBlock({ month, day, weekday }: Pick<Lesson, "month" | "day" | "weekday">) {
+function getInitials(name: string): string {
+  return name
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((part) => part[0] ?? "")
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+}
+
+function isLessonInstructor(
+  instructor: Lesson["instructor"],
+): instructor is LessonInstructor {
+  return typeof instructor !== "string";
+}
+
+function getInstructorOption(lesson: Lesson): InstructorOption {
+  if (isLessonInstructor(lesson.instructor)) {
+    return {
+      id: lesson.instructor.id,
+      name: lesson.instructor.name,
+      initials: getInitials(lesson.instructor.name),
+      avatarUrl: lesson.instructor.avatarUrl ?? "",
+      location: lesson.location,
+      pricePerHour: lesson.instructor.pricePerHour,
+    };
+  }
+
+  return {
+    id: "",
+    name: lesson.instructor,
+    initials: getInitials(lesson.instructor),
+    avatarUrl: "",
+    location: lesson.location,
+    pricePerHour: null,
+  };
+}
+
+function DateBlock({
+  month,
+  day,
+  weekday,
+}: Readonly<Pick<Lesson, "month" | "day" | "weekday">>) {
   return (
     <div className="flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-lg bg-white">
-      <span className="text-[10px] font-semibold tracking-wide text-blue-600">{month}</span>
-      <span className="text-xl font-bold leading-none text-slate-900">{day}</span>
+      <span className="text-[10px] font-semibold tracking-wide text-blue-600">
+        {month}
+      </span>
+
+      <span className="text-xl font-bold leading-none text-slate-900">
+        {day}
+      </span>
+
       <span className="text-[10px] font-medium text-[#4b5563]">{weekday}</span>
     </div>
   );
@@ -61,13 +115,17 @@ export function LessonCard({
   onReviewSubmit,
 }: LessonCardProps) {
   const router = useRouter();
+
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [isRescheduling, setIsRescheduling] = useState(false);
   const [isOpeningReview, setIsOpeningReview] = useState(false);
+
   const badge = statusBadges[lesson.status];
   const isUpcoming = lesson.status === "upcoming";
   const isCompleted = lesson.status === "completed";
-  const instructor = getInstructorByName(lesson.instructor);
+
+  const instructor = getInstructorOption(lesson);
+
   const lessonLabel = `${lesson.month} ${lesson.day} · ${lesson.weekday} · ${lesson.timeRange}`;
 
   function handleReviewSubmit(rating: number, comment: string) {
@@ -75,8 +133,12 @@ export function LessonCard({
   }
 
   function handleReschedule() {
-    if (isRescheduling) return;
+    if (isRescheduling) {
+      return;
+    }
+
     setIsRescheduling(true);
+
     window.setTimeout(() => {
       router.push(`/dashboard/reschedule/${lesson.id}`);
     }, BUTTON_LOADING_MS);
@@ -87,8 +149,12 @@ export function LessonCard({
   }
 
   function handleOpenReview() {
-    if (isReviewed || isOpeningReview) return;
+    if (isReviewed || isOpeningReview) {
+      return;
+    }
+
     setIsOpeningReview(true);
+
     window.setTimeout(() => {
       setShowReviewModal(true);
       setIsOpeningReview(false);
@@ -96,6 +162,10 @@ export function LessonCard({
   }
 
   function handleCardClick() {
+    if (!instructor.id) {
+      return;
+    }
+
     router.push(`/dashboard/instructor/${instructor.id}`);
   }
 
@@ -113,21 +183,35 @@ export function LessonCard({
       className="relative cursor-pointer rounded-2xl bg-[#f9f9f9] p-3 transition hover:bg-[#f0f0f0]"
     >
       <div className="flex gap-3">
-        <DateBlock month={lesson.month} day={lesson.day} weekday={lesson.weekday} />
-        <div className={`flex min-w-0 flex-1 flex-col justify-between gap-2 ${isUpcoming ? "pr-5" : ""}`}>
+        <DateBlock
+          month={lesson.month}
+          day={lesson.day}
+          weekday={lesson.weekday}
+        />
+
+        <div
+          className={`flex min-w-0 flex-1 flex-col justify-between gap-2 ${
+            isUpcoming ? "pr-5" : ""
+          }`}
+        >
           <div>
             <div className="flex items-start justify-between gap-2">
-              <p className="text-sm font-semibold text-slate-900">{lesson.timeRange}</p>
+              <p className="text-sm font-semibold text-slate-900">
+                {lesson.timeRange}
+              </p>
+
               <span
                 className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${badge.className}`}
               >
                 {badge.label(lesson.hours)}
               </span>
             </div>
+
             <div className="mt-1.5">
               <InstructorProfileSummary instructor={instructor} compact />
             </div>
           </div>
+
           {isCompleted && (
             <button
               type="button"
@@ -137,7 +221,7 @@ export function LessonCard({
                 event.stopPropagation();
                 handleOpenReview();
               }}
-              className={`inline-flex h-7 min-w-[7.25rem] items-center justify-center self-end rounded-lg px-3 text-xs font-medium transition ${
+              className={`inline-flex h-7 min-w-29 items-center justify-center self-end rounded-lg px-3 text-xs font-medium transition ${
                 isReviewed
                   ? "cursor-default border border-green-200 bg-green-50 text-green-700"
                   : isOpeningReview
@@ -154,6 +238,7 @@ export function LessonCard({
               )}
             </button>
           )}
+
           {isUpcoming && (
             <button
               type="button"
@@ -162,7 +247,7 @@ export function LessonCard({
                 event.stopPropagation();
                 handleReschedule();
               }}
-              className={`inline-flex h-7 min-w-[6.5rem] items-center justify-center self-end rounded-lg px-3 text-xs font-medium transition ${
+              className={`inline-flex h-7 min-w-26 items-center justify-center self-end rounded-lg px-3 text-xs font-medium transition ${
                 isRescheduling
                   ? `${actionButtonStyles.upcoming} pointer-events-none`
                   : actionButtonStyles.upcoming

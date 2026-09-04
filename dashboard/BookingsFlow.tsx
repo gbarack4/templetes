@@ -1,11 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import type { Lesson } from "./types";
-import { mockDashboardData } from "./mock-data";
-import { LessonCard } from "./components/LessonCard";
+
+import { useStudentBookings } from "@/shared/hooks/useStudentBookings";
+
 import { FlowPageHeader } from "./components/FlowPageHeader";
+import { LessonCard } from "./components/LessonCard";
 
 type TabKey = "upcoming" | "completed" | "cancelled";
 
@@ -16,55 +17,64 @@ const tabs: { key: TabKey; label: string }[] = [
 ];
 
 function parseTab(value: string | null): TabKey {
-  if (value === "completed" || value === "cancelled") return value;
+  if (value === "completed" || value === "cancelled") {
+    return value;
+  }
+
   return "upcoming";
 }
 
-function matchesLessonQuery(lesson: Lesson, query: string) {
-  const trimmed = query.trim().toLowerCase();
-  if (!trimmed) return true;
+function getEmptyMessage(activeTab: TabKey, hasQuery: boolean): string {
+  if (hasQuery) {
+    return "No bookings match your search.";
+  }
 
-  const haystack = [
-    lesson.instructor,
-    lesson.location,
-    lesson.timeRange,
-    lesson.weekday,
-    lesson.month,
-    String(lesson.day),
-    lesson.status,
-    `${lesson.hours} hours`,
-  ]
-    .join(" ")
-    .toLowerCase();
+  if (activeTab === "completed") {
+    return "No completed lessons";
+  }
 
-  return haystack.includes(trimmed);
+  if (activeTab === "cancelled") {
+    return "No cancelled lessons";
+  }
+
+  return "No upcoming lessons";
 }
 
 export function BookingsFlow() {
   const router = useRouter();
   const searchParams = useSearchParams();
+
   const [activeTab, setActiveTab] = useState<TabKey>(() =>
     parseTab(searchParams.get("tab")),
   );
   const [query, setQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
   const [reviewedLessonIds, setReviewedLessonIds] = useState<Set<string>>(
     () => new Set(),
   );
 
-  const filteredLessons = useMemo(() => {
-    const source =
-      activeTab === "completed"
-        ? mockDashboardData.completedLessons
-        : activeTab === "cancelled"
-          ? mockDashboardData.cancelledLessons
-          : mockDashboardData.upcomingLessons;
+  const {
+    bookings,
+    loading: bookingsLoading,
+    error: bookingsError,
+  } = useStudentBookings({
+    status: activeTab,
+    query: debouncedQuery,
+  });
 
-    return source.filter((lesson) => matchesLessonQuery(lesson, query));
-  }, [activeTab, query]);
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      setDebouncedQuery(query.trim());
+    }, 300);
+
+    return () => clearTimeout(timeoutId);
+  }, [query]);
 
   function handleReviewSubmit(lessonId: string) {
     setReviewedLessonIds((current) => new Set(current).add(lessonId));
   }
+
+  const emptyMessage = getEmptyMessage(activeTab, debouncedQuery.length > 0);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -78,6 +88,7 @@ export function BookingsFlow() {
           <label htmlFor="bookings-search" className="sr-only">
             Search bookings
           </label>
+
           <input
             id="bookings-search"
             type="search"
@@ -91,6 +102,7 @@ export function BookingsFlow() {
         <nav className="mt-4 flex shrink-0 border-b border-slate-100">
           {tabs.map(({ key, label }) => {
             const isActive = key === activeTab;
+
             return (
               <button
                 key={key}
@@ -109,8 +121,16 @@ export function BookingsFlow() {
         </nav>
 
         <div className="mt-4 min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-y-contain pb-6 [-webkit-overflow-scrolling:touch]">
-          {filteredLessons.length > 0 ? (
-            filteredLessons.map((lesson) => (
+          {bookingsLoading ? (
+            <p className="py-8 text-center text-sm text-slate-400">
+              Loading bookings...
+            </p>
+          ) : bookingsError ? (
+            <p className="rounded-2xl bg-red-50 py-4 text-center text-sm text-red-600">
+              {bookingsError}
+            </p>
+          ) : bookings.length > 0 ? (
+            bookings.map((lesson) => (
               <LessonCard
                 key={lesson.id}
                 lesson={lesson}
@@ -120,13 +140,7 @@ export function BookingsFlow() {
             ))
           ) : (
             <p className="rounded-2xl border border-dashed border-slate-200 py-8 text-center text-sm text-slate-400">
-              {query.trim()
-                ? "No bookings match your search."
-                : activeTab === "upcoming"
-                  ? "No upcoming lessons"
-                  : activeTab === "completed"
-                    ? "No completed lessons"
-                    : "No cancelled lessons"}
+              {emptyMessage}
             </p>
           )}
         </div>

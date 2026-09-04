@@ -1,18 +1,19 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
-import { usePathname, useRouter } from "next/navigation";
 import Image from "next/image";
-import type { DashboardData, Lesson } from "./types";
-import { mockDashboardData } from "./mock-data";
-import { consumeCancelledLessonId } from "./cancel-booking";
-import { consumeBookedLesson } from "./book-lesson";
-import { LessonCard } from "./components/LessonCard";
-import { NotificationsPanel } from "./components/NotificationsPanel";
-import { DEFAULT_STUDENT_AVATAR } from "./student-avatar";
-import { BellIcon, CalendarIcon } from "./components/icons";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+
 import { useStudent } from "@/shared/hooks/useStudent";
+import { useStudentBookings } from "@/shared/hooks/useStudentBookings";
 import { useStudentCreditBalance } from "@/shared/hooks/useStudentCreditBalance";
+
+import { LessonCard } from "./components/LessonCard";
+import { BellIcon, CalendarIcon } from "./components/icons";
+import { NotificationsPanel } from "./components/NotificationsPanel";
+import { mockDashboardData } from "./mock-data";
+import { DEFAULT_STUDENT_AVATAR } from "./student-avatar";
+import type { DashboardData, Lesson } from "./types";
 
 type DashboardProps = Readonly<{
   data?: DashboardData;
@@ -50,17 +51,6 @@ const emptyLessonMessages: Record<TabKey, string> = {
   cancelled: "No cancelled lessons",
 };
 
-function getLessonsForTab(
-  upcoming: Lesson[],
-  completed: Lesson[],
-  cancelled: Lesson[],
-  tab: TabKey,
-): Lesson[] {
-  if (tab === "completed") return completed;
-  if (tab === "cancelled") return cancelled;
-  return upcoming;
-}
-
 function LessonSection({
   title,
   emptyMessage,
@@ -80,6 +70,7 @@ function LessonSection({
     <section className="flex min-h-0 flex-1 flex-col">
       <div className="flex shrink-0 items-center justify-between">
         <h2 className="text-lg font-bold text-slate-900">{title}</h2>
+
         <button
           type="button"
           onClick={onViewAll}
@@ -88,6 +79,7 @@ function LessonSection({
           View all
         </button>
       </div>
+
       <div className="mt-3 min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-y-contain pb-4 [-webkit-overflow-scrolling:touch]">
         {lessons.length > 0 ? (
           lessons.map((lesson) => (
@@ -110,25 +102,34 @@ function LessonSection({
 
 export function Dashboard({ data = mockDashboardData }: DashboardProps) {
   const router = useRouter();
-  const pathname = usePathname();
+
   const { student, loading: studentLoading } = useStudent();
+
   const {
     balanceMinutes,
     loading: isCreditLoading,
     error: creditError,
     refetch: refetchCreditBalance,
   } = useStudentCreditBalance();
+
   const availableCreditHours =
     balanceMinutes === null ? null : balanceMinutes / 60;
+
   const [activeTab, setActiveTab] = useState<TabKey>("upcoming");
-  const [upcomingLessons, setUpcomingLessons] = useState(data.upcomingLessons);
-  const [cancelledLessons, setCancelledLessons] = useState(
-    data.cancelledLessons,
-  );
-  const [tabCounts, setTabCounts] = useState(data.tabCounts);
+
+  const {
+    bookings: activeBookings,
+    counts: tabCounts,
+    loading: bookingsLoading,
+    error: bookingsError,
+  } = useStudentBookings({
+    status: activeTab,
+  });
+
   const [reviewedLessonIds, setReviewedLessonIds] = useState<Set<string>>(
     () => new Set(),
   );
+
   const [notifications, setNotifications] = useState(data.notifications);
   const [showNotifications, setShowNotifications] = useState(false);
   const [imageError, setImageError] = useState(false);
@@ -146,52 +147,13 @@ export function Dashboard({ data = mockDashboardData }: DashboardProps) {
     data.avatarUrl ||
     DEFAULT_STUDENT_AVATAR;
 
-  const completedLessons = data.completedLessons;
   const unreadNotificationCount = notifications.filter(
     (notification) => !notification.read,
   ).length;
-  const activeLessons = getLessonsForTab(
-    upcomingLessons,
-    completedLessons,
-    cancelledLessons,
-    activeTab,
-  );
 
   function handleReviewSubmit(lessonId: string) {
     setReviewedLessonIds((current) => new Set(current).add(lessonId));
   }
-
-  const handleBookLesson = useCallback(
-    (lesson: Lesson) => {
-      setUpcomingLessons((current) => [lesson, ...current]);
-      void refetchCreditBalance();
-      setTabCounts((counts) => ({
-        ...counts,
-        upcoming: counts.upcoming + 1,
-      }));
-      setActiveTab("upcoming");
-    },
-    [refetchCreditBalance],
-  );
-
-  const handleCancelLesson = useCallback((lessonId: string) => {
-    setUpcomingLessons((current) => {
-      const lesson = current.find((item) => item.id === lessonId);
-      if (!lesson) return current;
-
-      setCancelledLessons((cancelled) => [
-        { ...lesson, status: "cancelled", cancelledBy: "student" },
-        ...cancelled,
-      ]);
-      setTabCounts((counts) => ({
-        ...counts,
-        upcoming: counts.upcoming - 1,
-        cancelled: counts.cancelled + 1,
-      }));
-
-      return current.filter((item) => item.id !== lessonId);
-    });
-  }, []);
 
   function handleMarkNotificationRead(id: string) {
     setNotifications((current) =>
@@ -203,25 +165,12 @@ export function Dashboard({ data = mockDashboardData }: DashboardProps) {
 
   function handleMarkAllNotificationsRead() {
     setNotifications((current) =>
-      current.map((notification) => ({ ...notification, read: true })),
+      current.map((notification) => ({
+        ...notification,
+        read: true,
+      })),
     );
   }
-
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      const cancelledLessonId = consumeCancelledLessonId();
-      if (cancelledLessonId) {
-        handleCancelLesson(cancelledLessonId);
-      }
-
-      const bookedLesson = consumeBookedLesson();
-      if (bookedLesson) {
-        handleBookLesson(bookedLesson);
-      }
-    }, 0);
-
-    return () => clearTimeout(timeoutId);
-  }, [pathname, handleCancelLesson, handleBookLesson]);
 
   return (
     <>
@@ -243,15 +192,18 @@ export function Dashboard({ data = mockDashboardData }: DashboardProps) {
               onError={() => setImageError(true)}
               unoptimized
             />
+
             <div>
               <h1 className="text-xl font-bold text-slate-900">
                 {studentLoading ? "Loading..." : `Hi, ${userName}!`}
               </h1>
+
               <p className="mt-0.5 text-xs text-slate-500">
                 Here&apos;s your lesson overview.
               </p>
             </div>
           </div>
+
           <button
             type="button"
             aria-label="Notifications"
@@ -259,6 +211,7 @@ export function Dashboard({ data = mockDashboardData }: DashboardProps) {
             className="relative shrink-0 rounded-lg bg-[#f9f9f9] p-2 text-[#4b5563] hover:bg-[#f0f0f0]"
           >
             <BellIcon className="h-6 w-6" />
+
             {unreadNotificationCount > 0 && (
               <span className="absolute right-1.5 top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-semibold text-white">
                 {unreadNotificationCount > 9 ? "9+" : unreadNotificationCount}
@@ -271,8 +224,10 @@ export function Dashboard({ data = mockDashboardData }: DashboardProps) {
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-blue-600">
             <CalendarIcon className="h-5 w-5" />
           </div>
+
           <div className="min-w-0 flex-1">
             <p className="text-sm text-slate-600">You have</p>
+
             <p className="text-base font-bold text-slate-900">
               {isCreditLoading
                 ? "Loading..."
@@ -280,8 +235,10 @@ export function Dashboard({ data = mockDashboardData }: DashboardProps) {
                   ? "Unavailable"
                   : `${Number(availableCreditHours.toFixed(2))} Hours`}
             </p>
+
             <p className="text-sm text-slate-600">available credit</p>
           </div>
+
           <button
             type="button"
             onClick={() => router.push("/dashboard/buy-hours")}
@@ -297,6 +254,7 @@ export function Dashboard({ data = mockDashboardData }: DashboardProps) {
             className="mt-3 shrink-0 rounded-xl bg-red-50 p-3 text-sm text-red-600"
           >
             <p>{creditError}</p>
+
             <button
               type="button"
               onClick={() => void refetchCreditBalance()}
@@ -310,6 +268,7 @@ export function Dashboard({ data = mockDashboardData }: DashboardProps) {
         <nav className="mt-6 flex shrink-0 border-b border-slate-100">
           {tabs.map(({ key, label }) => {
             const isActive = key === activeTab;
+
             return (
               <button
                 key={key}
@@ -322,6 +281,7 @@ export function Dashboard({ data = mockDashboardData }: DashboardProps) {
                 }`}
               >
                 {label}
+
                 <span
                   className={`rounded-full px-2 py-0.5 text-xs font-semibold ${tabBadgeStyles[key]}`}
                 >
@@ -333,16 +293,26 @@ export function Dashboard({ data = mockDashboardData }: DashboardProps) {
         </nav>
 
         <div className="mt-6 flex min-h-0 flex-1 flex-col">
-          <LessonSection
-            title={sectionTitles[activeTab]}
-            emptyMessage={emptyLessonMessages[activeTab]}
-            lessons={activeLessons}
-            reviewedLessonIds={reviewedLessonIds}
-            onReviewSubmit={handleReviewSubmit}
-            onViewAll={() =>
-              router.push(`/dashboard/bookings?tab=${activeTab}`)
-            }
-          />
+          {bookingsLoading ? (
+            <p className="py-8 text-center text-sm text-slate-400">
+              Loading bookings...
+            </p>
+          ) : bookingsError ? (
+            <p className="rounded-2xl bg-red-50 py-4 text-center text-sm text-red-600">
+              {bookingsError}
+            </p>
+          ) : (
+            <LessonSection
+              title={sectionTitles[activeTab]}
+              emptyMessage={emptyLessonMessages[activeTab]}
+              lessons={activeBookings}
+              reviewedLessonIds={reviewedLessonIds}
+              onReviewSubmit={handleReviewSubmit}
+              onViewAll={() =>
+                router.push(`/dashboard/bookings?tab=${activeTab}`)
+              }
+            />
+          )}
         </div>
       </main>
 

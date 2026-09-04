@@ -1,13 +1,15 @@
 "use client";
 
-import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
+
 import { ButtonSpinner } from "@/components/ButtonSpinner";
-import type { Lesson } from "./types";
+
 import { markLessonCancelled } from "./cancel-booking";
 import { FlowPageContent } from "./components/FlowPageContent";
 import { FlowPageHeader } from "./components/FlowPageHeader";
 import { MapPinIcon, UserIcon } from "./components/icons";
+import type { Lesson } from "./types";
 
 type CancelBookingFlowProps = Readonly<{
   lesson: Lesson;
@@ -15,24 +17,37 @@ type CancelBookingFlowProps = Readonly<{
 
 const BUTTON_LOADING_MS = 2000;
 
+function getInstructorName(lesson: Lesson): string {
+  return typeof lesson.instructor === "string"
+    ? lesson.instructor
+    : lesson.instructor.name;
+}
+
 function LessonSummary({ lesson }: Readonly<{ lesson: Lesson }>) {
+  const instructorName = getInstructorName(lesson);
+
   return (
     <section className="rounded-2xl bg-slate-50 p-4">
       <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
         Booking details
       </p>
+
       <p className="mt-2 font-semibold text-slate-900">
         {lesson.month} {lesson.day} · {lesson.weekday}
       </p>
+
       <p className="mt-1 text-sm text-slate-600">{lesson.timeRange}</p>
+
       <p className="mt-2 flex items-center gap-1.5 text-sm text-slate-500">
         <UserIcon className="h-3.5 w-3.5 shrink-0" />
-        {lesson.instructor}
+        {instructorName}
       </p>
+
       <p className="mt-0.5 flex items-center gap-1.5 text-sm text-slate-500">
         <MapPinIcon className="h-3.5 w-3.5 shrink-0" />
         {lesson.location}
       </p>
+
       <p className="mt-3 text-sm text-slate-600">{lesson.hours} hours lesson</p>
     </section>
   );
@@ -40,16 +55,23 @@ function LessonSummary({ lesson }: Readonly<{ lesson: Lesson }>) {
 
 export function CancelBookingFlow({ lesson }: CancelBookingFlowProps) {
   const router = useRouter();
+
   const [isConfirmed, setIsConfirmed] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
+
+  const instructorName = getInstructorName(lesson);
 
   function goBack() {
     router.push("/dashboard");
   }
 
   function handleConfirmCancel() {
-    if (isCancelling) return;
+    if (isCancelling) {
+      return;
+    }
+
     setIsCancelling(true);
+
     window.setTimeout(() => {
       markLessonCancelled(lesson.id);
       setIsConfirmed(true);
@@ -63,18 +85,26 @@ export function CancelBookingFlow({ lesson }: CancelBookingFlowProps) {
           <div className="flex h-16 w-16 items-center justify-center rounded-full bg-red-50 text-2xl text-red-500">
             ✕
           </div>
-          <h1 className="mt-6 text-xl font-bold text-slate-900">Booking cancelled</h1>
+
+          <h1 className="mt-6 text-xl font-bold text-slate-900">
+            Booking cancelled
+          </h1>
+
           <p className="mt-2 text-sm text-slate-500">
             Your lesson has been cancelled. Any credit will be returned to your
             account.
           </p>
+
           <div className="mt-6 w-full rounded-2xl bg-slate-50 p-4 text-left">
             <p className="font-semibold text-slate-900">
               {lesson.month} {lesson.day} · {lesson.weekday}
             </p>
+
             <p className="mt-1 text-sm text-slate-600">{lesson.timeRange}</p>
-            <p className="mt-2 text-sm text-slate-500">{lesson.instructor}</p>
+
+            <p className="mt-2 text-sm text-slate-500">{instructorName}</p>
           </div>
+
           <button
             type="button"
             onClick={goBack}
@@ -90,6 +120,7 @@ export function CancelBookingFlow({ lesson }: CancelBookingFlowProps) {
   return (
     <>
       <FlowPageHeader title="Cancel booking" onBack={goBack} />
+
       <FlowPageContent>
         <p className="text-sm text-slate-500">
           Are you sure you want to cancel this lesson? This action cannot be
@@ -99,7 +130,10 @@ export function CancelBookingFlow({ lesson }: CancelBookingFlowProps) {
         <LessonSummary lesson={lesson} />
 
         <section className="rounded-2xl border border-red-100 bg-red-50 p-4">
-          <p className="text-sm font-medium text-red-600">Cancellation policy</p>
+          <p className="text-sm font-medium text-red-600">
+            Cancellation policy
+          </p>
+
           <p className="mt-1 text-sm text-red-500">
             Cancelling within 24 hours may affect your available credit. Your
             instructor will be notified automatically.
@@ -117,6 +151,7 @@ export function CancelBookingFlow({ lesson }: CancelBookingFlowProps) {
           >
             {isCancelling ? <ButtonSpinner inverse /> : "Cancel booking"}
           </button>
+
           <button
             type="button"
             onClick={goBack}

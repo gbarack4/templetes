@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+
 import type { InstructorReview } from "./instructor-reviews";
 import type { SuggestedInstructor } from "./suggested-instructors";
 
@@ -16,7 +17,9 @@ export function ReviewStars({ rating }: Readonly<{ rating: number }>) {
       {[1, 2, 3, 4, 5].map((star) => (
         <span
           key={star}
-          className={`text-sm leading-none ${star <= rating ? "text-amber-400" : "text-slate-200"}`}
+          className={`text-sm leading-none ${
+            star <= rating ? "text-amber-400" : "text-slate-200"
+          }`}
         >
           ★
         </span>
@@ -30,9 +33,14 @@ export function InstructorReviewsModal({
   reviews,
   onClose,
 }: InstructorReviewsModalProps) {
+  const rating = instructor.rating ?? 0;
+  const reviewCount = instructor.reviewCount ?? 0;
+
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") onClose();
+      if (event.key === "Escape") {
+        onClose();
+      }
     }
 
     document.addEventListener("keydown", handleKeyDown);
@@ -52,6 +60,7 @@ export function InstructorReviewsModal({
         onClick={onClose}
         className="absolute inset-0 bg-slate-900/40"
       />
+
       <dialog
         open
         aria-modal="true"
@@ -66,11 +75,12 @@ export function InstructorReviewsModal({
             >
               Reviews
             </h2>
+
             <p className="mt-0.5 text-sm text-amber-600">
-              ★ {instructor.rating.toFixed(1)} · {instructor.reviewCount}{" "}
-              reviews
+              ★ {rating.toFixed(1)} · {reviewCount} reviews
             </p>
           </div>
+
           <button
             type="button"
             onClick={onClose}
@@ -102,12 +112,15 @@ export function InstructorReviewsModal({
                     <p className="text-sm font-semibold text-slate-900">
                       {review.author}
                     </p>
+
                     <p className="mt-0.5 text-xs text-slate-400">
                       {review.date}
                     </p>
                   </div>
+
                   <ReviewStars rating={review.rating} />
                 </div>
+
                 <p className="mt-3 text-sm leading-relaxed text-slate-600">
                   {review.comment}
                 </p>

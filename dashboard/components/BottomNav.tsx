@@ -1,12 +1,7 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import {
-  HomeIcon,
-  WalletIcon,
-  CreditCardIcon,
-  ProfileIcon,
-} from "./icons";
+import { HomeIcon, WalletIcon, CreditCardIcon, ProfileIcon } from "./icons";
 
 const navItems = [
   { label: "Dashboard", icon: HomeIcon, href: "/dashboard" },
@@ -55,7 +50,7 @@ export function BottomNav() {
               key={label}
               type="button"
               onClick={() => router.push(href)}
-              className={`relative z-10 flex flex-1 flex-col items-center gap-1 px-1 py-1.5 text-[10px] font-medium transition-colors ${
+              className={`cursor-pointer relative z-10 flex flex-1 flex-col items-center gap-1 px-1 py-1.5 text-[10px] font-medium transition-colors ${
                 isActive ? "text-blue-600" : "text-slate-400"
               }`}
             >

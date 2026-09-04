@@ -1,4 +1,4 @@
-import type { InstructorOption } from "@/dashboard/mock-data";
+import type { InstructorOption } from "@/types/instructor";
 
 export type StudentArea = Readonly<{
   name: string;

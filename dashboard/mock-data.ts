@@ -1,5 +1,6 @@
 import { DEFAULT_STUDENT_AVATAR } from "./student-avatar";
 import type { DashboardData, StudentAccount } from "./types";
+import type { InstructorOption } from "@/types/instructor";
 
 export const mockDashboardData: DashboardData = {
   userName: "",
@@ -399,18 +400,6 @@ export function formatLessonTimeRange(
   }
 
   return `${formatClock(startHour, startMinute)} – ${formatClock(endHour24, endMinute)}`;
-}
-
-export interface InstructorOption {
-  id: string;
-  name: string;
-  initials: string;
-  avatarUrl: string;
-  location: string;
-  rating: number;
-  reviewCount: number;
-  lessonsCompleted: number;
-  pricePerHour: number;
 }
 
 export const mockInstructors: InstructorOption[] = [];

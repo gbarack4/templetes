@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import type { InstructorOption } from "../mock-data";
+import type { InstructorOption } from "@/types/instructor";
 import { InstructorProfileSummary } from "./InstructorSearch";
 import { useIsClient } from "@/shared/hooks/useIsClient";
 

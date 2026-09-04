@@ -1,13 +1,57 @@
 export type LessonStatus = "upcoming" | "completed" | "cancelled";
 export type LessonCancelledBy = "student" | "instructor";
 
+export interface LessonInstructor {
+  id: string;
+  name: string;
+  avatarUrl: string | null;
+  pricePerHour: number | null;
+}
+
+export interface StudentBookingApiInstructor {
+  id: string;
+  name: string;
+  avatarUrl: string | null;
+  pricePerHour: string | null;
+}
+
+export interface StudentBookingApiItem {
+  id: string;
+  startDatetime: string;
+  endDatetime: string;
+  status: string;
+  bookingSource: string | null;
+  pickupAddress: string | null;
+  pickupSuburb: string | null;
+  pickupPostcode: string | null;
+  cancelledAt: string | null;
+  cancelledByUserId: string | null;
+  instructor: StudentBookingApiInstructor;
+}
+
+export interface StudentBookingsResponse {
+  timezone: string;
+  counts: {
+    upcoming: number;
+    completed: number;
+    cancelled: number;
+  };
+  bookings: StudentBookingApiItem[];
+}
+
 export interface Lesson {
   id: string;
   month: string;
   day: number;
   weekday: string;
   timeRange: string;
-  instructor: string;
+
+  /**
+   * Real bookings use LessonInstructor.
+   * string is temporarily supported for legacy mock data.
+   */
+  instructor: LessonInstructor | string;
+
   location: string;
   hours: number;
   status: LessonStatus;

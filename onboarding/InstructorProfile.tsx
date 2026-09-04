@@ -39,6 +39,10 @@ export function InstructorProfile({
   const showImage = Boolean(instructor.avatarUrl) && !imageError;
   const isOnboarding = !bookHref;
 
+  const rating = instructor.rating ?? 0;
+  const reviewCount = instructor.reviewCount ?? 0;
+  const lessonsCompleted = instructor.lessonsCompleted ?? 0;
+
   function handleBookLesson() {
     if (isBooking) return;
     setIsBooking(true);
@@ -97,10 +101,10 @@ export function InstructorProfile({
               onClick={() => setShowReviews(true)}
               className="mt-1 text-sm font-medium text-amber-600 transition hover:text-amber-700"
             >
-              ★ {instructor.rating.toFixed(1)} · {instructor.reviewCount} reviews
+              ★ {rating.toFixed(1)} · {reviewCount} reviews
             </button>
             <p className="mt-1 text-sm text-[#4b5563]">
-              {instructor.lessonsCompleted.toLocaleString()} lessons completed
+              {lessonsCompleted.toLocaleString()} lessons completed
             </p>
           </div>
 
@@ -173,7 +177,9 @@ export function InstructorProfile({
                   onClick={() => setAboutOpen((open) => !open)}
                   className="flex w-full items-center justify-between gap-3 rounded-xl bg-[#f9f9f9] px-4 py-3.5 text-left transition hover:bg-[#f0f0f0]"
                 >
-                  <h2 className="text-sm font-semibold text-slate-900">About</h2>
+                  <h2 className="text-sm font-semibold text-slate-900">
+                    About
+                  </h2>
                   <ChevronRightIcon
                     className={`h-4 w-4 shrink-0 text-slate-400 transition-transform ${
                       aboutOpen ? "rotate-90" : ""
