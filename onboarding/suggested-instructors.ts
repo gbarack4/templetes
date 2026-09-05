@@ -120,3 +120,27 @@ export type PublicInstructor = {
   lowestEligiblePrice: number | null;
   monthlyAvailableSlotCount: number;
 };
+
+export function toPublicInstructor(
+  instructor: SuggestedInstructor,
+): PublicInstructor {
+  return {
+    id: instructor.id,
+    name: instructor.name,
+    phone: instructorProfileDetails[instructor.id]?.phone ?? null,
+    bio: instructorProfileDetails[instructor.id]?.bio ?? null,
+    pricePerHour: instructor.pricePerHour,
+    avatarUrl: instructor.avatarUrl,
+    suburb: instructor.suburb,
+    postcode: instructor.postcode,
+    schoolId: "mock-school",
+    initials: instructor.initials,
+    location: instructor.location,
+    rating: instructor.rating ?? 0,
+    reviewCount: instructor.reviewCount ?? 0,
+    lessonsCompleted: instructor.lessonsCompleted ?? 0,
+    availableSlots: [],
+    lowestEligiblePrice: instructor.pricePerHour,
+    monthlyAvailableSlotCount: instructor.availableSlots,
+  };
+}

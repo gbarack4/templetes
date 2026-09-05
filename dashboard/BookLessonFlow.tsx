@@ -39,6 +39,7 @@ import { formatLessonHoursLabel, formatLessonTimeRange } from "./mock-data";
 type FlowStep = "instructor" | "date" | "time" | "summary";
 
 const MAX_CREDIT_BOOKING_HOURS = 3;
+const BOOK_WITH_CREDIT_WAIT_MS = 2000;
 
 function scrollStepIntoView(element: HTMLElement | null) {
   element?.scrollIntoView({
@@ -528,6 +529,10 @@ export function BookLessonFlow() {
     setPendingAttempt(input);
 
     try {
+      await new Promise<void>((resolve) => {
+        window.setTimeout(resolve, BOOK_WITH_CREDIT_WAIT_MS);
+      });
+
       const token = await getToken();
 
       if (!token) {
@@ -1369,7 +1374,7 @@ export function BookLessonFlow() {
                 onClick={() => void handleConfirm()}
                 className="inline-flex h-11 w-full items-center justify-center rounded-lg bg-blue-600 text-sm font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
               >
-                {isBooking ? <ButtonSpinner inverse /> : bookingButtonLabel}
+                {isBooking ? "Please wait..." : bookingButtonLabel}
               </button>
             </section>
           )}
