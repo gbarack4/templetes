@@ -9,7 +9,7 @@ import type { InstructorOption } from "@/types/instructor";
 import type { Lesson, LessonInstructor } from "../types";
 import { InstructorProfileSummary } from "./InstructorSearch";
 import { InstructorReviewModal } from "./InstructorReviewModal";
-import { MoreVerticalIcon } from "./icons";
+import { XCircleIcon } from "./icons";
 
 type LessonCardProps = Readonly<{
   lesson: Lesson;
@@ -267,13 +267,14 @@ export function LessonCard({
         <button
           type="button"
           aria-label="Cancel booking"
+          title="Cancel booking"
           onClick={(event) => {
             event.stopPropagation();
             handleCancel();
           }}
-          className="absolute right-2 top-2 rounded-lg p-1 text-[#4b5563] transition hover:bg-white hover:text-slate-700"
+          className="cursor-pointer absolute right-2 top-2 rounded-lg p-1 text-slate-400 transition hover:bg-red-50 hover:text-red-500"
         >
-          <MoreVerticalIcon className="h-4 w-4" />
+          <XCircleIcon className="h-4 w-4" />
         </button>
       )}
 

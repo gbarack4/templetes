@@ -4,18 +4,20 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { ButtonSpinner } from "@/components/ButtonSpinner";
+import { useStudentBookings } from "@/shared/hooks/useStudentBookings";
+import {
+  type StudentCancelBookingResponse,
+  useStudentCancelBooking,
+} from "@/shared/hooks/useStudentCancelBooking";
 
-import { markLessonCancelled } from "./cancel-booking";
 import { FlowPageContent } from "./components/FlowPageContent";
 import { FlowPageHeader } from "./components/FlowPageHeader";
 import { MapPinIcon, UserIcon } from "./components/icons";
 import type { Lesson } from "./types";
 
 type CancelBookingFlowProps = Readonly<{
-  lesson: Lesson;
+  lessonId: string;
 }>;
-
-const BUTTON_LOADING_MS = 2000;
 
 function getInstructorName(lesson: Lesson): string {
   return typeof lesson.instructor === "string"
@@ -53,32 +55,54 @@ function LessonSummary({ lesson }: Readonly<{ lesson: Lesson }>) {
   );
 }
 
-export function CancelBookingFlow({ lesson }: CancelBookingFlowProps) {
+export function CancelBookingFlow({ lessonId }: CancelBookingFlowProps) {
   const router = useRouter();
 
-  const [isConfirmed, setIsConfirmed] = useState(false);
-  const [isCancelling, setIsCancelling] = useState(false);
+  const {
+    bookings,
+    loading: bookingsLoading,
+    error: bookingsError,
+  } = useStudentBookings({
+    status: "upcoming",
+  });
 
-  const instructorName = getInstructorName(lesson);
+  const {
+    cancelBooking,
+    isCancelling,
+    error: cancellationError,
+  } = useStudentCancelBooking();
+
+  const [cancelledLesson, setCancelledLesson] = useState<Lesson | null>(null);
+
+  const [cancelResult, setCancelResult] =
+    useState<StudentCancelBookingResponse | null>(null);
+
+  const lesson = bookings.find((item) => item.id === lessonId);
 
   function goBack() {
     router.push("/dashboard");
   }
 
-  function handleConfirmCancel() {
-    if (isCancelling) {
+  async function handleConfirmCancel() {
+    if (!lesson || isCancelling) {
       return;
     }
 
-    setIsCancelling(true);
+    try {
+      const result = await cancelBooking(lesson.id);
 
-    window.setTimeout(() => {
-      markLessonCancelled(lesson.id);
-      setIsConfirmed(true);
-    }, BUTTON_LOADING_MS);
+      setCancelledLesson(lesson);
+      setCancelResult(result);
+    } catch {
+      // Mutation error is displayed below.
+    }
   }
 
-  if (isConfirmed) {
+  if (cancelledLesson && cancelResult) {
+    const instructorName = getInstructorName(cancelledLesson);
+
+    const returnedCreditHours = cancelResult.creditReturnedMinutes / 60;
+
     return (
       <FlowPageContent className="text-center">
         <div className="flex flex-col items-center py-6">
@@ -91,16 +115,21 @@ export function CancelBookingFlow({ lesson }: CancelBookingFlowProps) {
           </h1>
 
           <p className="mt-2 text-sm text-slate-500">
-            Your lesson has been cancelled. Any credit will be returned to your
-            account.
+            Your lesson has been cancelled and{" "}
+            {Number(returnedCreditHours.toFixed(2))}{" "}
+            {returnedCreditHours === 1 ? "hour" : "hours"} returned to your
+            credit balance.
           </p>
 
           <div className="mt-6 w-full rounded-2xl bg-slate-50 p-4 text-left">
             <p className="font-semibold text-slate-900">
-              {lesson.month} {lesson.day} · {lesson.weekday}
+              {cancelledLesson.month} {cancelledLesson.day} ·{" "}
+              {cancelledLesson.weekday}
             </p>
 
-            <p className="mt-1 text-sm text-slate-600">{lesson.timeRange}</p>
+            <p className="mt-1 text-sm text-slate-600">
+              {cancelledLesson.timeRange}
+            </p>
 
             <p className="mt-2 text-sm text-slate-500">{instructorName}</p>
           </div>
@@ -114,6 +143,62 @@ export function CancelBookingFlow({ lesson }: CancelBookingFlowProps) {
           </button>
         </div>
       </FlowPageContent>
+    );
+  }
+
+  if (bookingsLoading) {
+    return (
+      <>
+        <FlowPageHeader title="Cancel booking" onBack={goBack} />
+
+        <FlowPageContent className="text-center">
+          <div className="flex justify-center py-12">
+            <ButtonSpinner />
+          </div>
+        </FlowPageContent>
+      </>
+    );
+  }
+
+  if (bookingsError) {
+    return (
+      <>
+        <FlowPageHeader title="Cancel booking" onBack={goBack} />
+
+        <FlowPageContent>
+          <div
+            role="alert"
+            className="rounded-xl bg-red-50 p-4 text-sm text-red-600"
+          >
+            {bookingsError}
+          </div>
+        </FlowPageContent>
+      </>
+    );
+  }
+
+  if (!lesson) {
+    return (
+      <>
+        <FlowPageHeader title="Cancel booking" onBack={goBack} />
+
+        <FlowPageContent>
+          <div
+            role="alert"
+            className="rounded-xl bg-red-50 p-4 text-sm text-red-600"
+          >
+            Booking not found or it can no longer be cancelled.
+          </div>
+
+          <button
+            type="button"
+            onClick={goBack}
+            className="w-full rounded-lg bg-blue-600 py-3 text-sm font-medium text-white transition hover:bg-blue-700"
+          >
+            Back to Dashboard
+          </button>
+        </FlowPageContent>
+      </>
     );
   }
 
@@ -135,18 +220,29 @@ export function CancelBookingFlow({ lesson }: CancelBookingFlowProps) {
           </p>
 
           <p className="mt-1 text-sm text-red-500">
-            Cancelling within 24 hours may affect your available credit. Your
-            instructor will be notified automatically.
+            Lessons can only be cancelled more than 24 hours before the
+            scheduled start time. The lesson duration will be returned to your
+            credit balance.
           </p>
         </section>
+
+        {cancellationError && (
+          <div
+            role="alert"
+            className="rounded-xl bg-red-50 p-3 text-sm text-red-600"
+          >
+            {cancellationError}
+          </div>
+        )}
 
         <div className="flex flex-col gap-3">
           <button
             type="button"
             aria-busy={isCancelling}
-            onClick={handleConfirmCancel}
-            className={`inline-flex h-11 w-full items-center justify-center rounded-lg bg-red-500 text-sm font-medium text-white transition hover:bg-red-600 ${
-              isCancelling ? "pointer-events-none" : ""
+            disabled={isCancelling}
+            onClick={() => void handleConfirmCancel()}
+            className={`cursor-pointer inline-flex h-11 w-full items-center justify-center rounded-lg bg-red-500 text-sm font-medium text-white transition hover:bg-red-600 ${
+              isCancelling ? "pointer-events-none opacity-80" : ""
             }`}
           >
             {isCancelling ? <ButtonSpinner inverse /> : "Cancel booking"}
@@ -154,8 +250,9 @@ export function CancelBookingFlow({ lesson }: CancelBookingFlowProps) {
 
           <button
             type="button"
+            disabled={isCancelling}
             onClick={goBack}
-            className="w-full rounded-lg border border-slate-200 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+            className="cursor-pointer w-full rounded-lg border border-slate-200 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:pointer-events-none disabled:opacity-60"
           >
             Keep booking
           </button>
