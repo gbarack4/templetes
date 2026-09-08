@@ -4,11 +4,18 @@ import { useEffect, useMemo, useState } from "react";
 
 import { CloseIcon } from "@/dashboard/components/icons";
 
-import type { InstructorReview } from "./instructor-reviews";
-import type { SuggestedInstructor } from "./suggested-instructors";
+import type { InstructorOption } from "@/types/instructor";
+
+export type InstructorReview = Readonly<{
+  id: string;
+  author: string;
+  rating: number;
+  comment: string;
+  date: string;
+}>;
 
 type InstructorReviewsModalProps = Readonly<{
-  instructor: SuggestedInstructor;
+  instructor: InstructorOption;
   reviews: InstructorReview[];
   onClose: () => void;
 }>;
@@ -17,8 +24,13 @@ export function ReviewStars({
   rating,
   size = "sm",
 }: Readonly<{ rating: number; size?: "sm" | "md" | "lg" }>) {
-  const sizeClass =
-    size === "lg" ? "text-xl" : size === "md" ? "text-base" : "text-sm";
+  let sizeClass = "text-sm";
+
+  if (size === "md") {
+    sizeClass = "text-base";
+  } else if (size === "lg") {
+    sizeClass = "text-xl";
+  }
 
   return (
     <div
@@ -39,9 +51,19 @@ export function ReviewStars({
 
 function authorInitials(author: string): string {
   const parts = author.replace(/\./g, "").trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return "?";
-  if (parts.length === 1) return parts[0]!.slice(0, 2).toUpperCase();
-  return `${parts[0]![0] ?? ""}${parts[1]![0] ?? ""}`.toUpperCase();
+
+  if (parts.length === 0) {
+    return "?";
+  }
+
+  if (parts.length === 1) {
+    return (parts.at(0) ?? "").slice(0, 2).toUpperCase();
+  }
+
+  const firstInitial = parts.at(0)?.[0] ?? "";
+  const secondInitial = parts.at(1)?.[0] ?? "";
+
+  return `${firstInitial}${secondInitial}`.toUpperCase();
 }
 
 function buildRatingBreakdown(reviews: readonly InstructorReview[]) {
@@ -67,18 +89,25 @@ export function InstructorReviewsModal({
   onClose,
 }: InstructorReviewsModalProps) {
   const [isVisible, setIsVisible] = useState(false);
+
   const rating = instructor.rating ?? 0;
   const reviewCount = instructor.reviewCount ?? reviews.length;
   const breakdown = useMemo(() => buildRatingBreakdown(reviews), [reviews]);
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") onClose();
+      if (event.key === "Escape") {
+        onClose();
+      }
     }
 
     document.addEventListener("keydown", handleKeyDown);
+
     document.body.style.overflow = "hidden";
-    const frameId = window.requestAnimationFrame(() => setIsVisible(true));
+
+    const frameId = window.requestAnimationFrame(() => {
+      setIsVisible(true);
+    });
 
     return () => {
       window.cancelAnimationFrame(frameId);
@@ -98,8 +127,8 @@ export function InstructorReviewsModal({
         }`}
       />
 
-      <div
-        role="dialog"
+      <dialog
+        open
         aria-modal="true"
         aria-labelledby="reviews-modal-title"
         className={`relative z-10 flex max-h-[85dvh] w-full max-w-md flex-col rounded-t-[1.75rem] bg-white shadow-xl transition-transform duration-300 ease-out ${
@@ -116,6 +145,7 @@ export function InstructorReviewsModal({
             >
               Reviews
             </h2>
+
             <p className="mt-0.5 text-sm text-[#4b5563]">
               What students say about {instructor.name.split(" ")[0]}
             </p>
@@ -138,9 +168,11 @@ export function InstructorReviewsModal({
                 <p className="text-4xl font-bold tracking-tight text-slate-900">
                   {rating.toFixed(1)}
                 </p>
+
                 <div className="mt-1 flex justify-center">
                   <ReviewStars rating={Math.round(rating)} size="md" />
                 </div>
+
                 <p className="mt-1 text-xs font-medium text-[#4b5563]">
                   {reviewCount} review{reviewCount === 1 ? "" : "s"}
                 </p>
@@ -152,6 +184,7 @@ export function InstructorReviewsModal({
                     <span className="w-3 text-right text-[11px] font-semibold text-slate-500">
                       {row.star}
                     </span>
+
                     <div className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-white">
                       <div
                         className="h-full rounded-full bg-amber-400"
@@ -182,16 +215,20 @@ export function InstructorReviewsModal({
                           <p className="truncate text-sm font-semibold text-slate-900">
                             {review.author}
                           </p>
+
                           <p className="mt-0.5 text-xs text-[#4b5563]">
                             {review.date}
                           </p>
                         </div>
+
                         <ReviewStars rating={review.rating} />
                       </div>
 
-                      <p className="mt-2.5 text-sm leading-relaxed text-slate-600">
-                        {review.comment}
-                      </p>
+                      {review.comment ? (
+                        <p className="mt-2.5 text-sm leading-relaxed text-slate-600">
+                          {review.comment}
+                        </p>
+                      ) : null}
                     </div>
                   </div>
                 </article>
@@ -203,7 +240,7 @@ export function InstructorReviewsModal({
             )}
           </div>
         </div>
-      </div>
+      </dialog>
     </div>
   );
 }

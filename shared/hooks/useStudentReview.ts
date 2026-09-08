@@ -95,9 +95,14 @@ export function useStudentReview() {
     },
 
     onSuccess: async () => {
-      await queryClient.invalidateQueries({
-        queryKey: ["student-bookings"],
-      });
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ["student-bookings"],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["instructor-review-profile"],
+        }),
+      ]);
     },
   });
 

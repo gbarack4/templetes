@@ -1,7 +1,4 @@
-import { Suspense } from "react";
-import { notFound } from "next/navigation";
-import { InstructorProfile } from "@/onboarding/InstructorProfile";
-import { getSuggestedInstructorById } from "@/onboarding/suggested-instructors";
+import { DashboardInstructorProfile } from "@/dashboard/DashboardInstructorProfile";
 
 export default async function DashboardInstructorProfilePage({
   params,
@@ -9,15 +6,6 @@ export default async function DashboardInstructorProfilePage({
   params: Promise<{ id: string }>;
 }>) {
   const { id } = await params;
-  const instructor = getSuggestedInstructorById(id);
 
-  if (!instructor) {
-    notFound();
-  }
-
-  return (
-    <Suspense>
-      <InstructorProfile instructor={instructor} bookHref="/dashboard/book" />
-    </Suspense>
-  );
+  return <DashboardInstructorProfile instructorId={id} />;
 }

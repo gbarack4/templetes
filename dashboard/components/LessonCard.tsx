@@ -1,12 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { ButtonSpinner } from "@/components/ButtonSpinner";
 import { useStudentReview } from "@/shared/hooks/useStudentReview";
 import type { InstructorOption } from "@/types/instructor";
-import { useInstructorReviewProfile } from "@/shared/hooks/useInstructorReviewProfile";
 
 import type { Lesson, LessonInstructor } from "../types";
 import { InstructorProfileSummary } from "./InstructorSearch";
@@ -123,21 +122,26 @@ export function LessonCard({ lesson }: LessonCardProps) {
   const isCompleted = lesson.status === "completed";
   const isReviewed = Boolean(lesson.review);
 
-  const baseInstructor = getInstructorOption(lesson);
-
-  const { averageRating, reviewCount, completedLessons } =
-    useInstructorReviewProfile({
-      instructorId: baseInstructor.id || null,
-    });
-
-  const instructor: InstructorOption = {
-    ...baseInstructor,
-    rating: averageRating,
-    reviewCount,
-    lessonsCompleted: completedLessons,
-  };
+  const instructor = getInstructorOption(lesson);
 
   const lessonLabel = `${lesson.month} ${lesson.day} · ${lesson.weekday} · ${lesson.timeRange}`;
+
+  let reviewButtonClassName: string = actionButtonStyles.completed;
+
+  if (isReviewed) {
+    reviewButtonClassName =
+      "cursor-default border border-green-200 bg-green-50 text-green-700";
+  } else if (isOpeningReview) {
+    reviewButtonClassName = `${actionButtonStyles.completed} pointer-events-none`;
+  }
+
+  let reviewButtonContent: ReactNode = actionLabels.completed;
+
+  if (isOpeningReview) {
+    reviewButtonContent = <ButtonSpinner />;
+  } else if (isReviewed) {
+    reviewButtonContent = "Review submitted";
+  }
 
   async function handleReviewSubmit(
     rating: number,
@@ -188,19 +192,17 @@ export function LessonCard({ lesson }: LessonCardProps) {
   }
 
   return (
-    <article
-      role="button"
-      tabIndex={0}
-      onClick={handleCardClick}
-      onKeyDown={(event) => {
-        if (event.key === "Enter" || event.key === " ") {
-          event.preventDefault();
-          handleCardClick();
-        }
-      }}
-      className="relative cursor-pointer rounded-2xl bg-[#f9f9f9] p-3 transition hover:bg-[#f0f0f0]"
-    >
-      <div className="flex gap-3">
+    <article className="relative rounded-2xl bg-[#f9f9f9] p-3 transition hover:bg-[#f0f0f0]">
+      {instructor.id ? (
+        <button
+          type="button"
+          aria-label={`View ${instructor.name}'s profile`}
+          onClick={handleCardClick}
+          className="absolute inset-0 z-0 cursor-pointer rounded-2xl"
+        />
+      ) : null}
+
+      <div className="pointer-events-none relative z-10 flex gap-3">
         <DateBlock
           month={lesson.month}
           day={lesson.day}
@@ -235,25 +237,10 @@ export function LessonCard({ lesson }: LessonCardProps) {
               type="button"
               aria-busy={isOpeningReview}
               disabled={isReviewed}
-              onClick={(event) => {
-                event.stopPropagation();
-                handleOpenReview();
-              }}
-              className={`inline-flex h-7 min-w-29 items-center justify-center self-end rounded-lg px-3 text-xs font-medium transition ${
-                isReviewed
-                  ? "cursor-default border border-green-200 bg-green-50 text-green-700"
-                  : isOpeningReview
-                    ? `${actionButtonStyles.completed} pointer-events-none`
-                    : actionButtonStyles.completed
-              }`}
+              onClick={handleOpenReview}
+              className={`pointer-events-auto inline-flex h-7 min-w-29 items-center justify-center self-end rounded-lg px-3 text-xs font-medium transition ${reviewButtonClassName}`}
             >
-              {isOpeningReview ? (
-                <ButtonSpinner />
-              ) : isReviewed ? (
-                "Review submitted"
-              ) : (
-                actionLabels.completed
-              )}
+              {reviewButtonContent}
             </button>
           )}
 
@@ -261,11 +248,8 @@ export function LessonCard({ lesson }: LessonCardProps) {
             <button
               type="button"
               aria-busy={isRescheduling}
-              onClick={(event) => {
-                event.stopPropagation();
-                handleReschedule();
-              }}
-              className={`inline-flex h-7 min-w-26 items-center justify-center self-end rounded-lg px-3 text-xs font-medium transition ${
+              onClick={handleReschedule}
+              className={`pointer-events-auto inline-flex h-7 min-w-26 items-center justify-center self-end rounded-lg px-3 text-xs font-medium transition ${
                 isRescheduling
                   ? `${actionButtonStyles.upcoming} pointer-events-none`
                   : actionButtonStyles.upcoming
@@ -286,11 +270,8 @@ export function LessonCard({ lesson }: LessonCardProps) {
           type="button"
           aria-label="Cancel booking"
           title="Cancel booking"
-          onClick={(event) => {
-            event.stopPropagation();
-            handleCancel();
-          }}
-          className="absolute right-2 top-2 cursor-pointer rounded-lg p-1 text-slate-400 transition hover:bg-red-50 hover:text-red-500"
+          onClick={handleCancel}
+          className="absolute right-2 top-2 z-20 cursor-pointer rounded-lg p-1 text-slate-400 transition hover:bg-red-50 hover:text-red-500"
         >
           <XCircleIcon className="h-4 w-4" />
         </button>
