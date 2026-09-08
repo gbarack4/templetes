@@ -89,12 +89,14 @@ export function InstructorProfileSummary({
           </div>
 
           <p className="text-xs font-medium text-[#4b5563]">
-            {rating.toFixed(1)} · {reviewCount} reviews
+            {rating.toFixed(1)} · {reviewCount}{" "}
+            {reviewCount === 1 ? "review" : "reviews"}
           </p>
         </div>
 
         <p className="mt-0.5 text-xs text-[#4b5563]">
-          {lessonsCompleted.toLocaleString()} lessons completed
+          {lessonsCompleted.toLocaleString()}{" "}
+          {lessonsCompleted === 1 ? "lesson" : "lessons"} completed
         </p>
       </div>
     </div>

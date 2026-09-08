@@ -49,9 +49,6 @@ export function BookingsFlow() {
   );
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
-  const [reviewedLessonIds, setReviewedLessonIds] = useState<Set<string>>(
-    () => new Set(),
-  );
 
   const {
     bookings,
@@ -70,11 +67,33 @@ export function BookingsFlow() {
     return () => clearTimeout(timeoutId);
   }, [query]);
 
-  function handleReviewSubmit(lessonId: string) {
-    setReviewedLessonIds((current) => new Set(current).add(lessonId));
-  }
-
   const emptyMessage = getEmptyMessage(activeTab, debouncedQuery.length > 0);
+
+  let bookingsContent: React.ReactNode;
+
+  if (bookingsLoading) {
+    bookingsContent = (
+      <p className="py-8 text-center text-sm text-slate-400">
+        Loading bookings...
+      </p>
+    );
+  } else if (bookingsError) {
+    bookingsContent = (
+      <p className="rounded-2xl bg-red-50 py-4 text-center text-sm text-red-600">
+        {bookingsError}
+      </p>
+    );
+  } else if (bookings.length > 0) {
+    bookingsContent = bookings.map((lesson) => (
+      <LessonCard key={lesson.id} lesson={lesson} />
+    ));
+  } else {
+    bookingsContent = (
+      <p className="rounded-2xl border border-dashed border-slate-200 py-8 text-center text-sm text-slate-400">
+        {emptyMessage}
+      </p>
+    );
+  }
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -121,28 +140,7 @@ export function BookingsFlow() {
         </nav>
 
         <div className="mt-4 min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-y-contain pb-6 [-webkit-overflow-scrolling:touch]">
-          {bookingsLoading ? (
-            <p className="py-8 text-center text-sm text-slate-400">
-              Loading bookings...
-            </p>
-          ) : bookingsError ? (
-            <p className="rounded-2xl bg-red-50 py-4 text-center text-sm text-red-600">
-              {bookingsError}
-            </p>
-          ) : bookings.length > 0 ? (
-            bookings.map((lesson) => (
-              <LessonCard
-                key={lesson.id}
-                lesson={lesson}
-                isReviewed={reviewedLessonIds.has(lesson.id)}
-                onReviewSubmit={handleReviewSubmit}
-              />
-            ))
-          ) : (
-            <p className="rounded-2xl border border-dashed border-slate-200 py-8 text-center text-sm text-slate-400">
-              {emptyMessage}
-            </p>
-          )}
+          {bookingsContent}
         </div>
       </div>
     </div>

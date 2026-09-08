@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { ReactNode, useState } from "react";
 
 import { useStudent } from "@/shared/hooks/useStudent";
 import { useStudentBookings } from "@/shared/hooks/useStudentBookings";
@@ -50,20 +50,15 @@ const emptyLessonMessages: Record<TabKey, string> = {
   completed: "No completed lessons",
   cancelled: "No cancelled lessons",
 };
-
 function LessonSection({
   title,
   emptyMessage,
   lessons,
-  reviewedLessonIds,
-  onReviewSubmit,
   onViewAll,
 }: Readonly<{
   title: string;
   emptyMessage: string;
   lessons: Lesson[];
-  reviewedLessonIds: Set<string>;
-  onReviewSubmit: (lessonId: string, rating: number, comment: string) => void;
   onViewAll: () => void;
 }>) {
   return (
@@ -83,12 +78,7 @@ function LessonSection({
       <div className="mt-3 min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-y-contain pb-4 [-webkit-overflow-scrolling:touch]">
         {lessons.length > 0 ? (
           lessons.map((lesson) => (
-            <LessonCard
-              key={lesson.id}
-              lesson={lesson}
-              isReviewed={reviewedLessonIds.has(lesson.id)}
-              onReviewSubmit={onReviewSubmit}
-            />
+            <LessonCard key={lesson.id} lesson={lesson} />
           ))
         ) : (
           <p className="rounded-2xl border border-dashed border-slate-200 py-8 text-center text-sm text-slate-400">
@@ -126,10 +116,6 @@ export function Dashboard({ data = mockDashboardData }: DashboardProps) {
     status: activeTab,
   });
 
-  const [reviewedLessonIds, setReviewedLessonIds] = useState<Set<string>>(
-    () => new Set(),
-  );
-
   const [notifications, setNotifications] = useState(data.notifications);
   const [showNotifications, setShowNotifications] = useState(false);
   const [imageError, setImageError] = useState(false);
@@ -151,10 +137,6 @@ export function Dashboard({ data = mockDashboardData }: DashboardProps) {
     (notification) => !notification.read,
   ).length;
 
-  function handleReviewSubmit(lessonId: string) {
-    setReviewedLessonIds((current) => new Set(current).add(lessonId));
-  }
-
   function handleMarkNotificationRead(id: string) {
     setNotifications((current) =>
       current.map((notification) =>
@@ -169,6 +151,31 @@ export function Dashboard({ data = mockDashboardData }: DashboardProps) {
         ...notification,
         read: true,
       })),
+    );
+  }
+
+  let bookingsContent: ReactNode;
+
+  if (bookingsLoading) {
+    bookingsContent = (
+      <p className="py-8 text-center text-sm text-slate-400">
+        Loading bookings...
+      </p>
+    );
+  } else if (bookingsError) {
+    bookingsContent = (
+      <p className="rounded-2xl bg-red-50 py-4 text-center text-sm text-red-600">
+        {bookingsError}
+      </p>
+    );
+  } else {
+    bookingsContent = (
+      <LessonSection
+        title={sectionTitles[activeTab]}
+        emptyMessage={emptyLessonMessages[activeTab]}
+        lessons={activeBookings}
+        onViewAll={() => router.push(`/dashboard/bookings?tab=${activeTab}`)}
+      />
     );
   }
 
@@ -293,26 +300,7 @@ export function Dashboard({ data = mockDashboardData }: DashboardProps) {
         </nav>
 
         <div className="mt-6 flex min-h-0 flex-1 flex-col">
-          {bookingsLoading ? (
-            <p className="py-8 text-center text-sm text-slate-400">
-              Loading bookings...
-            </p>
-          ) : bookingsError ? (
-            <p className="rounded-2xl bg-red-50 py-4 text-center text-sm text-red-600">
-              {bookingsError}
-            </p>
-          ) : (
-            <LessonSection
-              title={sectionTitles[activeTab]}
-              emptyMessage={emptyLessonMessages[activeTab]}
-              lessons={activeBookings}
-              reviewedLessonIds={reviewedLessonIds}
-              onReviewSubmit={handleReviewSubmit}
-              onViewAll={() =>
-                router.push(`/dashboard/bookings?tab=${activeTab}`)
-              }
-            />
-          )}
+          {bookingsContent}
         </div>
       </main>
 

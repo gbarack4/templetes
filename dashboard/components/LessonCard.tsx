@@ -4,7 +4,9 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { ButtonSpinner } from "@/components/ButtonSpinner";
+import { useStudentReview } from "@/shared/hooks/useStudentReview";
 import type { InstructorOption } from "@/types/instructor";
+import { useInstructorReviewProfile } from "@/shared/hooks/useInstructorReviewProfile";
 
 import type { Lesson, LessonInstructor } from "../types";
 import { InstructorProfileSummary } from "./InstructorSearch";
@@ -13,8 +15,6 @@ import { XCircleIcon } from "./icons";
 
 type LessonCardProps = Readonly<{
   lesson: Lesson;
-  isReviewed?: boolean;
-  onReviewSubmit?: (lessonId: string, rating: number, comment: string) => void;
 }>;
 
 const actionLabels = {
@@ -109,27 +109,45 @@ function DateBlock({
   );
 }
 
-export function LessonCard({
-  lesson,
-  isReviewed = false,
-  onReviewSubmit,
-}: LessonCardProps) {
+export function LessonCard({ lesson }: LessonCardProps) {
   const router = useRouter();
 
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [isRescheduling, setIsRescheduling] = useState(false);
   const [isOpeningReview, setIsOpeningReview] = useState(false);
 
+  const { submitReview } = useStudentReview();
+
   const badge = statusBadges[lesson.status];
   const isUpcoming = lesson.status === "upcoming";
   const isCompleted = lesson.status === "completed";
+  const isReviewed = Boolean(lesson.review);
 
-  const instructor = getInstructorOption(lesson);
+  const baseInstructor = getInstructorOption(lesson);
+
+  const { averageRating, reviewCount, completedLessons } =
+    useInstructorReviewProfile({
+      instructorId: baseInstructor.id || null,
+    });
+
+  const instructor: InstructorOption = {
+    ...baseInstructor,
+    rating: averageRating,
+    reviewCount,
+    lessonsCompleted: completedLessons,
+  };
 
   const lessonLabel = `${lesson.month} ${lesson.day} · ${lesson.weekday} · ${lesson.timeRange}`;
 
-  function handleReviewSubmit(rating: number, comment: string) {
-    onReviewSubmit?.(lesson.id, rating, comment);
+  async function handleReviewSubmit(
+    rating: number,
+    comment: string,
+  ): Promise<void> {
+    await submitReview({
+      bookingId: lesson.id,
+      rating,
+      comment,
+    });
   }
 
   function handleReschedule() {
@@ -272,7 +290,7 @@ export function LessonCard({
             event.stopPropagation();
             handleCancel();
           }}
-          className="cursor-pointer absolute right-2 top-2 rounded-lg p-1 text-slate-400 transition hover:bg-red-50 hover:text-red-500"
+          className="absolute right-2 top-2 cursor-pointer rounded-lg p-1 text-slate-400 transition hover:bg-red-50 hover:text-red-500"
         >
           <XCircleIcon className="h-4 w-4" />
         </button>

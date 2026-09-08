@@ -90,6 +90,7 @@ function mapBookingToLesson(
     location: getBookingLocation(booking),
     hours,
     status,
+    review: booking.review,
   };
 }
 
