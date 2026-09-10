@@ -14,6 +14,7 @@ import { withOnboardingQuery } from "./paths";
 import type { InstructorOption } from "@/types/instructor";
 
 import { instructorProfileDetails } from "./suggested-instructors";
+import { useSchoolId } from "@/dashboard/SchoolContext";
 
 type InstructorProfileProps = Readonly<{
   instructor: InstructorOption;
@@ -95,7 +96,7 @@ export function InstructorProfile({
 }: InstructorProfileProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
-
+  const schoolId = useSchoolId();
   const [showReviews, setShowReviews] = useState(false);
   const [isBooking, setIsBooking] = useState(false);
   const [imageError, setImageError] = useState(false);
@@ -105,6 +106,7 @@ export function InstructorProfile({
 
   const { profile } = useInstructorReviewProfile({
     instructorId: instructor.id,
+    schoolId,
     limit: 50,
   });
 

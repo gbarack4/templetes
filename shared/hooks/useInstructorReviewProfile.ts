@@ -30,25 +30,37 @@ export type InstructorReviewProfile = {
 
 type UseInstructorReviewProfileOptions = {
   instructorId: string | null | undefined;
+  schoolId: string | null | undefined;
   limit?: number;
   offset?: number;
 };
 
 export function useInstructorReviewProfile({
   instructorId,
+  schoolId,
   limit = 20,
   offset = 0,
 }: UseInstructorReviewProfileOptions) {
-  const enabled = Boolean(instructorId);
+  const enabled = Boolean(instructorId && schoolId);
 
   const result = useQuery<InstructorReviewProfile>({
-    queryKey: ["instructor-review-profile", instructorId, limit, offset],
+    queryKey: [
+      "instructor-review-profile",
+      schoolId,
+      instructorId,
+      limit,
+      offset,
+    ],
     enabled,
     staleTime: 30_000,
     retry: false,
     queryFn: async ({ signal }) => {
       if (!instructorId) {
         throw new Error("Instructor is required.");
+      }
+
+      if (!schoolId) {
+        throw new Error("School is required.");
       }
 
       const apiUrl = process.env.NEXT_PUBLIC_API_URL;
@@ -67,6 +79,9 @@ export function useInstructorReviewProfile({
         {
           cache: "no-store",
           signal,
+          headers: {
+            "x-school-id": schoolId,
+          },
         },
       );
 

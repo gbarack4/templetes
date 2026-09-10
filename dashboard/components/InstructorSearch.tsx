@@ -7,6 +7,7 @@ import { useInstructorReviewProfile } from "@/shared/hooks/useInstructorReviewPr
 import type { InstructorOption } from "@/types/instructor";
 
 import { formatCurrency } from "../mock-data";
+import { useSchoolId } from "../SchoolContext";
 
 type InstructorSearchProps = Readonly<{
   instructors: InstructorOption[];
@@ -35,10 +36,12 @@ export function InstructorProfileSummary({
   instructor,
   compact = false,
 }: Readonly<{ instructor: InstructorOption; compact?: boolean }>) {
+  const schoolId = useSchoolId();
   const [imageError, setImageError] = useState(false);
 
   const { profile } = useInstructorReviewProfile({
     instructorId: instructor.id || null,
+    schoolId,
   });
 
   const sizeClass = compact ? "h-9 w-9 text-xs" : "h-12 w-12 text-sm";
