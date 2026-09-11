@@ -1,5 +1,6 @@
 "use client";
 
+import { formatAddressWithoutCountry } from "@/shared/utils/address";
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 
 export type AddressSuggestion = Readonly<{
@@ -351,21 +352,13 @@ async function fetchAustralianPostcodeSuggestions(
       "administrative_area_level_1",
     )?.short_name ?? "";
 
-  const country =
-    getAddressComponent(postcodeResult.address_components, "country")
-      ?.long_name ?? "Australia";
-
   const localities = [...new Set(postcodeResult.postcode_localities)];
 
   return localities.map((locality) => ({
     id: `${postcode}-${locality}`,
     mainText: locality,
-    secondaryText: [state, postcode, country].filter(Boolean).join(" "),
-    description: [
-      locality,
-      [state, postcode].filter(Boolean).join(" "),
-      country,
-    ]
+    secondaryText: [state, postcode].filter(Boolean).join(" "),
+    description: [locality, [state, postcode].filter(Boolean).join(" ")]
       .filter(Boolean)
       .join(", "),
     postcode,
@@ -419,8 +412,10 @@ async function fetchGoogleSuggestions(
           predictions.map((prediction) => ({
             id: prediction.place_id,
             mainText: prediction.structured_formatting.main_text,
-            secondaryText: prediction.structured_formatting.secondary_text,
-            description: prediction.description,
+            secondaryText: formatAddressWithoutCountry(
+              prediction.structured_formatting.secondary_text,
+            ),
+            description: formatAddressWithoutCountry(prediction.description),
           })),
         );
       },
@@ -504,8 +499,9 @@ export function GoogleAddressAutocomplete({
     if (mode === "address") {
       const details = await fetchAddressDetailsForPlace(suggestion.id);
 
-      const selectedValue =
-        details.formattedAddress?.trim() || suggestion.description;
+      const selectedValue = formatAddressWithoutCountry(
+        details.formattedAddress?.trim() || suggestion.description,
+      );
 
       onChange(selectedValue);
       onSelect?.(selectedValue, details);
@@ -548,7 +544,7 @@ export function GoogleAddressAutocomplete({
         aria-activedescendant={
           showOverlay ? `${listId}-option-${highlightIndex}` : undefined
         }
-        value={value}
+        value={formatAddressWithoutCountry(value)}
         autoComplete="off"
         placeholder={placeholder}
         onChange={(event) => {

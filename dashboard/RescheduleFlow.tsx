@@ -1,63 +1,115 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
 
 import { ButtonSpinner } from "@/components/ButtonSpinner";
-import { getCurrentMonth } from "@/shared/utils/get-current-month";
-import type { InstructorOption } from "@/types/instructor";
-
+import { useStudentBookings } from "@/shared/hooks/useStudentBookings";
 import {
-  getInstructorByName,
-  mockInstructors,
-  mockRescheduleDates,
-  mockRescheduleTimeSlots,
-} from "./mock-data";
+  type RescheduleSlot,
+  useStudentRescheduleBooking,
+  useStudentRescheduleSlots,
+} from "@/shared/hooks/useStudentReschedule";
+import { getCurrentMonth } from "@/shared/utils/get-current-month";
+
 import { FlowPageContent } from "./components/FlowPageContent";
 import { FlowPageHeader } from "./components/FlowPageHeader";
-import {
-  InstructorProfileSummary,
-  InstructorSearch,
-} from "./components/InstructorSearch";
+import { InstructorProfileSummary } from "./components/InstructorSearch";
 import {
   getSelectedRescheduleDate,
   RescheduleCalendar,
 } from "./components/RescheduleCalendar";
-import { ChevronRightIcon } from "./components/icons";
+
+import type { RescheduleDateOption } from "./mock-data";
 import type { Lesson } from "./types";
 
 type RescheduleFlowProps = Readonly<{
-  lesson: Lesson;
+  lessonId: string;
 }>;
 
-const BUTTON_LOADING_MS = 2000;
+const MONTH_ABBR = [
+  "JAN",
+  "FEB",
+  "MAR",
+  "APR",
+  "MAY",
+  "JUN",
+  "JUL",
+  "AUG",
+  "SEP",
+  "OCT",
+  "NOV",
+  "DEC",
+] as const;
 
-function getInitials(name: string): string {
-  return name
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean)
-    .map((part) => part[0] ?? "")
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
+const WEEKDAY_ABBR = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"] as const;
+
+function buildFutureDates(monthsAhead = 12): RescheduleDateOption[] {
+  const dates: RescheduleDateOption[] = [];
+
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
+
+  const end = new Date(start);
+  end.setMonth(end.getMonth() + monthsAhead);
+
+  const cursor = new Date(start);
+
+  while (cursor < end) {
+    const year = cursor.getFullYear();
+    const monthIndex = cursor.getMonth();
+    const day = cursor.getDate();
+
+    dates.push({
+      id: `${year}-${String(monthIndex + 1).padStart(2, "0")}-${String(
+        day,
+      ).padStart(2, "0")}`,
+      year,
+      monthIndex,
+      month: MONTH_ABBR[monthIndex],
+      day,
+      weekday: WEEKDAY_ABBR[cursor.getDay()],
+      label: cursor.toLocaleDateString("en-AU", {
+        weekday: "long",
+        month: "short",
+        day: "numeric",
+      }),
+      slotCount: 1,
+      availability: "open",
+    });
+
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  return dates;
 }
 
-function getLessonInstructorName(lesson: Lesson): string {
-  return typeof lesson.instructor === "string"
-    ? lesson.instructor
-    : lesson.instructor.name;
-}
-
-function getLessonInstructorOption(lesson: Lesson): InstructorOption {
+function getInstructorOption(lesson: Lesson) {
   if (typeof lesson.instructor === "string") {
-    return getInstructorByName(lesson.instructor);
+    return {
+      id: "",
+      name: lesson.instructor,
+      initials: lesson.instructor
+        .split(/\s+/)
+        .map((part) => part[0] ?? "")
+        .join("")
+        .slice(0, 2)
+        .toUpperCase(),
+      avatarUrl: "",
+      location: lesson.location,
+      pricePerHour: null,
+    };
   }
 
   return {
     id: lesson.instructor.id,
     name: lesson.instructor.name,
-    initials: getInitials(lesson.instructor.name),
+    initials: lesson.instructor.name
+      .split(/\s+/)
+      .map((part) => part[0] ?? "")
+      .join("")
+      .slice(0, 2)
+      .toUpperCase(),
     avatarUrl: lesson.instructor.avatarUrl ?? "",
     location: lesson.location,
     pricePerHour: lesson.instructor.pricePerHour,
@@ -66,15 +118,11 @@ function getLessonInstructorOption(lesson: Lesson): InstructorOption {
 
 function CurrentLessonCard({
   lesson,
-  instructor,
-  onChangeInstructor,
-  showChangeInstructor,
 }: Readonly<{
   lesson: Lesson;
-  instructor: InstructorOption;
-  onChangeInstructor?: () => void;
-  showChangeInstructor?: boolean;
 }>) {
+  const instructor = getInstructorOption(lesson);
+
   return (
     <section className="rounded-2xl bg-slate-50 p-4">
       <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
@@ -93,106 +141,176 @@ function CurrentLessonCard({
         </p>
 
         <InstructorProfileSummary instructor={instructor} />
-
-        {showChangeInstructor && onChangeInstructor && (
-          <button
-            type="button"
-            onClick={onChangeInstructor}
-            className="mt-3 text-sm font-medium text-blue-600 hover:text-blue-700"
-          >
-            Change instructor
-          </button>
-        )}
       </div>
     </section>
   );
 }
 
-export function RescheduleFlow({ lesson }: RescheduleFlowProps) {
+function getDateValue(date: RescheduleDateOption): string {
+  return `${date.year}-${String(date.monthIndex + 1).padStart(
+    2,
+    "0",
+  )}-${String(date.day).padStart(2, "0")}`;
+}
+
+export function RescheduleFlow({ lessonId }: RescheduleFlowProps) {
   const router = useRouter();
 
-  const defaultInstructor = getLessonInstructorOption(lesson);
-  const instructorName = getLessonInstructorName(lesson);
+  const {
+    bookings,
+    loading: bookingsLoading,
+    error: bookingsError,
+  } = useStudentBookings({
+    status: "upcoming",
+  });
 
-  const [showInstructorSearch, setShowInstructorSearch] = useState(false);
-  const [instructorSearchQuery, setInstructorSearchQuery] = useState("");
-  const [instructorConfirmed, setInstructorConfirmed] = useState(false);
-  const [selectedInstructorId, setSelectedInstructorId] = useState(
-    defaultInstructor.id,
-  );
+  const lesson = bookings.find((booking) => booking.id === lessonId);
+
+  const availableDates = useMemo(() => buildFutureDates(), []);
+
   const [calendarMonth, setCalendarMonth] = useState(getCurrentMonth);
-  const [selectedDateId, setSelectedDateId] = useState<string | null>(null);
-  const [selectedTime, setSelectedTime] = useState<string | null>(null);
-  const [showTimePicker, setShowTimePicker] = useState(true);
-  const [isConfirmed, setIsConfirmed] = useState(false);
-  const [isConfirming, setIsConfirming] = useState(false);
 
-  const selectedInstructor =
-    mockInstructors.find(
-      (instructor) => instructor.id === selectedInstructorId,
-    ) ?? defaultInstructor;
+  const [selectedDateId, setSelectedDateId] = useState<string | null>(null);
+
+  const [selectedSlot, setSelectedSlot] = useState<RescheduleSlot | null>(null);
+
+  const [isConfirmed, setIsConfirmed] = useState(false);
 
   const selectedDate = getSelectedRescheduleDate(
-    mockRescheduleDates,
+    availableDates,
     selectedDateId,
   );
 
-  const normalizedInstructorSearch = instructorSearchQuery.trim().toLowerCase();
+  const selectedDateValue = selectedDate ? getDateValue(selectedDate) : null;
 
-  const visibleInstructors = normalizedInstructorSearch
-    ? mockInstructors.filter((instructor) => {
-        const name = instructor.name.toLowerCase();
-        const location = instructor.location?.toLowerCase() ?? "";
+  const {
+    slots,
+    loading: slotsLoading,
+    error: slotsError,
+  } = useStudentRescheduleSlots(lessonId, selectedDateValue);
 
-        return (
-          name.includes(normalizedInstructorSearch) ||
-          location.includes(normalizedInstructorSearch)
-        );
-      })
-    : mockInstructors;
-
-  const canConfirm = instructorConfirmed && selectedDate && selectedTime;
-
-  function handleInstructorSelect(instructorId: string) {
-    setSelectedInstructorId(instructorId);
-    setInstructorSearchQuery("");
-    setShowInstructorSearch(false);
-    setInstructorConfirmed(true);
-    setSelectedDateId(null);
-    setSelectedTime(null);
-    setShowTimePicker(true);
-  }
-
-  function handleChangeInstructorClick() {
-    setInstructorSearchQuery("");
-    setShowInstructorSearch(true);
-    setSelectedDateId(null);
-    setSelectedTime(null);
-    setShowTimePicker(true);
-  }
-
-  function handleTimeChange(time: string) {
-    setSelectedTime(time);
-    setShowTimePicker(false);
-  }
-
-  function handleConfirm() {
-    if (!canConfirm || isConfirming) {
-      return;
-    }
-
-    setIsConfirming(true);
-
-    window.setTimeout(() => {
-      setIsConfirmed(true);
-    }, BUTTON_LOADING_MS);
-  }
+  const {
+    rescheduleBooking,
+    isRescheduling,
+    error: rescheduleError,
+  } = useStudentRescheduleBooking();
 
   function goBack() {
     router.push("/dashboard");
   }
 
-  if (isConfirmed && selectedDate && selectedTime) {
+  async function handleConfirm() {
+    if (!selectedSlot || isRescheduling) {
+      return;
+    }
+
+    try {
+      await rescheduleBooking({
+        bookingId: lessonId,
+        startDatetime: selectedSlot.startDatetime,
+      });
+
+      setIsConfirmed(true);
+    } catch {
+      // Mutation error is displayed below.
+    }
+  }
+
+  function renderSlots() {
+    if (slotsLoading) {
+      return (
+        <div className="flex justify-center py-6">
+          <ButtonSpinner />
+        </div>
+      );
+    }
+
+    if (slotsError) {
+      return (
+        <div
+          role="alert"
+          className="rounded-xl bg-red-50 p-3 text-sm text-red-600"
+        >
+          {slotsError}
+        </div>
+      );
+    }
+
+    if (slots.length === 0) {
+      return (
+        <div className="rounded-xl bg-slate-50 p-4 text-center text-sm text-slate-500">
+          No available times for this date.
+        </div>
+      );
+    }
+
+    return (
+      <div className="grid max-h-48 grid-cols-3 gap-2 overflow-y-auto rounded-xl border border-slate-200 bg-white p-2">
+        {slots.map((slot) => {
+          const isSelected = selectedSlot?.startDatetime === slot.startDatetime;
+
+          return (
+            <button
+              key={slot.startDatetime}
+              type="button"
+              onClick={() => setSelectedSlot(slot)}
+              className={`rounded-lg px-2 py-2 text-center text-xs font-medium transition ${
+                isSelected
+                  ? "bg-blue-600 text-white"
+                  : "bg-slate-50 text-slate-700 hover:bg-slate-100"
+              }`}
+            >
+              {slot.startTime}
+            </button>
+          );
+        })}
+      </div>
+    );
+  }
+
+  if (bookingsLoading) {
+    return (
+      <>
+        <FlowPageHeader title="Reschedule lesson" onBack={goBack} />
+
+        <FlowPageContent>
+          <div className="flex justify-center py-12">
+            <ButtonSpinner />
+          </div>
+        </FlowPageContent>
+      </>
+    );
+  }
+
+  if (bookingsError || !lesson) {
+    return (
+      <>
+        <FlowPageHeader title="Reschedule lesson" onBack={goBack} />
+
+        <FlowPageContent>
+          <div
+            role="alert"
+            className="rounded-xl bg-red-50 p-4 text-sm text-red-600"
+          >
+            {bookingsError ??
+              "Booking not found or it can no longer be rescheduled."}
+          </div>
+
+          <button
+            type="button"
+            onClick={goBack}
+            className="w-full rounded-lg bg-blue-600 py-3 text-sm font-medium text-white"
+          >
+            Back to Dashboard
+          </button>
+        </FlowPageContent>
+      </>
+    );
+  }
+
+  const instructor = getInstructorOption(lesson);
+
+  if (isConfirmed && selectedDate && selectedSlot) {
     return (
       <FlowPageContent className="text-center">
         <div className="flex flex-col items-center py-6">
@@ -213,10 +331,12 @@ export function RescheduleFlow({ lesson }: RescheduleFlowProps) {
               {selectedDate.month} {selectedDate.day} · {selectedDate.weekday}
             </p>
 
-            <p className="mt-1 text-sm text-slate-600">{selectedTime}</p>
+            <p className="mt-1 text-sm text-slate-600">
+              {selectedSlot.startTime} – {selectedSlot.endTime}
+            </p>
 
             <div className="mt-4 border-t border-slate-200 pt-4">
-              <InstructorProfileSummary instructor={selectedInstructor} />
+              <InstructorProfileSummary instructor={instructor} />
             </div>
           </div>
 
@@ -237,68 +357,31 @@ export function RescheduleFlow({ lesson }: RescheduleFlowProps) {
       <FlowPageHeader title="Reschedule lesson" onBack={goBack} />
 
       <FlowPageContent>
-        <CurrentLessonCard
-          lesson={lesson}
-          instructor={selectedInstructor}
-          showChangeInstructor={instructorConfirmed && !showInstructorSearch}
-          onChangeInstructor={handleChangeInstructorClick}
-        />
+        <CurrentLessonCard lesson={lesson} />
 
-        {!instructorConfirmed && !showInstructorSearch && (
-          <section className="space-y-2">
-            <button
-              type="button"
-              onClick={() => setShowInstructorSearch(true)}
-              className="w-full rounded-xl bg-slate-100 py-3 text-sm font-medium text-blue-600 transition hover:bg-slate-200"
-            >
-              Change instructor
-            </button>
+        <section className="space-y-3">
+          <h2 className="text-sm font-semibold text-slate-900">
+            Pick a new date
+          </h2>
 
-            <button
-              type="button"
-              onClick={() => setInstructorConfirmed(true)}
-              className="w-full py-2 text-sm font-medium text-slate-500 transition hover:text-slate-700"
-            >
-              Continue with {instructorName}
-            </button>
-          </section>
-        )}
-
-        {showInstructorSearch && (
-          <InstructorSearch
-            instructors={visibleInstructors}
-            query={instructorSearchQuery}
-            onQueryChange={setInstructorSearchQuery}
-            onSelect={handleInstructorSelect}
-            onCancel={() => {
-              setInstructorSearchQuery("");
-              setShowInstructorSearch(false);
+          <RescheduleCalendar
+            month={calendarMonth}
+            availableDates={availableDates}
+            selectedDateId={selectedDateId}
+            showSlotLabels={false}
+            onMonthChange={(month) => {
+              setCalendarMonth(month);
+              setSelectedDateId(null);
+              setSelectedSlot(null);
+            }}
+            onSelectDate={(dateId) => {
+              setSelectedDateId(dateId);
+              setSelectedSlot(null);
             }}
           />
-        )}
+        </section>
 
-        {instructorConfirmed && !showInstructorSearch && !selectedDate && (
-          <section className="space-y-3">
-            <h2 className="text-sm font-semibold text-slate-900">
-              Pick a new date
-            </h2>
-
-            <RescheduleCalendar
-              month={calendarMonth}
-              availableDates={mockRescheduleDates}
-              selectedDateId={selectedDateId}
-              onMonthChange={(month) => {
-                setCalendarMonth(month);
-                setSelectedDateId(null);
-              }}
-              onSelectDate={(dateId) => {
-                setSelectedDateId(dateId);
-              }}
-            />
-          </section>
-        )}
-
-        {instructorConfirmed && selectedDate && !showInstructorSearch && (
+        {selectedDate && (
           <section className="rounded-2xl bg-slate-50 p-4">
             <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
               Selected date
@@ -316,8 +399,7 @@ export function RescheduleFlow({ lesson }: RescheduleFlowProps) {
               type="button"
               onClick={() => {
                 setSelectedDateId(null);
-                setSelectedTime(null);
-                setShowTimePicker(true);
+                setSelectedSlot(null);
               }}
               className="mt-3 text-sm font-medium text-blue-600 hover:text-blue-700"
             >
@@ -326,54 +408,17 @@ export function RescheduleFlow({ lesson }: RescheduleFlowProps) {
           </section>
         )}
 
-        {instructorConfirmed && selectedDate && !showInstructorSearch && (
+        {selectedDate && (
           <section className="space-y-3">
             <h2 className="text-sm font-semibold text-slate-900">
               Pick a time
             </h2>
 
-            <button
-              type="button"
-              onClick={() => setShowTimePicker((open) => !open)}
-              className="flex w-full items-center justify-between rounded-xl bg-slate-50 px-4 py-3 text-left transition hover:bg-slate-100"
-            >
-              <span
-                className={`text-sm font-medium ${
-                  selectedTime ? "text-slate-900" : "text-slate-400"
-                }`}
-              >
-                {selectedTime ?? "Select time"}
-              </span>
-
-              <ChevronRightIcon
-                className={`h-4 w-4 shrink-0 text-slate-400 transition ${
-                  showTimePicker ? "rotate-90" : ""
-                }`}
-              />
-            </button>
-
-            {showTimePicker && (
-              <div className="grid max-h-48 grid-cols-4 gap-1.5 overflow-y-auto overscroll-y-contain rounded-xl border border-slate-200 bg-white p-2">
-                {mockRescheduleTimeSlots.map((time) => (
-                  <button
-                    key={time}
-                    type="button"
-                    onClick={() => handleTimeChange(time)}
-                    className={`rounded-md px-1 py-1.5 text-center text-[11px] font-medium leading-tight transition ${
-                      selectedTime === time
-                        ? "bg-blue-600 text-white"
-                        : "bg-slate-50 text-slate-700 hover:bg-slate-100"
-                    }`}
-                  >
-                    {time}
-                  </button>
-                ))}
-              </div>
-            )}
+            {renderSlots()}
           </section>
         )}
 
-        {canConfirm && !showInstructorSearch && (
+        {selectedDate && selectedSlot && (
           <section className="rounded-2xl bg-slate-50 p-4">
             <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
               New lesson summary
@@ -383,24 +428,36 @@ export function RescheduleFlow({ lesson }: RescheduleFlowProps) {
               {selectedDate.month} {selectedDate.day} · {selectedDate.weekday}
             </p>
 
-            <p className="mt-1 text-sm text-slate-600">{selectedTime}</p>
+            <p className="mt-1 text-sm text-slate-600">
+              {selectedSlot.startTime} – {selectedSlot.endTime}
+            </p>
 
             <div className="mt-4 border-t border-slate-200 pt-4">
-              <InstructorProfileSummary instructor={selectedInstructor} />
+              <InstructorProfileSummary instructor={instructor} />
             </div>
           </section>
         )}
 
-        {canConfirm && !showInstructorSearch && (
+        {rescheduleError && (
+          <div
+            role="alert"
+            className="rounded-xl bg-red-50 p-3 text-sm text-red-600"
+          >
+            {rescheduleError}
+          </div>
+        )}
+
+        {selectedSlot && (
           <button
             type="button"
-            aria-busy={isConfirming}
-            onClick={handleConfirm}
+            aria-busy={isRescheduling}
+            disabled={isRescheduling}
+            onClick={() => void handleConfirm()}
             className={`inline-flex h-11 w-full items-center justify-center rounded-lg bg-blue-600 text-sm font-medium text-white transition hover:bg-blue-700 ${
-              isConfirming ? "pointer-events-none" : ""
+              isRescheduling ? "pointer-events-none opacity-80" : ""
             }`}
           >
-            {isConfirming ? <ButtonSpinner inverse /> : "Confirm reschedule"}
+            {isRescheduling ? <ButtonSpinner inverse /> : "Confirm reschedule"}
           </button>
         )}
       </FlowPageContent>

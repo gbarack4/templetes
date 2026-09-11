@@ -1,12 +1,13 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import Image from "next/image";
 
-import { DEFAULT_STUDENT_AVATAR, PRESET_AVATARS } from "../student-avatar";
 import { useIsClient } from "@/shared/hooks/useIsClient";
 import { useUpdateStudentAvatar } from "@/shared/hooks/useStudent";
+
+import { DEFAULT_STUDENT_AVATAR, PRESET_AVATARS } from "../student-avatar";
 
 type EditProfilePhotoModalProps = Readonly<{
   currentAvatarUrl: string;
@@ -39,17 +40,24 @@ export function EditProfilePhotoModal({
 
     document.addEventListener("keydown", handleKeyDown);
     document.body.style.overflow = "hidden";
-    if (scroller) scroller.style.overflow = "hidden";
+
+    if (scroller) {
+      scroller.style.overflow = "hidden";
+    }
 
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
       document.body.style.overflow = "";
-      if (scroller) scroller.style.overflow = previousOverflow;
+
+      if (scroller) {
+        scroller.style.overflow = previousOverflow;
+      }
     };
   }, [onClose]);
 
   function handleSave() {
     setError(null);
+
     updateAvatar(selectedUrl, {
       onSuccess: () => {
         onSave(selectedUrl);
@@ -63,6 +71,7 @@ export function EditProfilePhotoModal({
 
   function handleRemove() {
     setError(null);
+
     updateAvatar(null, {
       onSuccess: () => {
         onSave(DEFAULT_STUDENT_AVATAR);
@@ -87,8 +96,9 @@ export function EditProfilePhotoModal({
         onClick={onClose}
         className="absolute inset-0 bg-slate-900/40"
       />
+
       <dialog
-      open
+        open
         aria-modal="true"
         aria-labelledby="edit-photo-title"
         className="absolute inset-x-0 bottom-0 z-10 mx-auto flex h-[85dvh] w-full max-w-md flex-col rounded-t-2xl bg-white pb-[env(safe-area-inset-bottom,0px)] shadow-xl"
@@ -100,6 +110,7 @@ export function EditProfilePhotoModal({
           >
             Edit profile photo
           </h2>
+
           <button
             type="button"
             onClick={onClose}
@@ -128,9 +139,11 @@ export function EditProfilePhotoModal({
               height={96}
               className="h-24 w-24 rounded-full bg-slate-100 object-cover ring-4 ring-slate-100"
             />
+
             <p className="mt-3 text-center text-sm text-slate-500">
               Choose an avatar for your student profile.
             </p>
+
             {error && (
               <p className="mt-2 text-center text-sm text-red-600">{error}</p>
             )}
@@ -161,8 +174,10 @@ export function EditProfilePhotoModal({
                 >
                   <Image
                     src={avatarUrl}
-                    alt="avatar"
-                    className="h-full w-full object-cover"
+                    alt=""
+                    fill
+                    sizes="25vw"
+                    className="object-cover"
                   />
                 </button>
               );

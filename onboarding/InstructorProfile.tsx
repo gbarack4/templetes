@@ -1,26 +1,29 @@
 "use client";
 
-import { useState } from "react";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useState } from "react";
+
 import { ButtonSpinner } from "@/components/ButtonSpinner";
 import { FlowPageHeader } from "@/dashboard/components/FlowPageHeader";
 import { ChevronRightIcon, PhoneIcon } from "@/dashboard/components/icons";
-import { getInstructorReviews } from "./instructor-reviews";
+import { useInstructorReviewProfile } from "@/shared/hooks/useInstructorReviewProfile";
+
 import { InstructorReviewsModal, ReviewStars } from "./InstructorReviewsModal";
 import { withOnboardingQuery } from "./paths";
-import {
-  instructorProfileDetails,
-  type SuggestedInstructor,
-} from "./suggested-instructors";
+import type { InstructorOption } from "@/types/instructor";
+
+import { instructorProfileDetails } from "./suggested-instructors";
+import { useSchoolId } from "@/dashboard/SchoolContext";
 
 type InstructorProfileProps = Readonly<{
-  instructor: SuggestedInstructor;
+  instructor: InstructorOption;
   basePath?: string;
   bookHref?: string;
 }>;
 
 const BUTTON_LOADING_MS = 2000;
+
 function HeartIcon({
   className,
   filled = false,
@@ -64,9 +67,26 @@ function formatHourlyRate(amount: number): string {
 
 function transmissionLabel(value: string | undefined): string {
   if (!value) return "AUTO";
+
   const normalized = value.trim().toLowerCase();
+
   if (normalized.startsWith("man")) return "MANUAL";
+
   return "AUTO";
+}
+
+function formatReviewDate(value: string): string {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  return date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
 }
 
 export function InstructorProfile({
@@ -76,6 +96,7 @@ export function InstructorProfile({
 }: InstructorProfileProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const schoolId = useSchoolId();
   const [showReviews, setShowReviews] = useState(false);
   const [isBooking, setIsBooking] = useState(false);
   const [imageError, setImageError] = useState(false);
@@ -83,25 +104,46 @@ export function InstructorProfile({
   const [favorited, setFavorited] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
 
+  const { profile } = useInstructorReviewProfile({
+    instructorId: instructor.id,
+    schoolId,
+    limit: 50,
+  });
+
   const details = instructorProfileDetails[instructor.id];
-  const reviews = getInstructorReviews(instructor.id);
+
+  const reviews =
+    profile?.reviews.map((review) => ({
+      id: review.id,
+      author: review.studentName ?? "Student",
+      rating: review.rating,
+      comment: review.comment ?? "",
+      date: formatReviewDate(review.createdAt),
+    })) ?? [];
+
   const showImage = Boolean(instructor.avatarUrl) && !imageError;
   const isOnboarding = !bookHref;
   const carImageUrl = details?.car.imageUrl;
   const showCarImage = Boolean(carImageUrl) && !carImageError;
   const isSvgCar = Boolean(carImageUrl?.endsWith(".svg"));
 
-  const rating = instructor.rating ?? 0;
-  const reviewCount = instructor.reviewCount ?? 0;
+  const rating = profile?.averageRating ?? instructor.rating ?? 0;
+  const reviewCount = profile?.reviewCount ?? instructor.reviewCount ?? 0;
+  const completedLessons =
+    profile?.completedLessons ?? instructor.lessonsCompleted ?? 0;
+
   const isTopRated = rating >= 4.8;
   const gearLabel = transmissionLabel(details?.car.transmission);
 
   function handleBookLesson() {
     if (isBooking) return;
+
     setIsBooking(true);
+
     const destination =
       bookHref ??
       withOnboardingQuery(`${basePath}/book/${instructor.id}`, searchParams);
+
     window.setTimeout(() => {
       router.push(destination);
     }, BUTTON_LOADING_MS);
@@ -144,7 +186,7 @@ export function InstructorProfile({
                 aria-label={favorited ? "Remove from favorites" : "Favorite"}
                 aria-pressed={favorited}
                 onClick={() => setFavorited((value) => !value)}
-                className="absolute top-3 right-3 flex h-9 w-9 items-center justify-center rounded-full bg-white text-slate-900 shadow-sm transition hover:bg-[#f9f9f9]"
+                className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-white text-slate-900 shadow-sm transition hover:bg-[#f9f9f9]"
               >
                 <HeartIcon
                   className={`h-4 w-4 ${favorited ? "text-red-500" : ""}`}
@@ -178,8 +220,14 @@ export function InstructorProfile({
                   <h1 className="truncate text-2xl font-bold tracking-tight text-slate-900">
                     {instructor.name}
                   </h1>
+
+                  <p className="mt-1 text-xs text-[#4b5563]">
+                    {completedLessons.toLocaleString()}{" "}
+                    {completedLessons === 1 ? "lesson" : "lessons"} completed
+                  </p>
+
                   {isTopRated ? (
-                    <span className="mt-2 inline-flex rounded-full bg-green-600 px-2.5 py-1 text-[11px] font-bold tracking-wide text-white uppercase">
+                    <span className="mt-2 inline-flex rounded-full bg-green-600 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-white">
                       Top rated
                     </span>
                   ) : null}
@@ -193,9 +241,11 @@ export function InstructorProfile({
                   <span className="text-amber-400" aria-hidden>
                     ★
                   </span>
+
                   <span className="text-sm font-bold text-slate-900">
                     {rating.toFixed(1)}
                   </span>
+
                   <span className="text-[11px] font-medium text-[#4b5563]">
                     {reviewCount} review{reviewCount === 1 ? "" : "s"}
                   </span>
@@ -205,14 +255,20 @@ export function InstructorProfile({
               <div className="mt-4 border-t border-slate-200" />
 
               <div className="mt-4 flex items-center justify-between gap-3">
-                <span className="inline-flex items-center gap-1.5 rounded-lg bg-white px-2.5 py-1.5 text-[11px] font-bold tracking-wide text-slate-900 uppercase">
+                <span className="inline-flex items-center gap-1.5 rounded-lg bg-white px-2.5 py-1.5 text-[11px] font-bold uppercase tracking-wide text-slate-900">
                   <CarGlyph className="h-3.5 w-3.5" />
                   {gearLabel}
                 </span>
 
                 <p className="text-3xl font-bold tracking-tight text-slate-900">
-                  {formatHourlyRate(instructor.pricePerHour)}
-                  <span className="text-xl font-bold">/hr</span>
+                  {instructor.pricePerHour != null ? (
+                    <>
+                      {formatHourlyRate(instructor.pricePerHour)}
+                      <span className="text-xl font-bold">/hr</span>
+                    </>
+                  ) : (
+                    <span className="text-xl">Price on request</span>
+                  )}
                 </p>
               </div>
 
@@ -248,17 +304,20 @@ export function InstructorProfile({
                 className="flex w-full items-center justify-between gap-3 rounded-xl bg-[#f9f9f9] px-4 py-3.5 text-left transition hover:bg-[#f0f0f0]"
               >
                 <h2 className="text-sm font-semibold text-slate-900">About</h2>
+
                 <ChevronRightIcon
                   className={`h-4 w-4 shrink-0 text-slate-400 transition-transform ${
                     aboutOpen ? "rotate-90" : ""
                   }`}
                 />
               </button>
+
               {aboutOpen ? (
                 <div className="mt-2 space-y-3 px-1">
                   <p className="text-sm leading-relaxed text-[#4b5563]">
                     {details.bio}
                   </p>
+
                   <p className="text-xs text-[#4b5563]">
                     {details.car.year} {details.car.make} {details.car.model} ·{" "}
                     {details.car.color} · {details.car.fuel}
@@ -274,6 +333,7 @@ export function InstructorProfile({
                 <h2 className="text-sm font-semibold text-slate-900">
                   Student reviews
                 </h2>
+
                 <button
                   type="button"
                   onClick={() => setShowReviews(true)}
@@ -294,15 +354,20 @@ export function InstructorProfile({
                         <p className="text-sm font-semibold text-slate-900">
                           {review.author}
                         </p>
+
                         <p className="mt-0.5 text-xs text-[#4b5563]">
                           {review.date}
                         </p>
                       </div>
+
                       <ReviewStars rating={review.rating} />
                     </div>
-                    <p className="mt-2.5 text-sm leading-relaxed text-slate-600">
-                      {review.comment}
-                    </p>
+
+                    {review.comment ? (
+                      <p className="mt-2.5 text-sm leading-relaxed text-slate-600">
+                        {review.comment}
+                      </p>
+                    ) : null}
                   </article>
                 ))}
               </div>
@@ -313,7 +378,12 @@ export function InstructorProfile({
 
       {showReviews ? (
         <InstructorReviewsModal
-          instructor={instructor}
+          instructor={{
+            ...instructor,
+            rating,
+            reviewCount,
+            lessonsCompleted: completedLessons,
+          }}
           reviews={reviews}
           onClose={() => setShowReviews(false)}
         />

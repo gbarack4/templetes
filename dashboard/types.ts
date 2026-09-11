@@ -56,6 +56,8 @@ export interface Lesson {
   hours: number;
   status: LessonStatus;
   cancelledBy?: LessonCancelledBy;
+
+  review?: StudentBookingApiReview | null;
 }
 
 export interface DashboardData {
@@ -106,4 +108,26 @@ export interface StudentAccount {
     lessonReminders: boolean;
     emailUpdates: boolean;
   };
+}
+
+export interface StudentBookingApiReview {
+  id: string;
+  rating: number;
+  comment: string | null;
+  createdAt: string;
+}
+
+export interface StudentBookingApiItem {
+  id: string;
+  startDatetime: string;
+  endDatetime: string;
+  status: string;
+  bookingSource: string | null;
+  pickupAddress: string | null;
+  pickupSuburb: string | null;
+  pickupPostcode: string | null;
+  cancelledAt: string | null;
+  cancelledByUserId: string | null;
+  instructor: StudentBookingApiInstructor;
+  review: StudentBookingApiReview | null;
 }

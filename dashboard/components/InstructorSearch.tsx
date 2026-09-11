@@ -1,11 +1,13 @@
 "use client";
 
 import Image from "next/image";
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 
+import { useInstructorReviewProfile } from "@/shared/hooks/useInstructorReviewProfile";
 import type { InstructorOption } from "@/types/instructor";
 
 import { formatCurrency } from "../mock-data";
+import { useSchoolId } from "../SchoolContext";
 
 type InstructorSearchProps = Readonly<{
   instructors: InstructorOption[];
@@ -21,7 +23,10 @@ function getInitials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
 
   if (parts.length >= 2) {
-    return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+    const firstInitial = parts[0]?.[0] ?? "";
+    const lastInitial = parts.at(-1)?.[0] ?? "";
+
+    return `${firstInitial}${lastInitial}`.toUpperCase();
   }
 
   return name.slice(0, 2).toUpperCase();
@@ -31,15 +36,23 @@ export function InstructorProfileSummary({
   instructor,
   compact = false,
 }: Readonly<{ instructor: InstructorOption; compact?: boolean }>) {
+  const schoolId = useSchoolId();
   const [imageError, setImageError] = useState(false);
+
+  const { profile } = useInstructorReviewProfile({
+    instructorId: instructor.id || null,
+    schoolId,
+  });
 
   const sizeClass = compact ? "h-9 w-9 text-xs" : "h-12 w-12 text-sm";
   const showImage = Boolean(instructor.avatarUrl) && !imageError;
 
   const initials = instructor.initials || getInitials(instructor.name);
-  const rating = instructor.rating ?? 0;
-  const reviewCount = instructor.reviewCount ?? 0;
-  const lessonsCompleted = instructor.lessonsCompleted ?? 0;
+
+  const rating = profile?.averageRating ?? instructor.rating ?? 0;
+  const reviewCount = profile?.reviewCount ?? instructor.reviewCount ?? 0;
+  const lessonsCompleted =
+    profile?.completedLessons ?? instructor.lessonsCompleted ?? 0;
 
   return (
     <div className={`flex min-w-0 flex-1 ${compact ? "gap-2.5" : "gap-3"}`}>
@@ -89,12 +102,14 @@ export function InstructorProfileSummary({
           </div>
 
           <p className="text-xs font-medium text-[#4b5563]">
-            {rating.toFixed(1)} · {reviewCount} reviews
+            {rating.toFixed(1)} · {reviewCount}{" "}
+            {reviewCount === 1 ? "review" : "reviews"}
           </p>
         </div>
 
         <p className="mt-0.5 text-xs text-[#4b5563]">
-          {lessonsCompleted.toLocaleString()} lessons completed
+          {lessonsCompleted.toLocaleString()}{" "}
+          {lessonsCompleted === 1 ? "lesson" : "lessons"} completed
         </p>
       </div>
     </div>
@@ -138,6 +153,30 @@ export function InstructorSearch({
   onCancel,
   title = "Change instructor",
 }: InstructorSearchProps) {
+  let instructorsContent: ReactNode;
+
+  if (loading) {
+    instructorsContent = (
+      <p className="py-4 text-center text-sm text-slate-400">
+        Loading instructors...
+      </p>
+    );
+  } else if (instructors.length > 0) {
+    instructorsContent = instructors.map((instructor) => (
+      <InstructorProfileCard
+        key={instructor.id}
+        instructor={instructor}
+        onSelect={() => onSelect(instructor.id)}
+      />
+    ));
+  } else {
+    instructorsContent = (
+      <p className="py-4 text-center text-sm text-slate-400">
+        No instructors found
+      </p>
+    );
+  }
+
   return (
     <section className="space-y-3">
       <div className="flex items-center justify-between">
@@ -163,25 +202,7 @@ export function InstructorSearch({
         className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
       />
 
-      <div className="space-y-2">
-        {loading ? (
-          <p className="py-4 text-center text-sm text-slate-400">
-            Loading instructors...
-          </p>
-        ) : instructors.length > 0 ? (
-          instructors.map((instructor) => (
-            <InstructorProfileCard
-              key={instructor.id}
-              instructor={instructor}
-              onSelect={() => onSelect(instructor.id)}
-            />
-          ))
-        ) : (
-          <p className="py-4 text-center text-sm text-slate-400">
-            No instructors found
-          </p>
-        )}
-      </div>
+      <div className="space-y-2">{instructorsContent}</div>
     </section>
   );
 }
