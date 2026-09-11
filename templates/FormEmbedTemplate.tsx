@@ -218,6 +218,7 @@ export function FormEmbedTemplate({ data }: Readonly<TemplateProps>) {
           month={calendarMonth}
           availableDates={futureDates}
           selectedDateId={testDateId}
+          showSlotLabels={false}
           onMonthChange={(month) => {
             setCalendarMonth(month);
             setTestDateId(null);
