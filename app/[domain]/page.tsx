@@ -1,9 +1,13 @@
-import { notFound } from "next/navigation";
 import { Metadata } from "next";
-import { ModernTemplate } from "@/templates/ModernTemplate";
+import { notFound } from "next/navigation";
+
+import { getSchoolByDomain } from "@/lib/api";
 import { ClassicTemplate } from "@/templates/ClassicTemplate";
 import { FormEmbedTemplate } from "@/templates/FormEmbedTemplate";
-import { getSchoolByDomain } from "@/lib/api";
+import { ModernTemplate } from "@/templates/ModernTemplate";
+
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 const TEMPLATE_REGISTRY = {
   modern: ModernTemplate,
@@ -11,13 +15,15 @@ const TEMPLATE_REGISTRY = {
   "form-embed": FormEmbedTemplate,
 } as const;
 
+type TemplateKey = keyof typeof TEMPLATE_REGISTRY;
+
 type Props = {
   params: Promise<{ domain: string }>;
 };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const resolvedParams = await params;
-  const siteData = await getSchoolByDomain(resolvedParams.domain);
+  const { domain } = await params;
+  const siteData = await getSchoolByDomain(domain);
 
   if (!siteData) {
     return {
@@ -29,15 +35,16 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const description =
     siteData.config?.seoDescription ||
     `Welcome to ${siteData.schoolName} - your best driving experience.`;
+
   const logoUrl = siteData.config?.logoUrl || "/default-og-image.jpg";
 
   return {
     title: `${siteData.schoolName} | Driving School`,
-    description: description,
+    description,
     openGraph: {
       title: siteData.schoolName,
-      description: description,
-      url: `https://${resolvedParams.domain}`,
+      description,
+      url: `https://${domain}`,
       siteName: siteData.schoolName,
       images: [
         {
@@ -52,24 +59,23 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     twitter: {
       card: "summary_large_image",
       title: siteData.schoolName,
-      description: description,
+      description,
       images: [logoUrl],
     },
   };
 }
 
 export default async function SchoolPublicSite({ params }: Readonly<Props>) {
-  const resolvedParams = await params;
+  const { domain } = await params;
 
-  const siteData = await getSchoolByDomain(resolvedParams.domain);
+  const siteData = await getSchoolByDomain(domain);
 
   if (!siteData) {
     notFound();
   }
 
-  type TemplateKey = keyof typeof TEMPLATE_REGISTRY;
   const TemplateComponent =
-    TEMPLATE_REGISTRY[siteData.templateName as TemplateKey] ||
+    TEMPLATE_REGISTRY[siteData.templateName as TemplateKey] ??
     TEMPLATE_REGISTRY.classic;
 
   return <TemplateComponent data={siteData} />;

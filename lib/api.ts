@@ -7,7 +7,7 @@ export async function getSchoolByDomain(
 
   try {
     const res = await fetch(`${apiUrl}/public/websites/${domain}`, {
-      next: { revalidate: 60 },
+      cache: "no-store",
     });
 
     if (!res.ok) {
