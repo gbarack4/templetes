@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const response = await fetch(
-      `${process.env.API_URL}/public/websites/check-domain/${encodeURIComponent(slug)}`,
+      `${process.env.NEXT_PUBLIC_API_URL}/public/websites/check-domain/${encodeURIComponent(slug)}`,
       {
         cache: "no-store",
       },
