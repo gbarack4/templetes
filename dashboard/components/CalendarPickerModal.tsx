@@ -30,7 +30,7 @@ export function CalendarPickerModal({
   onMonthChange,
   onSelectDate,
   onClose,
-  showSlotLabels = true,
+  showSlotLabels = false,
 }: CalendarPickerModalProps) {
   const [isVisible, setIsVisible] = useState(false);
 

@@ -6,13 +6,12 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 
 import { ButtonSpinner } from "@/components/ButtonSpinner";
-import {
-  GoogleAddressAutocomplete,
-  type AddressSelectionDetails,
-} from "@/components/GoogleAddressAutocomplete";
+import { type AddressSelectionDetails } from "@/components/GoogleAddressAutocomplete";
+import { AddressPickerModal } from "@/dashboard/components/AddressPickerModal";
 import { CalendarPickerModal } from "@/dashboard/components/CalendarPickerModal";
 import { FlowPageHeader } from "@/dashboard/components/FlowPageHeader";
-import { CheckIcon, ChevronRightIcon } from "@/dashboard/components/icons";
+import { ChevronRightIcon } from "@/dashboard/components/icons";
+import { PackagePickerModal } from "@/dashboard/components/PackagePickerModal";
 import { InstructorProfileSummary } from "@/dashboard/components/InstructorSearch";
 import { LessonPayment } from "@/dashboard/components/LessonPayment";
 import { getSelectedRescheduleDate } from "@/dashboard/components/RescheduleCalendar";
@@ -136,6 +135,7 @@ export function BookInstructorFlow({
   const [showDurationPicker, setShowDurationPicker] = useState(false);
 
   const [showTimePicker, setShowTimePicker] = useState(false);
+  const [showAddressPicker, setShowAddressPicker] = useState(false);
 
   const [selectedDateId, setSelectedDateId] = useState<string | null>(
     preselectedDate?.id ?? null,
@@ -452,6 +452,13 @@ export function BookInstructorFlow({
   }, [durationConfirmed]);
 
   useEffect(() => {
+    if (selectedTime && !addressComplete) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setShowAddressPicker(true);
+    }
+  }, [addressComplete, selectedTime]);
+
+  useEffect(() => {
     if (
       !selectedTime ||
       isLoadingAvailableSlots ||
@@ -485,6 +492,7 @@ export function BookInstructorFlow({
     setPickupAddress(address);
     setPickupAddressDetails(null);
     setAddressSelected(false);
+
     resetDownstreamFromAddress();
   }
 
@@ -536,6 +544,7 @@ export function BookInstructorFlow({
     setShowSummary(false);
     setHasRegistered(false);
     setShowTimePicker(false);
+    setShowAddressPicker(true);
   }
 
   async function handleContinueToPayment() {
@@ -803,7 +812,7 @@ export function BookInstructorFlow({
               <>
                 <button
                   type="button"
-                  onClick={() => setShowDurationPicker((open) => !open)}
+                  onClick={() => setShowDurationPicker(true)}
                   className="flex w-full items-center justify-between rounded-xl bg-[#f9f9f9] px-4 py-3 text-left transition hover:bg-[#f0f0f0]"
                 >
                   <span
@@ -818,45 +827,21 @@ export function BookInstructorFlow({
                       : "Select lesson package"}
                   </span>
 
-                  <ChevronRightIcon
-                    className={`h-4 w-4 shrink-0 text-slate-400 transition ${
-                      showDurationPicker ? "rotate-90" : ""
-                    }`}
-                  />
+                  <ChevronRightIcon className="h-4 w-4 shrink-0 text-slate-400" />
                 </button>
 
                 {showDurationPicker && (
-                  <div className="flex max-h-64 flex-col overflow-y-auto overscroll-y-contain rounded-2xl border border-slate-200 bg-white px-4 py-2">
-                    {packages.map((pkg) => {
-                      const hours = pkg.durationMinutes / 60;
-                      const price = Number(pkg.price);
-                      const isSelected = selectedPackageId === pkg.id;
-
-                      return (
-                        <button
-                          key={pkg.id}
-                          type="button"
-                          onClick={() => handlePackageChange(pkg.id)}
-                          className="flex w-full shrink-0 items-center justify-between gap-3 py-3.5 text-left transition hover:opacity-80"
-                        >
-                          <span className="min-w-0">
-                            <span className="block text-sm font-semibold text-slate-900">
-                              {pkg.name}
-                            </span>
-
-                            <span className="mt-0.5 block text-xs text-[#4b5563]">
-                              {formatShortLessonHours(hours)} ·{" "}
-                              {formatCurrency(price)} · {packageSuburb}
-                            </span>
-                          </span>
-
-                          {isSelected ? (
-                            <CheckIcon className="h-5 w-5 shrink-0 text-blue-600" />
-                          ) : null}
-                        </button>
-                      );
-                    })}
-                  </div>
+                  <PackagePickerModal
+                    title={
+                      selectedPackage
+                        ? "Change lesson package"
+                        : "Select lesson package"
+                    }
+                    packages={packages}
+                    selectedPackageId={selectedPackageId}
+                    onSelectPackage={handlePackageChange}
+                    onClose={() => setShowDurationPicker(false)}
+                  />
                 )}
 
                 {selectedPackage && payment.payableHours > 0 && (
@@ -1028,15 +1013,36 @@ export function BookInstructorFlow({
               Pick up address
             </h2>
 
-            <GoogleAddressAutocomplete
-              id="pickup-address"
-              value={pickupAddress}
-              onChange={handlePickupAddressChange}
-              onSelect={handlePickupAddressSelect}
-              placeholder="Enter pick up address"
-              inputClassName="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-            />
+            <button
+              type="button"
+              onClick={() => setShowAddressPicker(true)}
+              className="flex w-full items-center justify-between rounded-xl bg-[#f9f9f9] px-4 py-3 text-left transition hover:bg-[#f0f0f0]"
+            >
+              <span
+                className={`text-sm font-medium ${
+                  trimmedPickupAddress ? "text-slate-900" : "text-[#4b5563]"
+                }`}
+              >
+                {trimmedPickupAddress || "Enter pick up address"}
+              </span>
+
+              <ChevronRightIcon className="h-4 w-4 shrink-0 text-slate-400" />
+            </button>
           </section>
+        )}
+
+        {showAddressStep && showAddressPicker && (
+          <AddressPickerModal
+            title={
+              trimmedPickupAddress ? "Change pick up address" : "Pick up address"
+            }
+            value={pickupAddress}
+            onChange={handlePickupAddressChange}
+            onSelect={handlePickupAddressSelect}
+            canConfirm={addressComplete}
+            onConfirm={() => setShowAddressPicker(false)}
+            onClose={() => setShowAddressPicker(false)}
+          />
         )}
 
         {showScheduleStep &&
