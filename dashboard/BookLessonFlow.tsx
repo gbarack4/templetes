@@ -33,6 +33,7 @@ import {
 } from "./components/InstructorSearch";
 import { CalendarIcon, ChevronRightIcon, CloseIcon } from "./components/icons";
 import { getSelectedRescheduleDate } from "./components/RescheduleCalendar";
+import { PackagePickerModal } from "./components/PackagePickerModal";
 import { TimePickerModal } from "./components/TimePickerModal";
 import { formatLessonHoursLabel, formatLessonTimeRange } from "./mock-data";
 
@@ -132,6 +133,7 @@ export function BookLessonFlow() {
     null,
   );
   const [showDurationPicker, setShowDurationPicker] = useState(false);
+  const [showPackagePicker, setShowPackagePicker] = useState(false);
   const [calendarMonth, setCalendarMonth] = useState(getCurrentMonth);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -270,8 +272,21 @@ export function BookLessonFlow() {
 
   const canChooseInstructor =
     bookingMode === "credit"
-      ? hasEnoughCredit
-      : bookingMode === "package" && selectedPackage !== null;
+      ? Boolean(
+          !isBalanceLoading &&
+            !balanceError &&
+            balanceMinutes !== null &&
+            balanceMinutes >= 60,
+        )
+      : bookingMode === "package";
+
+  const instructorSelected = Boolean(
+    selectedInstructor && !showInstructorSearch,
+  );
+
+  const canPickDate =
+    instructorSelected &&
+    (bookingMode === "credit" || selectedPackage !== null);
 
   const availabilitySearch =
     selectedInstructor && canLoadAvailability && lessonDurationMinutes !== null
@@ -417,9 +432,16 @@ export function BookLessonFlow() {
     setCalendarMonth(getCurrentMonth());
     setSelectedDateId(null);
     setSelectedTime(null);
-    setShowDatePicker(true);
     setBookingError("");
     setPaymentError("");
+
+    if (bookingMode === "package") {
+      setShowDatePicker(false);
+      setShowPackagePicker(true);
+      return;
+    }
+
+    setShowDatePicker(true);
   }
 
   function handleHoursChange(hours: number) {
@@ -460,6 +482,7 @@ export function BookLessonFlow() {
     setSelectedDateId(null);
     setSelectedTime(null);
     setShowDurationPicker(false);
+    setShowPackagePicker(false);
     setShowTimePicker(false);
     setBookingError("");
     setPaymentError("");
@@ -939,10 +962,88 @@ export function BookLessonFlow() {
           </div>
         )}
 
-        {bookingMode === "credit" && (
+        {canChooseInstructor && (
+          <section ref={instructorStepRef} className="space-y-3">
+            {selectedInstructor && !showInstructorSearch && (
+              <div className="rounded-2xl bg-[#f9f9f9] p-4">
+                <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
+                  Step 1
+                </p>
+
+                <div className="mt-3">
+                  <InstructorProfileSummary instructor={selectedInstructor} />
+                </div>
+
+                <button
+                  type="button"
+                  disabled={selectionLocked}
+                  onClick={() => {
+                    if (selectionLocked) {
+                      return;
+                    }
+
+                    setInstructorSearchQuery("");
+                    setShowInstructorSearch(true);
+                    setShowPackagePicker(false);
+                    setShowDatePicker(false);
+                  }}
+                  className="mt-3 text-sm font-medium text-blue-600 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Change instructor
+                </button>
+              </div>
+            )}
+
+            {(showInstructorSearch || !selectedInstructor) && (
+              <>
+                {instructorsError && (
+                  <div
+                    role="alert"
+                    className="rounded-xl bg-red-50 p-3 text-sm text-red-600"
+                  >
+                    <p>{instructorsError}</p>
+
+                    <button
+                      type="button"
+                      onClick={() => void refetchInstructors()}
+                      className="mt-2 font-medium underline"
+                    >
+                      Try again
+                    </button>
+                  </div>
+                )}
+
+                {!instructorsError && (
+                  <InstructorSearch
+                    title={
+                      selectedInstructor
+                        ? "Step 1 · Change instructor"
+                        : "Step 1 · Select instructor"
+                    }
+                    instructors={instructors}
+                    query={instructorSearchQuery}
+                    loading={isInstructorsLoading}
+                    onQueryChange={setInstructorSearchQuery}
+                    onSelect={handleInstructorSelect}
+                    onCancel={
+                      selectedInstructor
+                        ? () => {
+                            setInstructorSearchQuery("");
+                            setShowInstructorSearch(false);
+                          }
+                        : undefined
+                    }
+                  />
+                )}
+              </>
+            )}
+          </section>
+        )}
+
+        {bookingMode === "credit" && instructorSelected && (
           <section className="space-y-3">
             <h2 className="text-sm font-semibold text-slate-900">
-              Lesson duration
+              Step 2 · Lesson duration
             </h2>
 
             <button
@@ -999,10 +1100,10 @@ export function BookLessonFlow() {
           </section>
         )}
 
-        {bookingMode === "package" && (
+        {bookingMode === "package" && instructorSelected && (
           <section className="space-y-3">
             <h2 className="text-sm font-semibold text-slate-900">
-              Lesson package
+              Step 2 · Lesson package
             </h2>
 
             {!pickupSuburb ? (
@@ -1030,148 +1131,53 @@ export function BookLessonFlow() {
                 No lesson packages are available for this location.
               </p>
             ) : (
-              <>
-                <button
-                  type="button"
-                  disabled={selectionLocked}
-                  onClick={() => setShowDurationPicker((open) => !open)}
-                  className="flex w-full items-center justify-between rounded-xl bg-[#f9f9f9] px-4 py-3 text-left transition hover:bg-[#f0f0f0] disabled:cursor-not-allowed disabled:opacity-50"
+              <button
+                type="button"
+                disabled={selectionLocked}
+                onClick={() => {
+                  if (!selectionLocked) {
+                    setShowPackagePicker(true);
+                  }
+                }}
+                className="flex w-full items-center justify-between rounded-xl bg-[#f9f9f9] px-4 py-3 text-left transition hover:bg-[#f0f0f0] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <span
+                  className={`text-sm font-medium ${
+                    selectedPackage ? "text-slate-900" : "text-slate-400"
+                  }`}
                 >
-                  <span
-                    className={`text-sm font-medium ${
-                      selectedPackage ? "text-slate-900" : "text-slate-400"
-                    }`}
-                  >
-                    {selectedPackage
-                      ? `${selectedPackage.name} · ${formatLessonHoursLabel(
-                          selectedPackage.durationMinutes / 60,
-                        )} · $${Number(selectedPackage.price).toFixed(2)}`
-                      : "Select lesson package"}
-                  </span>
+                  {selectedPackage
+                    ? `${selectedPackage.name} · ${formatLessonHoursLabel(
+                        selectedPackage.durationMinutes / 60,
+                      )} · $${Number(selectedPackage.price).toFixed(2)}`
+                    : "Select lesson package"}
+                </span>
 
-                  <ChevronRightIcon
-                    className={`h-4 w-4 shrink-0 text-slate-400 transition ${
-                      showDurationPicker ? "rotate-90" : ""
-                    }`}
-                  />
-                </button>
-
-                {showDurationPicker && (
-                  <div className="flex max-h-64 flex-col overflow-y-auto overscroll-y-contain rounded-xl border border-slate-200 bg-white px-4 py-2">
-                    {packages.map((pkg) => {
-                      const hours = pkg.durationMinutes / 60;
-                      const isSelected = selectedPackageId === pkg.id;
-
-                      return (
-                        <button
-                          key={pkg.id}
-                          type="button"
-                          onClick={() => handlePackageChange(pkg.id)}
-                          className="flex w-full items-center justify-between gap-3 py-3.5 text-left transition hover:opacity-80"
-                        >
-                          <span className="min-w-0">
-                            <span className="block text-sm font-semibold text-slate-900">
-                              {pkg.name}
-                            </span>
-
-                            <span className="mt-0.5 block text-xs text-slate-500">
-                              {formatLessonHoursLabel(hours)} · $
-                              {Number(pkg.price).toFixed(2)}
-                            </span>
-                          </span>
-
-                          {isSelected && (
-                            <span className="text-sm font-semibold text-blue-600">
-                              ✓
-                            </span>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </>
+                <ChevronRightIcon className="h-4 w-4 shrink-0 text-slate-400" />
+              </button>
             )}
           </section>
         )}
 
-        {canChooseInstructor && (
-          <section ref={instructorStepRef} className="space-y-3">
-            {selectedInstructor && !showInstructorSearch && (
-              <div className="rounded-2xl bg-[#f9f9f9] p-4">
-                <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
-                  Instructor
-                </p>
+        {bookingMode === "package" &&
+          instructorSelected &&
+          showPackagePicker &&
+          packages.length > 0 &&
+          !packagesError && (
+            <PackagePickerModal
+              title={
+                selectedPackage
+                  ? "Change lesson package"
+                  : "Select lesson package"
+              }
+              packages={packages}
+              selectedPackageId={selectedPackageId}
+              onSelectPackage={handlePackageChange}
+              onClose={() => setShowPackagePicker(false)}
+            />
+          )}
 
-                <div className="mt-3">
-                  <InstructorProfileSummary instructor={selectedInstructor} />
-                </div>
-
-                <button
-                  type="button"
-                  disabled={selectionLocked}
-                  onClick={() => {
-                    if (selectionLocked) {
-                      return;
-                    }
-
-                    setInstructorSearchQuery("");
-                    setShowInstructorSearch(true);
-                  }}
-                  className="mt-3 text-sm font-medium text-blue-600 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  Change instructor
-                </button>
-              </div>
-            )}
-
-            {(showInstructorSearch || !selectedInstructor) && (
-              <>
-                {instructorsError && (
-                  <div
-                    role="alert"
-                    className="rounded-xl bg-red-50 p-3 text-sm text-red-600"
-                  >
-                    <p>{instructorsError}</p>
-
-                    <button
-                      type="button"
-                      onClick={() => void refetchInstructors()}
-                      className="mt-2 font-medium underline"
-                    >
-                      Try again
-                    </button>
-                  </div>
-                )}
-
-                {!instructorsError && (
-                  <InstructorSearch
-                    title={
-                      selectedInstructor
-                        ? "Change instructor"
-                        : "Select instructor"
-                    }
-                    instructors={instructors}
-                    query={instructorSearchQuery}
-                    loading={isInstructorsLoading}
-                    onQueryChange={setInstructorSearchQuery}
-                    onSelect={handleInstructorSelect}
-                    onCancel={
-                      selectedInstructor
-                        ? () => {
-                            setInstructorSearchQuery("");
-                            setShowInstructorSearch(false);
-                          }
-                        : undefined
-                    }
-                  />
-                )}
-              </>
-            )}
-          </section>
-        )}
-
-        {selectedInstructor && !showInstructorSearch && showDatePicker && (
+        {canPickDate && showDatePicker && !showPackagePicker && (
           <CalendarPickerModal
             title={selectedDate ? "Change date" : "Pick a date"}
             month={calendarMonth}
@@ -1207,13 +1213,13 @@ export function BookLessonFlow() {
           />
         )}
 
-        {selectedInstructor &&
-          !showInstructorSearch &&
+        {canPickDate &&
           !selectedDate &&
-          !showDatePicker && (
+          !showDatePicker &&
+          !showPackagePicker && (
             <section ref={dateStepRef} className="space-y-3">
               <h2 className="text-sm font-semibold text-slate-900">
-                Pick a date
+                Step 3 · Pick a date
               </h2>
 
               <button
@@ -1230,10 +1236,10 @@ export function BookLessonFlow() {
             </section>
           )}
 
-        {selectedInstructor &&
+        {canPickDate &&
           selectedDate &&
-          !showInstructorSearch &&
-          !showDatePicker && (
+          !showDatePicker &&
+          !showPackagePicker && (
             <section ref={timeStepRef} className="space-y-3">
               <div className="rounded-2xl bg-[#f9f9f9] p-4">
                 <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
@@ -1264,7 +1270,7 @@ export function BookLessonFlow() {
               </div>
 
               <h2 className="text-sm font-semibold text-slate-900">
-                Pick a time
+                Step 4 · Pick a time
               </h2>
 
               <button

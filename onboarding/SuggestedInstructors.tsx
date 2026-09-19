@@ -119,7 +119,7 @@ function SuggestedInstructorCard({
             <p className="text-xs font-medium text-slate-700">
               {instructor.monthlyAvailableSlotCount}{" "}
               {instructor.monthlyAvailableSlotCount === 1 ? "slot" : "slots"}{" "}
-              available this month
+              available
             </p>
           </div>
         </div>

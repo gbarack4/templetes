@@ -76,7 +76,7 @@ export function RescheduleCalendar({
   selectedDateId,
   onMonthChange,
   onSelectDate,
-  showSlotLabels = true,
+  showSlotLabels = false,
 }: RescheduleCalendarProps) {
   const { year: viewYear, monthIndex: viewMonth } = parseMonth(month);
 

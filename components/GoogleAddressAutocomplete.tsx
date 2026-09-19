@@ -9,6 +9,9 @@ export type AddressSuggestion = Readonly<{
   secondaryText: string;
   description: string;
   postcode?: string;
+  suburb?: string;
+  latitude?: number;
+  longitude?: number;
 }>;
 
 export type AddressSelectionDetails = Readonly<{
@@ -33,6 +36,7 @@ type GoogleAddressAutocompleteProps = Readonly<{
   icon?: ReactNode;
   trailing?: ReactNode;
   mode?: "address" | "suburb";
+  suggestionLayout?: "overlay" | "sheet";
 }>;
 
 type GoogleAddressComponent = {
@@ -434,6 +438,7 @@ export function GoogleAddressAutocomplete({
   icon,
   trailing,
   mode = "address",
+  suggestionLayout = "overlay",
 }: GoogleAddressAutocompleteProps) {
   const listId = useId();
   const inputId = id ?? listId;
@@ -530,8 +535,15 @@ export function GoogleAddressAutocomplete({
     onSelect?.(selectedValue, details);
   }
 
+  const isSheet = suggestionLayout === "sheet";
+
   return (
-    <div ref={containerRef} className={className}>
+    <div
+      ref={containerRef}
+      className={
+        isSheet ? `${className} flex min-h-0 flex-1 flex-col` : className
+      }
+    >
       {icon}
 
       <input
@@ -544,7 +556,8 @@ export function GoogleAddressAutocomplete({
         aria-activedescendant={
           showOverlay ? `${listId}-option-${highlightIndex}` : undefined
         }
-        value={formatAddressWithoutCountry(value)}
+        value={value}
+        autoFocus={isSheet}
         autoComplete="off"
         placeholder={placeholder}
         onChange={(event) => {
@@ -600,11 +613,24 @@ export function GoogleAddressAutocomplete({
 
       {trailing}
 
+      {!showOverlay && isSheet ? (
+        <div className="mt-6 flex min-h-0 flex-1 flex-col items-center justify-start pt-6 text-center">
+          <PinIcon className="mb-3 h-8 w-8 text-slate-300" />
+          <p className="text-sm font-medium text-slate-500">
+            Start typing to see address suggestions
+          </p>
+        </div>
+      ) : null}
+
       {showOverlay ? (
         <ul
           id={listId}
           role="listbox"
-          className="absolute left-0 right-0 top-full z-30 mt-2 max-h-64 overflow-y-auto rounded-2xl bg-white py-1 shadow-lg ring-1 ring-slate-200"
+          className={
+            isSheet
+              ? "mt-3 min-h-0 flex-1 overflow-y-auto overscroll-y-contain rounded-2xl bg-[#f9f9f9] py-1"
+              : "absolute left-0 right-0 top-full z-30 mt-2 max-h-64 overflow-y-auto rounded-2xl bg-white py-1 shadow-lg ring-1 ring-slate-200"
+          }
         >
           {suggestions.map((suggestion, index) => {
             const isActive = index === highlightIndex;
@@ -619,8 +645,14 @@ export function GoogleAddressAutocomplete({
                   onMouseEnter={() => setHighlightIndex(index)}
                   onMouseDown={(event) => event.preventDefault()}
                   onClick={() => void selectAddress(suggestion)}
-                  className={`flex w-full items-start gap-3 px-3 py-2.5 text-left transition ${
-                    isActive ? "bg-slate-100" : "bg-white hover:bg-slate-50"
+                  className={`flex w-full items-start gap-3 px-3 py-3 text-left transition ${
+                    isSheet
+                      ? isActive
+                        ? "bg-white"
+                        : "bg-transparent hover:bg-white"
+                      : isActive
+                        ? "bg-slate-100"
+                        : "bg-white hover:bg-slate-50"
                   }`}
                 >
                   <PinIcon className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
