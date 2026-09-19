@@ -153,7 +153,7 @@ export function BookLessonFlow() {
   const [paymentError, setPaymentError] = useState("");
 
   const [clientSecret, setClientSecret] = useState<string | null>(null);
-  const [stripeAccountId, setStripeAccountId] = useState<string | null>(null);
+  const [publishableKey, setPublishableKey] = useState<string | null>(null);
   const [packageBookingId, setPackageBookingId] = useState<string | null>(null);
 
   const [confirmedBookingMode, setConfirmedBookingMode] = useState<
@@ -616,6 +616,11 @@ export function BookLessonFlow() {
       return;
     }
 
+    if (clientSecret && publishableKey) {
+      setShowPayment(true);
+      return;
+    }
+
     setIsContinuingToPayment(true);
     setPaymentError("");
 
@@ -645,7 +650,7 @@ export function BookLessonFlow() {
         setPackageBookingId(booking.id);
       }
 
-      if (clientSecret && stripeAccountId) {
+      if (clientSecret && publishableKey) {
         setShowPayment(true);
         return;
       }
@@ -661,7 +666,7 @@ export function BookLessonFlow() {
       }
 
       setClientSecret(paymentResult.clientSecret);
-      setStripeAccountId(paymentResult.stripeAccountId);
+      setPublishableKey(paymentResult.publishableKey);
       setShowPayment(true);
     } catch (error) {
       setPaymentError(
@@ -744,7 +749,7 @@ export function BookLessonFlow() {
     selectedDate &&
     selectedTime &&
     clientSecret &&
-    stripeAccountId
+    publishableKey
   ) {
     return (
       <LessonPayment
@@ -755,7 +760,7 @@ export function BookLessonFlow() {
         lessonHours={packageLessonHours}
         payment={packagePayment}
         clientSecret={clientSecret}
-        stripeAccountId={stripeAccountId}
+        publishableKey={publishableKey}
         hourRate={packageHourRate}
         onBack={() => setShowPayment(false)}
         onComplete={handlePackagePaymentConfirmed}

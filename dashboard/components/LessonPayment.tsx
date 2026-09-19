@@ -10,6 +10,7 @@ import { loadStripe } from "@stripe/stripe-js";
 import { useMemo, useState } from "react";
 
 import type { InstructorOption } from "@/types/instructor";
+
 import {
   calculateLessonPayment,
   formatCurrency,
@@ -26,7 +27,7 @@ type LessonPaymentProps = Readonly<{
   lessonHours?: number;
   payment: ReturnType<typeof calculateLessonPayment>;
   clientSecret: string;
-  stripeAccountId: string;
+  publishableKey: string;
   hourRate?: number;
   onBack: () => void;
   onComplete: () => void | Promise<void>;
@@ -43,9 +44,6 @@ type StripePaymentFormProps = Readonly<{
   onBack: () => void;
   onComplete: () => void | Promise<void>;
 }>;
-
-const STRIPE_PUBLISHABLE_KEY =
-  process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? "";
 
 function StripePaymentForm({
   instructor,
@@ -218,26 +216,24 @@ export function LessonPayment({
   lessonHours = hours,
   payment,
   clientSecret,
-  stripeAccountId,
+  publishableKey,
   hourRate = LESSON_HOUR_RATE,
   onBack,
   onComplete,
 }: LessonPaymentProps) {
   const stripePromise = useMemo(() => {
-    if (!STRIPE_PUBLISHABLE_KEY || !stripeAccountId) {
+    if (!publishableKey) {
       return null;
     }
 
-    return loadStripe(STRIPE_PUBLISHABLE_KEY, {
-      stripeAccount: stripeAccountId,
-    });
-  }, [stripeAccountId]);
+    return loadStripe(publishableKey);
+  }, [publishableKey]);
 
-  if (!STRIPE_PUBLISHABLE_KEY) {
+  if (!publishableKey) {
     return (
       <main className="flex-1 px-5 pb-24 pt-6">
         <div className="rounded-xl bg-red-50 p-4 text-sm text-red-600">
-          Stripe publishable key is not configured.
+          Stripe is not configured for this school.
         </div>
       </main>
     );

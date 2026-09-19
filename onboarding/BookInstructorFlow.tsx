@@ -198,7 +198,7 @@ export function BookInstructorFlow({
 
   const [clientSecret, setClientSecret] = useState<string | null>(null);
 
-  const [stripeAccountId, setStripeAccountId] = useState<string | null>(null);
+  const [publishableKey, setPublishableKey] = useState<string | null>(null);
 
   const [bookingId, setBookingId] = useState<string | null>(null);
 
@@ -582,13 +582,12 @@ export function BookInstructorFlow({
         booking.id,
         token,
       );
-
       if (!paymentResult.clientSecret) {
         throw new Error("Stripe client secret was not returned");
       }
 
       setClientSecret(paymentResult.clientSecret);
-      setStripeAccountId(paymentResult.stripeAccountId);
+      setPublishableKey(paymentResult.publishableKey);
       setShowPayment(true);
       scrollMainToTop();
     } catch (error) {
@@ -733,7 +732,7 @@ export function BookInstructorFlow({
   if (
     showPayment &&
     clientSecret &&
-    stripeAccountId &&
+    publishableKey &&
     canConfirm &&
     hasRegistered &&
     selectedDate &&
@@ -753,7 +752,7 @@ export function BookInstructorFlow({
             lessonHours={initialLessonHours}
             payment={paymentForLesson}
             clientSecret={clientSecret}
-            stripeAccountId={stripeAccountId}
+            publishableKey={publishableKey}
             hourRate={effectiveHourRate}
             onBack={() => setShowPayment(false)}
             onComplete={handleConfirm}

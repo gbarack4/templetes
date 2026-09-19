@@ -22,7 +22,7 @@ export interface CreatePackagePaymentResponse {
   packagePurchaseId: string;
   paymentIntentId: string;
   clientSecret: string | null;
-  stripeAccountId: string;
+  publishableKey: string;
   status: string;
   expiresAt: string;
 }
