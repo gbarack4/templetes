@@ -5,6 +5,11 @@ export type DrivingSchoolProfile = Readonly<{
   logoUrl: string;
 }>;
 
+export type SchoolReviewStats = Readonly<{
+  rating: number;
+  reviewCount: number;
+}>;
+
 export function resolveSchoolProfile(
   data: SiteConfig,
   branding?: Readonly<{ schoolName?: string; logoUrl?: string }>,
@@ -19,10 +24,13 @@ export function resolveSchoolProfile(
   return { name, logoUrl };
 }
 
-export function resolveGoogleReviews(data: SiteConfig) {
+export function resolveSchoolReviews(data: SiteConfig): SchoolReviewStats {
+  const rating = Number(data.rating);
+  const reviewCount = Number(data.reviewCount);
+
   return {
-    rating: data.googleRating ?? 0,
-    reviewCount: data.googleReviewCount ?? 0,
+    rating: Number.isFinite(rating) ? rating : 0,
+    reviewCount: Number.isFinite(reviewCount) ? reviewCount : 0,
   };
 }
 
@@ -33,5 +41,6 @@ export function formatReviewCount(count?: number | null): string {
     const rounded = Math.floor(count / 100) * 100;
     return `${rounded.toLocaleString()}+`;
   }
+
   return count.toLocaleString();
 }

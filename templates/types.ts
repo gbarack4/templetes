@@ -13,8 +13,8 @@ export interface SiteConfig {
   schoolName: string;
   templateName: string;
   logoUrl?: string;
-  googleRating?: number;
-  googleReviewCount?: number;
+  rating: number;
+  reviewCount: number;
   phoneNumber?: string;
   config: {
     primaryColor?: string;
