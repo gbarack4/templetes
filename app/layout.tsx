@@ -13,6 +13,11 @@ const geistSans = Geist({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(
+    process.env.NODE_ENV === "production"
+      ? "https://driveinstructor.pro"
+      : "http://localhost:3002",
+  ),
   title: "Driving School",
   description: "Book your driving lessons today.",
 };
