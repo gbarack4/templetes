@@ -9,6 +9,7 @@ const SYSTEM_PATHS = [
   "/favicon.ico",
   "/robots.txt",
   "/dashboard",
+  "/embed",
   "/login",
   "/sign-up",
   "/sso-callback",
