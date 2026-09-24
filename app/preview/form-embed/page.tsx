@@ -1,6 +1,7 @@
 import { FormEmbedTemplate } from "@/templates/FormEmbedTemplate";
 
 const mockFormEmbedSite = {
+  schoolId: "preview-school",
   schoolName: "DriveCab School",
   logoUrl: "/schools/drive-right-logo.svg",
   templateName: "form-embed",

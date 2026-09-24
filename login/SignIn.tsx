@@ -7,21 +7,39 @@ import { useAuth, useClerk } from "@clerk/nextjs";
 import { useSchool } from "@/dashboard/SchoolContext";
 import { DrivingSchoolProfile } from "./DrivingSchoolProfile";
 
-function getSafeRedirect(redirectUrl: string | null) {
-  if (!redirectUrl) return "/dashboard";
-  if (!redirectUrl.startsWith("/") || redirectUrl.startsWith("//")) {
-    return "/dashboard";
+type SignInProps = Readonly<{
+  defaultRedirectUrl?: string;
+  signUpHref?: string;
+}>;
+
+function getSafeRedirect(
+  redirectUrl: string | null,
+  fallbackUrl: string,
+): string {
+  if (!redirectUrl) {
+    return fallbackUrl;
   }
+
+  if (!redirectUrl.startsWith("/") || redirectUrl.startsWith("//")) {
+    return fallbackUrl;
+  }
+
   return redirectUrl;
 }
 
-export function SignIn() {
+export function SignIn({
+  defaultRedirectUrl = "/dashboard",
+  signUpHref = "/sign-up",
+}: SignInProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const clerk = useClerk();
   const { isLoaded: isAuthLoaded, isSignedIn } = useAuth();
   const school = useSchool();
-  const afterSignInUrl = getSafeRedirect(searchParams.get("redirect_url"));
+  const afterSignInUrl = getSafeRedirect(
+    searchParams.get("redirect_url"),
+    defaultRedirectUrl,
+  );
   const schoolProfile = {
     name: school?.schoolName || "",
     logoUrl: school?.logoUrl || "",
@@ -286,7 +304,7 @@ export function SignIn() {
           <p className="mt-8 text-center text-sm text-slate-500">
             Don&apos;t have an account?{" "}
             <Link
-              href="/sign-up"
+              href={signUpHref}
               className="font-medium text-blue-600 hover:text-blue-700"
             >
               Create account

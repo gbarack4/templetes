@@ -2,20 +2,13 @@ import { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { getSchoolByDomain } from "@/lib/api";
-import { ClassicTemplate } from "@/templates/ClassicTemplate";
-import { FormEmbedTemplate } from "@/templates/FormEmbedTemplate";
-import { ModernTemplate } from "@/templates/ModernTemplate";
+import {
+  TEMPLATE_REGISTRY,
+  type TemplateKey,
+} from "@/templates/template-registry";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
-
-const TEMPLATE_REGISTRY = {
-  modern: ModernTemplate,
-  classic: ClassicTemplate,
-  "form-embed": FormEmbedTemplate,
-} as const;
-
-type TemplateKey = keyof typeof TEMPLATE_REGISTRY;
 
 type Props = {
   params: Promise<{ domain: string }>;

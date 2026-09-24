@@ -10,12 +10,14 @@ import { useSchoolId } from "@/dashboard/SchoolContext";
 type BookingSignUpProps = Readonly<{
   onBack: () => void;
   onComplete: () => void;
+  onSignIn?: () => void;
   description?: string;
 }>;
 
 export function BookingSignUp({
   onBack,
   onComplete,
+  onSignIn,
   description = "Create an account to finish booking your lesson.",
 }: BookingSignUpProps) {
   const clerk = useClerk();
@@ -264,6 +266,11 @@ export function BookingSignUp({
           <button
             type="button"
             onClick={() => {
+              if (onSignIn) {
+                onSignIn();
+                return;
+              }
+
               const redirectUrl = `${window.location.pathname}${window.location.search}`;
 
               router.push(
