@@ -1,6 +1,6 @@
 "use client";
 
-import { useAuth, useClerk } from "@clerk/nextjs";
+import { useAuth } from "@clerk/nextjs";
 import { useEffect, useState } from "react";
 
 import { useSchoolId } from "./SchoolContext";
@@ -14,7 +14,6 @@ export function StudentAccessGate({
   children: React.ReactNode;
 }>) {
   const { getToken, isLoaded, isSignedIn } = useAuth();
-  const { signOut } = useClerk();
   const schoolId = useSchoolId();
 
   const [isAllowed, setIsAllowed] = useState(false);
@@ -34,9 +33,7 @@ export function StudentAccessGate({
           `${process.env.NEXT_PUBLIC_API_URL}/students/school/${schoolId}/me`,
           {
             headers: {
-              ...(token
-                ? { Authorization: `Bearer ${token}` }
-                : {}),
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
             },
             signal: controller.signal,
           },
@@ -61,12 +58,13 @@ export function StudentAccessGate({
         }
 
         if (response.status === 404) {
-          await signOut();
+          const redirectUrl = `${window.location.pathname}${window.location.search}`;
 
-          if (!controller.signal.aborted) {
-            window.location.replace("/login");
-          }
+          const loginUrl = new URL("/login", window.location.origin);
+          loginUrl.searchParams.set("reason", "school_access");
+          loginUrl.searchParams.set("redirect_url", redirectUrl);
 
+          window.location.replace(loginUrl.toString());
           return;
         }
 
@@ -92,7 +90,7 @@ export function StudentAccessGate({
     return () => {
       controller.abort();
     };
-  }, [getToken, isLoaded, isSignedIn, schoolId, signOut]);
+  }, [getToken, isLoaded, isSignedIn, schoolId]);
 
   if (!isAllowed) {
     return null;
