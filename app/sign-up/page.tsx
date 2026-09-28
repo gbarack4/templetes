@@ -11,6 +11,7 @@ export default function SignUpPage() {
       description="Create an account to book lessons and manage your schedule."
       onBack={() => router.push("/login")}
       onComplete={() => router.push("/dashboard")}
+      oauthRedirectUrl="/dashboard"
     />
   );
 }

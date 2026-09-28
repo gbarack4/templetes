@@ -6,12 +6,14 @@ import { useRouter } from "next/navigation";
 
 import { FlowPageHeader } from "@/dashboard/components/FlowPageHeader";
 import { useSchoolId } from "@/dashboard/SchoolContext";
+import { GoogleIcon } from "@/shared/GoogleIcon";
 
 type BookingSignUpProps = Readonly<{
   onBack: () => void;
   onComplete: () => void;
   onSignIn?: () => void;
   description?: string;
+  oauthRedirectUrl?: string;
 }>;
 
 export function BookingSignUp({
@@ -19,6 +21,7 @@ export function BookingSignUp({
   onComplete,
   onSignIn,
   description = "Create an account to finish booking your lesson.",
+  oauthRedirectUrl = "/dashboard",
 }: BookingSignUpProps) {
   const clerk = useClerk();
   const schoolId = useSchoolId();
@@ -103,6 +106,37 @@ export function BookingSignUp({
         clerkError.errors?.[0]?.longMessage || "Invalid verification code.",
       );
     } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function handleGoogleSignUp() {
+    if (!clerk.loaded || isSubmitting || !schoolId) return;
+
+    setIsSubmitting(true);
+    setError("");
+
+    try {
+      await clerk.client.signUp.authenticateWithRedirect({
+        strategy: "oauth_google",
+        redirectUrl: "/sso-callback",
+        redirectUrlComplete: oauthRedirectUrl,
+        unsafeMetadata: {
+          schoolId,
+        },
+      });
+    } catch (err: unknown) {
+      console.error("Google sign-up error:", err);
+
+      const clerkError = err as {
+        errors?: Array<{ longMessage?: string }>;
+      };
+
+      setError(
+        clerkError.errors?.[0]?.longMessage ||
+          "Failed to initialize Google sign up.",
+      );
+
       setIsSubmitting(false);
     }
   }
@@ -260,6 +294,28 @@ export function BookingSignUp({
             {isSubmitting ? "Creating account..." : "Create account"}
           </button>
         </form>
+
+        <div className="relative my-6">
+          <div className="absolute inset-0 flex items-center" aria-hidden>
+            <div className="w-full border-t border-slate-200" />
+          </div>
+
+          <p className="relative flex justify-center">
+            <span className="bg-white px-3 text-xs font-medium uppercase tracking-wide text-slate-400">
+              or
+            </span>
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={handleGoogleSignUp}
+          disabled={isSubmitting || !clerk.loaded}
+          className="flex w-full cursor-pointer items-center justify-center gap-3 rounded-lg border border-slate-200 bg-white py-3 text-sm font-medium text-slate-900 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          <GoogleIcon className="h-5 w-5" />
+          {isSubmitting ? "Creating account..." : "Continue with Google"}
+        </button>
 
         <p className="mt-8 text-center text-sm text-[#4b5563]">
           Already have an account?{" "}

@@ -13,6 +13,7 @@ const SYSTEM_PATHS = [
   "/login",
   "/sign-up",
   "/sso-callback",
+  "/sso-complete",
   "/__clerk",
 ];
 
