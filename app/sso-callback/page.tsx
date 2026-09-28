@@ -4,7 +4,7 @@ export default function SSOCallback() {
   return (
     <AuthenticateWithRedirectCallback
       signInForceRedirectUrl="/dashboard"
-      signUpForceRedirectUrl="/dashboard"
+      signUpForceRedirectUrl="/sso-complete"
     />
   );
 }
