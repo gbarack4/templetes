@@ -13,7 +13,6 @@ type BookingSignUpProps = Readonly<{
   onComplete: () => void;
   onSignIn?: () => void;
   description?: string;
-  oauthRedirectUrl?: string;
 }>;
 
 export function BookingSignUp({
@@ -21,7 +20,6 @@ export function BookingSignUp({
   onComplete,
   onSignIn,
   description = "Create an account to finish booking your lesson.",
-  oauthRedirectUrl = "/dashboard",
 }: BookingSignUpProps) {
   const clerk = useClerk();
   const schoolId = useSchoolId();
@@ -117,16 +115,13 @@ export function BookingSignUp({
     setError("");
 
     try {
-      await clerk.client.signUp.authenticateWithRedirect({
+      await clerk.client.signIn.authenticateWithRedirect({
         strategy: "oauth_google",
         redirectUrl: "/sso-callback",
-        redirectUrlComplete: oauthRedirectUrl,
-        unsafeMetadata: {
-          schoolId,
-        },
+        redirectUrlComplete: "/student-signup-complete",
       });
     } catch (err: unknown) {
-      console.error("Google sign-up error:", err);
+      console.error("Google student authentication error:", err);
 
       const clerkError = err as {
         errors?: Array<{ longMessage?: string }>;
@@ -134,7 +129,7 @@ export function BookingSignUp({
 
       setError(
         clerkError.errors?.[0]?.longMessage ||
-          "Failed to initialize Google sign up.",
+          "Failed to continue with Google.",
       );
 
       setIsSubmitting(false);
