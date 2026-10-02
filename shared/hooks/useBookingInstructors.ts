@@ -1,6 +1,6 @@
 "use client";
 
-import { useAuth } from "@clerk/nextjs";
+import { useAuth } from "@/lib/auth/AuthProvider";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 
@@ -60,6 +60,7 @@ export function useBookingInstructors(searchQuery = "") {
       const response = await fetch(url, {
         headers: {
           Authorization: `Bearer ${token}`,
+          "x-school-id": schoolId,
         },
         cache: "no-store",
         signal,

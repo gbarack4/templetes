@@ -1,100 +1,138 @@
 "use client";
-
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FlowPageHeader } from "@/dashboard/components/FlowPageHeader";
+import { useAuth } from "@/lib/auth/AuthProvider";
+import { AUTH_BUTTON, AUTH_INPUT } from "@/lib/auth/AuthForm";
+import { authErrorMessage } from "@/lib/auth/errors";
 
-export function ForgotPassword() {
+export function ForgotPassword({
+  loginHref = "/login",
+}: Readonly<{ loginHref?: string }>) {
   const router = useRouter();
+  const auth = useAuth();
   const [email, setEmail] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isSent, setIsSent] = useState(false);
+  const [code, setCode] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmation, setConfirmation] = useState("");
+  const [stage, setStage] = useState<"email" | "code" | "done">("email");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
 
-  const canSubmit = email.trim().length > 0 && !isSubmitting;
-
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function submit(event: React.SyntheticEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!canSubmit) return;
-
-    setIsSubmitting(true);
-    await new Promise((resolve) => setTimeout(resolve, 800));
-    setIsSubmitting(false);
-    setIsSent(true);
+    if (busy) return;
+    setBusy(true);
+    setError("");
+    try {
+      if (stage === "email") {
+        await auth.requestReset(email);
+        setStage("code");
+      } else {
+        if (password !== confirmation) throw new Error("Passwords do not match.");
+        await auth.confirmReset(email, code, password);
+        setPassword("");
+        setConfirmation("");
+        setStage("done");
+      }
+    } catch (err) {
+      setError(authErrorMessage(err));
+    } finally {
+      setBusy(false);
+    }
   }
-
-  if (isSent) {
-    return (
-      <>
-        <FlowPageHeader title="Check your email" onBack={() => router.push("/login")} />
-        <main className="flex flex-1 flex-col px-5 pb-8 pt-6">
-          <p className="text-sm text-slate-500">
-            If an account exists for{" "}
-            <span className="font-medium text-slate-900">{email}</span>, we sent a
-            password reset link. Check your inbox and follow the instructions.
-          </p>
-          <p className="mt-4 text-sm text-slate-500">
-            Didn&apos;t receive it? Check spam or{" "}
-            <button
-              type="button"
-              onClick={() => setIsSent(false)}
-              className="font-medium text-blue-600 hover:text-blue-700"
-            >
-              try again
-            </button>
-            .
-          </p>
-          <Link
-            href="/login"
-            className="mt-8 w-full rounded-lg bg-blue-600 py-3 text-center text-sm font-medium text-white transition hover:bg-blue-700"
-          >
-            Back to sign in
-          </Link>
-        </main>
-      </>
-    );
-  }
-
   return (
     <>
-      <FlowPageHeader title="Forgot password" onBack={() => router.push("/login")} />
-      <main className="flex flex-1 flex-col px-5 pb-8 pt-6">
-        <p className="mb-6 text-sm text-slate-500">
-          Enter the email linked to your account and we&apos;ll send you a link to
-          reset your password.
-        </p>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-1.5">
-            <label htmlFor="reset-email" className="text-sm font-medium text-slate-900">
-              Email
-            </label>
-            <input
-              id="reset-email"
-              type="email"
-              autoComplete="email"
-              placeholder="you@email.com"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={!canSubmit}
-            className="w-full rounded-lg bg-blue-600 py-3 text-sm font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
-          >
-            {isSubmitting ? "Sending..." : "Send reset link"}
-          </button>
-        </form>
-
-        <p className="mt-8 text-center text-sm text-slate-500">
-          Remember your password?{" "}
-          <Link href="/login" className="font-medium text-blue-600 hover:text-blue-700">
-            Sign in
-          </Link>
-        </p>
+      <FlowPageHeader title="Reset password" onBack={() => router.push(loginHref)} />
+      <main className="flex flex-1 flex-col gap-5 px-5 pb-8 pt-6">
+        {stage === "done" ? (
+          <p role="status">Your password has been updated. You can now sign in.</p>
+        ) : (
+          <form onSubmit={submit} className="space-y-4">
+            {(error || auth.configError) && (
+              <p role="alert" className="text-sm text-red-600">
+                {error || auth.configError}
+              </p>
+            )}
+            {stage === "email" ? (
+              <label className="block space-y-1.5 text-sm font-medium">
+                Email
+                <input
+                  required
+                  type="email"
+                  autoComplete="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className={AUTH_INPUT}
+                />
+              </label>
+            ) : (
+              <>
+                <p className="text-sm text-slate-500">
+                  If this account can reset its password, a code has been sent to {email}.
+                </p>
+                <label className="block space-y-1.5 text-sm font-medium">
+                  Code
+                  <input
+                    required
+                    autoComplete="one-time-code"
+                    inputMode="numeric"
+                    value={code}
+                    onChange={(e) => setCode(e.target.value)}
+                    className={AUTH_INPUT}
+                  />
+                </label>
+                <label className="block space-y-1.5 text-sm font-medium">
+                  New password
+                  <input
+                    required
+                    type="password"
+                    autoComplete="new-password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className={AUTH_INPUT}
+                  />
+                </label>
+                <label className="block space-y-1.5 text-sm font-medium">
+                  Confirm password
+                  <input
+                    required
+                    type="password"
+                    autoComplete="new-password"
+                    value={confirmation}
+                    onChange={(e) => setConfirmation(e.target.value)}
+                    className={AUTH_INPUT}
+                  />
+                </label>
+              </>
+            )}
+            <button
+              type="submit"
+              disabled={busy || !!auth.configError}
+              className={AUTH_BUTTON}
+            >
+              {busy
+                ? "Please wait..."
+                : stage === "email"
+                  ? "Send reset code"
+                  : "Update password"}
+            </button>
+            {stage === "code" && (
+              <button
+                type="button"
+                disabled={busy}
+                className="text-sm text-blue-600"
+                onClick={() => setStage("email")}
+              >
+                Request another code
+              </button>
+            )}
+          </form>
+        )}
+        <Link href={loginHref} className="text-sm font-medium text-blue-600">
+          Back to sign in
+        </Link>
       </main>
     </>
   );

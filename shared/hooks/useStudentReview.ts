@@ -1,6 +1,6 @@
 "use client";
 
-import { useAuth } from "@clerk/nextjs";
+import { useAuth } from "@/lib/auth/AuthProvider";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { useSchoolId } from "@/dashboard/SchoolContext";
@@ -50,11 +50,7 @@ export function useStudentReview() {
   const queryClient = useQueryClient();
   const { getToken, isLoaded, isSignedIn } = useAuth();
 
-  const mutation = useMutation<
-    StudentReviewResponse,
-    Error,
-    SubmitStudentReviewInput
-  >({
+  const mutation = useMutation<StudentReviewResponse, Error, SubmitStudentReviewInput>({
     mutationFn: async ({ bookingId, rating, comment }) => {
       if (!isLoaded || !isSignedIn || !schoolId) {
         throw new Error("Unable to submit review.");
@@ -78,6 +74,7 @@ export function useStudentReview() {
           method: "POST",
           headers: {
             Authorization: `Bearer ${token}`,
+            "x-school-id": schoolId,
             "Content-Type": "application/json",
           },
           body: JSON.stringify({

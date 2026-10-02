@@ -1,3 +1,4 @@
+import { loadStudentAuthConfig } from "@/lib/auth/config.server";
 import { notFound } from "next/navigation";
 
 import { SchoolProvider } from "@/dashboard/SchoolContext";
@@ -17,8 +18,11 @@ export default async function EmbedLayout({ children, params }: Props) {
     notFound();
   }
 
+  const auth = await loadStudentAuthConfig(school.schoolId, { embedKey });
+
   return (
     <SchoolProvider
+      {...auth}
       schoolId={school.schoolId}
       schoolName={school.schoolName}
       logoUrl={school.logoUrl ?? ""}

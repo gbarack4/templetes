@@ -8,7 +8,7 @@ import { DEFAULT_STUDENT_AVATAR } from "./student-avatar";
 import { mockStudentAccount } from "./mock-data";
 import { EditProfilePhotoModal } from "./components/EditProfilePhotoModal";
 import { ChevronRightIcon, CloseIcon } from "./components/icons";
-import { useClerk } from "@clerk/nextjs";
+import { useAuth } from "@/lib/auth/AuthProvider";
 import { useStudent } from "@/shared/hooks/useStudent";
 
 function SettingsSection({
@@ -108,7 +108,7 @@ function SettingsToggle({
 
 export function AccountSettings() {
   const router = useRouter();
-  const { signOut } = useClerk();
+  const { signOut } = useAuth();
   const {
     student,
     loading: studentLoading,

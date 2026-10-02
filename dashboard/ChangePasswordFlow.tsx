@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useAuth } from "@/lib/auth/AuthProvider";
+import { authErrorMessage } from "@/lib/auth/errors";
 import { useRouter } from "next/navigation";
 import { ButtonSpinner } from "@/components/ButtonSpinner";
 import { FlowPageContent } from "./components/FlowPageContent";
@@ -60,10 +62,10 @@ function isPasswordValid(password: string) {
   return password.length >= 8 && /\d/.test(password) && /[a-zA-Z]/.test(password);
 }
 
-const BUTTON_LOADING_MS = 2000;
-
 export function ChangePasswordFlow() {
   const router = useRouter();
+  const { changePassword } = useAuth();
+  const [requestError, setRequestError] = useState("");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -100,9 +102,18 @@ export function ChangePasswordFlow() {
     if (!canSave || isSaving) return;
 
     setIsSaving(true);
-    await new Promise((resolve) => setTimeout(resolve, BUTTON_LOADING_MS));
-    setIsSaving(false);
-    setIsConfirmed(true);
+    setRequestError("");
+    try {
+      await changePassword(currentPassword, newPassword);
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      setIsConfirmed(true);
+    } catch (error) {
+      setRequestError(authErrorMessage(error));
+    } finally {
+      setIsSaving(false);
+    }
   }
 
   if (isConfirmed) {
@@ -134,12 +145,17 @@ export function ChangePasswordFlow() {
       <FlowPageContent className="pb-24">
         <section className="rounded-2xl bg-slate-50 p-4">
           <p className="text-sm text-slate-600">
-            Choose a strong password you have not used elsewhere. You will stay signed
-            in on this device.
+            Choose a strong password you have not used elsewhere. You will stay signed in
+            on this device.
           </p>
         </section>
 
         <form className="space-y-4" onSubmit={handleSubmit}>
+          {requestError && (
+            <p role="alert" className="text-sm text-red-600">
+              {requestError}
+            </p>
+          )}
           <PasswordField
             label="Current password"
             value={currentPassword}

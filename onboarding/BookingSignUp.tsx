@@ -1,334 +1,44 @@
 "use client";
 
-import { useState } from "react";
-import { useClerk } from "@clerk/nextjs";
-import { useRouter } from "next/navigation";
-
+import { usePathname, useRouter } from "next/navigation";
 import { FlowPageHeader } from "@/dashboard/components/FlowPageHeader";
-import { useSchoolId } from "@/dashboard/SchoolContext";
-import { GoogleIcon } from "@/shared/GoogleIcon";
-
-type BookingSignUpProps = Readonly<{
-  onBack: () => void;
-  onComplete: () => void;
-  onSignIn?: () => void;
-  description?: string;
-}>;
+import { AuthForm } from "@/lib/auth/AuthForm";
 
 export function BookingSignUp({
   onBack,
   onComplete,
   onSignIn,
   description = "Create an account to finish booking your lesson.",
-}: BookingSignUpProps) {
-  const clerk = useClerk();
-  const schoolId = useSchoolId();
+}: Readonly<{
+  onBack: () => void;
+  onComplete: () => void;
+  onSignIn?: () => void;
+  description?: string;
+}>) {
   const router = useRouter();
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
-  const [password, setPassword] = useState("");
-
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [pendingVerification, setPendingVerification] = useState(false);
-  const [code, setCode] = useState("");
-  const [error, setError] = useState("");
-
-  const canSubmit =
-    firstName.trim().length > 0 &&
-    lastName.trim().length > 0 &&
-    email.trim().length > 0 &&
-    phone.trim().length > 0 &&
-    password.length >= 6 &&
-    !isSubmitting;
-
-  async function handleSubmit(event: React.SyntheticEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!canSubmit || !clerk.loaded) return;
-
-    setIsSubmitting(true);
-    setError("");
-
-    try {
-      await clerk.client.signUp.create({
-        firstName,
-        lastName,
-        emailAddress: email,
-        password,
-        unsafeMetadata: {
-          phone_number: phone,
-          schoolId: schoolId,
-        },
-      });
-
-      await clerk.client.signUp.prepareEmailAddressVerification({
-        strategy: "email_code",
-      });
-      setPendingVerification(true);
-    } catch (err: unknown) {
-      console.error(err);
-      const clerkError = err as { errors?: Array<{ longMessage?: string }> };
-      setError(
-        clerkError.errors?.[0]?.longMessage ||
-          "Something went wrong. Please try again.",
-      );
-    } finally {
-      setIsSubmitting(false);
+  const pathname = usePathname();
+  function openSignIn() {
+    if (onSignIn) {
+      onSignIn();
+      return;
     }
+    const embedBase = /^\/embed\/[^/]+/.exec(pathname)?.[0];
+    const login = embedBase ? `${embedBase}/sign-in` : "/login";
+    const redirect = `${window.location.pathname}${window.location.search}`;
+    router.push(`${login}?redirect_url=${encodeURIComponent(redirect)}`);
   }
-
-  async function handleVerify(event: React.SyntheticEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!code || !clerk.loaded) return;
-
-    setIsSubmitting(true);
-    setError("");
-
-    try {
-      const completeSignUp =
-        await clerk.client.signUp.attemptEmailAddressVerification({
-          code,
-        });
-
-      if (completeSignUp.status === "complete") {
-        await clerk.setActive({ session: completeSignUp.createdSessionId });
-        onComplete();
-      } else {
-        setError("Verification failed. Please try again.");
-      }
-    } catch (err: unknown) {
-      console.error(err);
-      const clerkError = err as { errors?: Array<{ longMessage?: string }> };
-      setError(
-        clerkError.errors?.[0]?.longMessage || "Invalid verification code.",
-      );
-    } finally {
-      setIsSubmitting(false);
-    }
-  }
-
-  async function handleGoogleSignUp() {
-    if (!clerk.loaded || isSubmitting || !schoolId) return;
-
-    setIsSubmitting(true);
-    setError("");
-
-    try {
-      await clerk.client.signIn.authenticateWithRedirect({
-        strategy: "oauth_google",
-        redirectUrl: "/sso-callback",
-        redirectUrlComplete: "/student-signup-complete",
-      });
-    } catch (err: unknown) {
-      console.error("Google student authentication error:", err);
-
-      const clerkError = err as {
-        errors?: Array<{ longMessage?: string }>;
-      };
-
-      setError(
-        clerkError.errors?.[0]?.longMessage ||
-          "Failed to continue with Google.",
-      );
-
-      setIsSubmitting(false);
-    }
-  }
-
-  if (pendingVerification) {
-    return (
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-        <FlowPageHeader
-          title="Verify Email"
-          onBack={() => setPendingVerification(false)}
-        />
-        <main className="flex min-h-0 flex-1 flex-col overflow-y-auto px-5 pb-8 pt-6">
-          <p className="mb-6 text-sm text-[#4b5563]">
-            We sent a verification code to{" "}
-            <span className="font-medium text-slate-900">{email}</span>.
-          </p>
-
-          {error && <p className="mb-4 text-sm text-red-500">{error}</p>}
-
-          <form onSubmit={handleVerify} className="space-y-4">
-            <div className="space-y-1.5">
-              <label
-                htmlFor="code"
-                className="text-sm font-medium text-slate-900"
-              >
-                Verification Code
-              </label>
-              <input
-                id="code"
-                type="text"
-                placeholder="Enter code"
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
-                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-              />
-            </div>
-            <button
-              type="submit"
-              disabled={isSubmitting || code.length < 6}
-              className="w-full rounded-lg bg-blue-600 py-3 text-sm font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
-            >
-              {isSubmitting ? "Verifying..." : "Verify & Complete"}
-            </button>
-          </form>
-        </main>
-      </div>
-    );
-  }
-
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
       <FlowPageHeader title="Create account" onBack={onBack} />
-      <main className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-y-contain px-5 pb-8 pt-6 [-webkit-overflow-scrolling:touch]">
-        <p className="mb-4 text-sm text-[#4b5563]">{description}</p>
-
-        {error && <p className="mb-4 text-sm text-red-500">{error}</p>}
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <label
-                htmlFor="first-name"
-                className="text-sm font-medium text-slate-900"
-              >
-                First name
-              </label>
-              <input
-                id="first-name"
-                type="text"
-                autoComplete="given-name"
-                placeholder="First name"
-                value={firstName}
-                onChange={(event) => setFirstName(event.target.value)}
-                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <label
-                htmlFor="last-name"
-                className="text-sm font-medium text-slate-900"
-              >
-                Last name
-              </label>
-              <input
-                id="last-name"
-                type="text"
-                autoComplete="family-name"
-                placeholder="Last name"
-                value={lastName}
-                onChange={(event) => setLastName(event.target.value)}
-                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-              />
-            </div>
-          </div>
-
-          <div className="space-y-1.5">
-            <label
-              htmlFor="signup-email"
-              className="text-sm font-medium text-slate-900"
-            >
-              Email
-            </label>
-            <input
-              id="signup-email"
-              type="email"
-              autoComplete="email"
-              placeholder="you@email.com"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <label
-              htmlFor="signup-phone"
-              className="text-sm font-medium text-slate-900"
-            >
-              Phone
-            </label>
-            <input
-              id="signup-phone"
-              type="tel"
-              autoComplete="tel"
-              placeholder="+1 (555) 000-0000"
-              value={phone}
-              onChange={(event) => setPhone(event.target.value)}
-              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <label
-              htmlFor="signup-password"
-              className="text-sm font-medium text-slate-900"
-            >
-              Password
-            </label>
-            <input
-              id="signup-password"
-              type="password"
-              autoComplete="new-password"
-              placeholder="At least 6 characters"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={!canSubmit}
-            className="w-full rounded-lg bg-blue-600 py-3 text-sm font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
-          >
-            {isSubmitting ? "Creating account..." : "Create account"}
-          </button>
-        </form>
-
-        <div className="relative my-6">
-          <div className="absolute inset-0 flex items-center" aria-hidden>
-            <div className="w-full border-t border-slate-200" />
-          </div>
-
-          <p className="relative flex justify-center">
-            <span className="bg-white px-3 text-xs font-medium uppercase tracking-wide text-slate-400">
-              or
-            </span>
-          </p>
-        </div>
-
-        <button
-          type="button"
-          onClick={handleGoogleSignUp}
-          disabled={isSubmitting || !clerk.loaded}
-          className="flex w-full cursor-pointer items-center justify-center gap-3 rounded-lg border border-slate-200 bg-white py-3 text-sm font-medium text-slate-900 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          <GoogleIcon className="h-5 w-5" />
-          {isSubmitting ? "Creating account..." : "Continue with Google"}
-        </button>
-
-        <p className="mt-8 text-center text-sm text-[#4b5563]">
+      <main className="flex min-h-0 flex-1 flex-col overflow-y-auto px-5 pb-8 pt-6">
+        <p className="mb-4 text-sm text-slate-600">{description}</p>
+        <AuthForm mode="sign-up" onComplete={onComplete} />
+        <p className="mt-8 text-center text-sm text-slate-500">
           Already have an account?{" "}
           <button
             type="button"
-            onClick={() => {
-              if (onSignIn) {
-                onSignIn();
-                return;
-              }
-
-              const redirectUrl = `${window.location.pathname}${window.location.search}`;
-
-              router.push(
-                `/login?redirect_url=${encodeURIComponent(redirectUrl)}`,
-              );
-            }}
-            className="font-medium text-blue-600 hover:text-blue-700"
+            onClick={openSignIn}
+            className="font-medium text-blue-600"
           >
             Sign in
           </button>

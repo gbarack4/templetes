@@ -1,6 +1,6 @@
 "use client";
 
-import { useAuth } from "@clerk/nextjs";
+import { useAuth } from "@/lib/auth/AuthProvider";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { useSchoolId } from "@/dashboard/SchoolContext";
@@ -68,6 +68,7 @@ export function useStudentCancelBooking() {
           method: "PATCH",
           headers: {
             Authorization: `Bearer ${token}`,
+            "x-school-id": schoolId,
           },
         },
       );

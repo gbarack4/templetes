@@ -89,10 +89,7 @@ function errorMessage(value: unknown, fallback: string): string {
   return fallback;
 }
 
-async function request(
-  path: string,
-  options: RequestInit = {},
-): Promise<unknown> {
+async function request(path: string, options: RequestInit = {}): Promise<unknown> {
   const baseUrl = process.env.NEXT_PUBLIC_API_URL;
 
   if (!baseUrl) {
@@ -108,10 +105,7 @@ async function request(
 
   if (!response.ok) {
     throw new CreditApiError(
-      errorMessage(
-        body,
-        `Request failed (${response.status}). Please try again.`,
-      ),
+      errorMessage(body, `Request failed (${response.status}). Please try again.`),
       response.status,
     );
   }
@@ -119,13 +113,14 @@ async function request(
   return body;
 }
 
-function authorization(token: string): Record<string, string> {
+function authorization(token: string, schoolId: string): Record<string, string> {
   if (!token) {
     throw new Error("Please sign in to book a lesson.");
   }
 
   return {
     Authorization: `Bearer ${token}`,
+    "x-school-id": schoolId,
   };
 }
 
@@ -146,16 +141,10 @@ function parseCreditSlot(
     endTime: requiredString(value.endTime),
   };
 
-  const actualDuration =
-    Date.parse(slot.endDatetime) - Date.parse(slot.startDatetime);
+  const actualDuration = Date.parse(slot.endDatetime) - Date.parse(slot.startDatetime);
 
-  if (
-    slot.instructorId !== instructorId ||
-    actualDuration !== durationMinutes * 60_000
-  ) {
-    throw new Error(
-      "The server returned a slot for a different instructor or duration.",
-    );
+  if (slot.instructorId !== instructorId || actualDuration !== durationMinutes * 60_000) {
+    throw new Error("The server returned a slot for a different instructor or duration.");
   }
 
   return slot;
@@ -171,17 +160,12 @@ function parseCreditAvailabilityDay(
 
   const date = requiredString(value.date);
 
-  if (
-    !/^\d{4}-\d{2}-\d{2}$/.test(date) ||
-    !date.startsWith(`${search.month}-`)
-  ) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !date.startsWith(`${search.month}-`)) {
     throw new Error("The server returned an invalid credit availability date.");
   }
 
   if (!Array.isArray(value.slots)) {
-    throw new TypeError(
-      "The server returned an invalid credit availability slot list.",
-    );
+    throw new TypeError("The server returned an invalid credit availability slot list.");
   }
 
   const slots = value.slots.map((slot) =>
@@ -194,9 +178,7 @@ function parseCreditAvailabilityDay(
     value.slotCount < 0 ||
     value.slotCount !== slots.length
   ) {
-    throw new Error(
-      "The server returned an invalid credit availability slot count.",
-    );
+    throw new Error("The server returned an invalid credit availability slot count.");
   }
 
   return {
@@ -213,7 +195,7 @@ export async function fetchStudentCreditBalance(
 ): Promise<CreditBalance> {
   return parseCreditBalance(
     await request(`/credits/school/${encodeURIComponent(schoolId)}/balance`, {
-      headers: authorization(token),
+      headers: authorization(token, schoolId),
       signal,
     }),
   );
@@ -271,7 +253,7 @@ export async function fetchCreditSlots(
   const data = await request(
     `/bookings/school/${encodeURIComponent(schoolId)}/credit-slots?${query}`,
     {
-      headers: authorization(token),
+      headers: authorization(token, schoolId),
       signal,
     },
   );
@@ -284,9 +266,9 @@ export async function fetchCreditSlots(
     parseCreditSlot(item, search.instructorId, search.durationMinutes),
   );
 
-  return [
-    ...new Map(slots.map((slot) => [slot.startDatetime, slot])).values(),
-  ].sort((a, b) => Date.parse(a.startDatetime) - Date.parse(b.startDatetime));
+  return [...new Map(slots.map((slot) => [slot.startDatetime, slot])).values()].sort(
+    (a, b) => Date.parse(a.startDatetime) - Date.parse(b.startDatetime),
+  );
 }
 
 export async function fetchCreditAvailability(
@@ -302,19 +284,15 @@ export async function fetchCreditAvailability(
   });
 
   const data = await request(
-    `/bookings/school/${encodeURIComponent(
-      schoolId,
-    )}/credit-availability?${query}`,
+    `/bookings/school/${encodeURIComponent(schoolId)}/credit-availability?${query}`,
     {
-      headers: authorization(token),
+      headers: authorization(token, schoolId),
       signal,
     },
   );
 
   if (!Array.isArray(data)) {
-    throw new TypeError(
-      "The server returned an invalid credit availability response.",
-    );
+    throw new TypeError("The server returned an invalid credit availability response.");
   }
 
   return data
@@ -327,18 +305,15 @@ export async function createCreditBooking(
   token: string,
   input: CreateCreditBookingInput,
 ): Promise<CreditBookingResult> {
-  const data = await request(
-    `/bookings/school/${encodeURIComponent(schoolId)}/credit`,
-    {
-      method: "POST",
-      signal: AbortSignal.timeout(30_000),
-      headers: {
-        ...authorization(token),
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(input),
+  const data = await request(`/bookings/school/${encodeURIComponent(schoolId)}/credit`, {
+    method: "POST",
+    signal: AbortSignal.timeout(30_000),
+    headers: {
+      ...authorization(token, schoolId),
+      "Content-Type": "application/json",
     },
-  );
+    body: JSON.stringify(input),
+  });
 
   const balance = parseCreditBalance(data);
 

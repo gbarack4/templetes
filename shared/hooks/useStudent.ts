@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useAuth } from "@clerk/nextjs";
+import { useAuth } from "@/lib/auth/AuthProvider";
 import {
   fetchStudentProfile,
   updateStudentAddress,
@@ -37,7 +37,7 @@ export interface StudentData {
 
 export function useStudent() {
   const schoolId = useSchoolId();
-  const { getToken } = useAuth();
+  const { getToken, userId, isSignedIn } = useAuth();
 
   const {
     data: student = null,
@@ -45,7 +45,8 @@ export function useStudent() {
     error,
     refetch,
   } = useQuery<StudentData>({
-    queryKey: ["student", schoolId],
+    queryKey: ["student", schoolId, userId],
+    enabled: isSignedIn && !!schoolId && !!userId,
     queryFn: async () => {
       const token = await getToken();
       return fetchStudentProfile(schoolId, token);

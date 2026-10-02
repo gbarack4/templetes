@@ -1,6 +1,6 @@
 "use client";
 
-import { useAuth } from "@clerk/nextjs";
+import { useAuth } from "@/lib/auth/AuthProvider";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
@@ -25,15 +25,11 @@ import {
   mergeRescheduleDates,
   resolveRescheduleDateFromIso,
 } from "@/onboarding/booking-utils";
-import {
-  fetchAvailableSlots,
-  fetchPublicPackages,
-} from "@/lib/public-booking-api";
+import { fetchAvailableSlots, fetchPublicPackages } from "@/lib/public-booking-api";
 import {
   createBooking,
   createPackagePayment,
   getPackagePaymentStatus,
-  syncStudent,
 } from "@/lib/booking-payment-api";
 import {
   clearFirstBookingDraft,
@@ -128,9 +124,7 @@ export function BookInstructorFlow({
 
   const availableCreditHours = 0;
 
-  const [selectedPackageId, setSelectedPackageId] = useState<string | null>(
-    null,
-  );
+  const [selectedPackageId, setSelectedPackageId] = useState<string | null>(null);
 
   const [showDurationPicker, setShowDurationPicker] = useState(false);
 
@@ -143,17 +137,16 @@ export function BookInstructorFlow({
 
   const [calendarMonth, setCalendarMonth] = useState(() =>
     preselectedDate
-      ? `${preselectedDate.year}-${String(
-          preselectedDate.monthIndex + 1,
-        ).padStart(2, "0")}`
+      ? `${preselectedDate.year}-${String(preselectedDate.monthIndex + 1).padStart(
+          2,
+          "0",
+        )}`
       : getCurrentMonth(),
   );
 
   const [showDatePicker, setShowDatePicker] = useState(!preselectedDate);
 
-  const [selectedTime, setSelectedTime] = useState<string | null>(
-    preselectedTime,
-  );
+  const [selectedTime, setSelectedTime] = useState<string | null>(preselectedTime);
 
   const [pickupAddress, setPickupAddress] = useState("");
 
@@ -209,10 +202,7 @@ export function BookInstructorFlow({
     });
   }
 
-  const selectedDate = getSelectedRescheduleDate(
-    availableDates,
-    selectedDateId,
-  );
+  const selectedDate = getSelectedRescheduleDate(availableDates, selectedDateId);
 
   const selectedDateIso = selectedDate
     ? `${selectedDate.year}-${String(selectedDate.monthIndex + 1).padStart(
@@ -225,19 +215,14 @@ export function BookInstructorFlow({
 
   const addressComplete = Boolean(
     addressSelected &&
-    trimmedPickupAddress.length > 0 &&
-    pickupAddressDetails?.suburb &&
-    typeof pickupAddressDetails.latitude === "number" &&
-    typeof pickupAddressDetails.longitude === "number",
+      trimmedPickupAddress.length > 0 &&
+      pickupAddressDetails?.suburb &&
+      typeof pickupAddressDetails.latitude === "number" &&
+      typeof pickupAddressDetails.longitude === "number",
   );
 
   useEffect(() => {
-    if (
-      !selectedPackageId ||
-      !selectedDateId ||
-      !selectedTime ||
-      !addressComplete
-    ) {
+    if (!selectedPackageId || !selectedDateId || !selectedTime || !addressComplete) {
       return;
     }
 
@@ -287,10 +272,7 @@ export function BookInstructorFlow({
 
     const draft = getFirstBookingDraft();
 
-    if (
-      draft?.schoolId !== instructor.schoolId ||
-      draft.instructorId !== instructor.id
-    ) {
+    if (draft?.schoolId !== instructor.schoolId || draft.instructorId !== instructor.id) {
       return;
     }
 
@@ -325,41 +307,38 @@ export function BookInstructorFlow({
 
   const packageSuburb = preselectedSuburb;
 
-  const { data: packages = [], isLoading: isLoadingPackages } = useQuery<
-    PublicPackage[]
+  const { data: packages = [], isLoading: isLoadingPackages } = useQuery<PublicPackage[]>(
+    {
+      queryKey: ["public-packages", instructor.schoolId, packageSuburb],
+      queryFn: () => fetchPublicPackages(instructor.schoolId, packageSuburb),
+      enabled: packageSuburb.length > 0,
+    },
+  );
+
+  const selectedPackage = packages.find((pkg) => pkg.id === selectedPackageId) ?? null;
+
+  const { data: availableSlots = [], isLoading: isLoadingAvailableSlots } = useQuery<
+    PublicAvailableSlot[]
   >({
-    queryKey: ["public-packages", instructor.schoolId, packageSuburb],
-    queryFn: () => fetchPublicPackages(instructor.schoolId, packageSuburb),
-    enabled: packageSuburb.length > 0,
-  });
-
-  const selectedPackage =
-    packages.find((pkg) => pkg.id === selectedPackageId) ?? null;
-
-  const { data: availableSlots = [], isLoading: isLoadingAvailableSlots } =
-    useQuery<PublicAvailableSlot[]>({
-      queryKey: [
-        "booking-slots",
-        instructor.schoolId,
+    queryKey: [
+      "booking-slots",
+      instructor.schoolId,
+      instructor.id,
+      selectedPackage?.id,
+      selectedDateIso,
+      packageSuburb,
+    ],
+    queryFn: () =>
+      fetchAvailableSlots(
         instructor.id,
-        selectedPackage?.id,
-        selectedDateIso,
+        selectedPackage!.id,
+        selectedDateIso!,
         packageSuburb,
-      ],
-      queryFn: () =>
-        fetchAvailableSlots(
-          instructor.id,
-          selectedPackage!.id,
-          selectedDateIso!,
-          packageSuburb,
-        ),
-      enabled: Boolean(
-        durationConfirmed &&
-        selectedPackage &&
-        selectedDateIso &&
-        packageSuburb.length > 0,
       ),
-    });
+    enabled: Boolean(
+      durationConfirmed && selectedPackage && selectedDateIso && packageSuburb.length > 0,
+    ),
+  });
 
   const availableTimeSlots = useMemo(
     () => Array.from(new Set(availableSlots.map((slot) => slot.startTime))),
@@ -367,23 +346,17 @@ export function BookInstructorFlow({
   );
 
   const selectedSlot = useMemo(
-    () =>
-      availableSlots.find((slot) => slot.startTime === selectedTime) ?? null,
+    () => availableSlots.find((slot) => slot.startTime === selectedTime) ?? null,
     [availableSlots, selectedTime],
   );
 
-  const selectedHours = selectedPackage
-    ? selectedPackage.durationMinutes / 60
-    : 0;
+  const selectedHours = selectedPackage ? selectedPackage.durationMinutes / 60 : 0;
 
   const initialLessonHours = selectedHours >= 3 ? 1 : selectedHours;
 
-  const selectedPackagePrice = selectedPackage
-    ? Number(selectedPackage.price)
-    : 0;
+  const selectedPackagePrice = selectedPackage ? Number(selectedPackage.price) : 0;
 
-  const effectiveHourRate =
-    selectedHours > 0 ? selectedPackagePrice / selectedHours : 0;
+  const effectiveHourRate = selectedHours > 0 ? selectedPackagePrice / selectedHours : 0;
 
   const payment = calculateOnboardingLessonPayment(
     selectedHours,
@@ -393,10 +366,10 @@ export function BookInstructorFlow({
 
   const canConfirm = Boolean(
     selectedPackage &&
-    selectedDate &&
-    selectedTime &&
-    addressComplete &&
-    durationConfirmed,
+      selectedDate &&
+      selectedTime &&
+      addressComplete &&
+      durationConfirmed,
   );
 
   const showDurationStep = true;
@@ -496,18 +469,15 @@ export function BookInstructorFlow({
     resetDownstreamFromAddress();
   }
 
-  function handlePickupAddressSelect(
-    address: string,
-    details: AddressSelectionDetails,
-  ) {
+  function handlePickupAddressSelect(address: string, details: AddressSelectionDetails) {
     setPickupAddress(address);
     setPickupAddressDetails(details);
 
     setAddressSelected(
       Boolean(
         details.suburb &&
-        typeof details.latitude === "number" &&
-        typeof details.longitude === "number",
+          typeof details.latitude === "number" &&
+          typeof details.longitude === "number",
       ),
     );
 
@@ -570,8 +540,6 @@ export function BookInstructorFlow({
         throw new Error("Authentication required");
       }
 
-      await syncStudent(instructor.schoolId, token);
-
       const booking = await createBooking(instructor.schoolId, token, {
         instructorId: instructor.id,
         packageId: selectedPackage.id,
@@ -624,16 +592,9 @@ export function BookInstructorFlow({
     const maxAttempts = 20;
 
     for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-      const status = await getPackagePaymentStatus(
-        instructor.schoolId,
-        bookingId,
-        token,
-      );
+      const status = await getPackagePaymentStatus(instructor.schoolId, bookingId, token);
 
-      if (
-        status.paymentStatus === "paid" &&
-        status.bookingStatus === "confirmed"
-      ) {
+      if (status.paymentStatus === "paid" && status.bookingStatus === "confirmed") {
         clearFirstBookingDraft();
 
         setShowPayment(false);
@@ -646,19 +607,14 @@ export function BookInstructorFlow({
         throw new Error("Payment failed");
       }
 
-      if (
-        status.bookingStatus === "cancelled" ||
-        status.bookingStatus === "expired"
-      ) {
+      if (status.bookingStatus === "cancelled" || status.bookingStatus === "expired") {
         throw new Error("Booking is no longer available");
       }
 
       await new Promise((resolve) => window.setTimeout(resolve, 500));
     }
 
-    throw new Error(
-      "Payment succeeded, but booking confirmation is still processing.",
-    );
+    throw new Error("Payment succeeded, but booking confirmation is still processing.");
   }
 
   const paymentForLesson = {
@@ -676,9 +632,7 @@ export function BookInstructorFlow({
             ✓
           </div>
 
-          <h1 className="mt-6 text-xl font-bold text-slate-900">
-            Lesson booked
-          </h1>
+          <h1 className="mt-6 text-xl font-bold text-slate-900">Lesson booked</h1>
 
           <p className="mt-2 text-sm text-[#4b5563]">
             Payment complete. Your lesson with {instructor.name} is confirmed.
@@ -697,9 +651,7 @@ export function BookInstructorFlow({
               {formatLessonTimeRange(selectedTime, selectedHours)}
             </p>
 
-            <p className="mt-1 text-sm text-[#4b5563]">
-              Pick up: {trimmedPickupAddress}
-            </p>
+            <p className="mt-1 text-sm text-[#4b5563]">Pick up: {trimmedPickupAddress}</p>
 
             <div className="mt-4 border-t border-slate-200 pt-4">
               <InstructorProfileSummary instructor={instructor} />
@@ -718,13 +670,7 @@ export function BookInstructorFlow({
     );
   }
 
-  if (
-    showSignUp &&
-    canConfirm &&
-    selectedDate &&
-    selectedTime &&
-    trimmedPickupAddress
-  ) {
+  if (showSignUp && canConfirm && selectedDate && selectedTime && trimmedPickupAddress) {
     return (
       <BookingSignUp
         onBack={() => setShowSignUp(false)}
@@ -787,8 +733,7 @@ export function BookInstructorFlow({
           </div>
 
           <p className="mt-3 text-sm font-medium text-slate-900">
-            {typeof instructor.pricePerHour === "number" &&
-            instructor.pricePerHour > 0
+            {typeof instructor.pricePerHour === "number" && instructor.pricePerHour > 0
               ? `${formatCurrency(instructor.pricePerHour)}/hr`
               : "Package pricing"}
           </p>
@@ -796,14 +741,10 @@ export function BookInstructorFlow({
 
         {showDurationStep && (
           <section ref={durationStepRef} className="space-y-3">
-            <h2 className="text-sm font-semibold text-slate-900">
-              Lesson duration
-            </h2>
+            <h2 className="text-sm font-semibold text-slate-900">Lesson duration</h2>
 
             {isLoadingPackages ? (
-              <p className="text-sm text-[#4b5563]">
-                Loading lesson packages...
-              </p>
+              <p className="text-sm text-[#4b5563]">Loading lesson packages...</p>
             ) : packages.length === 0 ? (
               <p className="text-sm text-[#4b5563]">
                 No lesson packages are available for this location.
@@ -833,9 +774,7 @@ export function BookInstructorFlow({
                 {showDurationPicker && (
                   <PackagePickerModal
                     title={
-                      selectedPackage
-                        ? "Change lesson package"
-                        : "Select lesson package"
+                      selectedPackage ? "Change lesson package" : "Select lesson package"
                     }
                     packages={packages}
                     selectedPackageId={selectedPackageId}
@@ -847,8 +786,7 @@ export function BookInstructorFlow({
                 {selectedPackage && payment.payableHours > 0 && (
                   <p className="text-sm text-[#4b5563]">
                     {formatCurrency(payment.totalDue)} due at checkout (
-                    {formatLessonHoursLabel(payment.payableHours)} not covered
-                    by credit).
+                    {formatLessonHoursLabel(payment.payableHours)} not covered by credit).
                   </p>
                 )}
 
@@ -894,18 +832,14 @@ export function BookInstructorFlow({
 
         {showScheduleStep && !selectedDate && !showDatePicker && (
           <section ref={dateStepRef} className="space-y-3">
-            <h2 className="text-sm font-semibold text-slate-900">
-              Pick a date
-            </h2>
+            <h2 className="text-sm font-semibold text-slate-900">Pick a date</h2>
 
             <button
               type="button"
               onClick={() => setShowDatePicker(true)}
               className="flex w-full items-center justify-between rounded-xl bg-[#f9f9f9] px-4 py-3 text-left transition hover:bg-[#f0f0f0]"
             >
-              <span className="text-sm font-medium text-[#4b5563]">
-                Select date
-              </span>
+              <span className="text-sm font-medium text-[#4b5563]">Select date</span>
 
               <ChevronRightIcon className="h-4 w-4 shrink-0 text-slate-400" />
             </button>
@@ -923,9 +857,7 @@ export function BookInstructorFlow({
                 {selectedDate.month} {selectedDate.day} · {selectedDate.weekday}
               </p>
 
-              <p className="mt-0.5 text-sm text-[#4b5563]">
-                {selectedDate.label}
-              </p>
+              <p className="mt-0.5 text-sm text-[#4b5563]">{selectedDate.label}</p>
 
               <button
                 type="button"
@@ -941,15 +873,11 @@ export function BookInstructorFlow({
               </button>
             </div>
 
-            <h2 className="text-sm font-semibold text-slate-900">
-              Pick a time
-            </h2>
+            <h2 className="text-sm font-semibold text-slate-900">Pick a time</h2>
 
             <button
               type="button"
-              disabled={
-                isLoadingAvailableSlots || availableTimeSlots.length === 0
-              }
+              disabled={isLoadingAvailableSlots || availableTimeSlots.length === 0}
               onClick={() => setShowTimePicker(true)}
               className="flex w-full items-center justify-between rounded-xl bg-[#f9f9f9] px-4 py-3 text-left transition hover:bg-[#f0f0f0] disabled:cursor-not-allowed disabled:opacity-60"
             >
@@ -1009,9 +937,7 @@ export function BookInstructorFlow({
 
         {showAddressStep && (
           <section ref={addressStepRef} className="space-y-3">
-            <h2 className="text-sm font-semibold text-slate-900">
-              Pick up address
-            </h2>
+            <h2 className="text-sm font-semibold text-slate-900">Pick up address</h2>
 
             <button
               type="button"
@@ -1033,9 +959,7 @@ export function BookInstructorFlow({
 
         {showAddressStep && showAddressPicker && (
           <AddressPickerModal
-            title={
-              trimmedPickupAddress ? "Change pick up address" : "Pick up address"
-            }
+            title={trimmedPickupAddress ? "Change pick up address" : "Pick up address"}
             value={pickupAddress}
             onChange={handlePickupAddressChange}
             onSelect={handlePickupAddressSelect}
@@ -1095,8 +1019,7 @@ export function BookInstructorFlow({
                 </p>
 
                 <p className="mt-2 font-semibold text-slate-900">
-                  {selectedDate.month} {selectedDate.day} ·{" "}
-                  {selectedDate.weekday}
+                  {selectedDate.month} {selectedDate.day} · {selectedDate.weekday}
                 </p>
 
                 <p className="mt-1 text-sm text-slate-600">
@@ -1115,15 +1038,11 @@ export function BookInstructorFlow({
                 <p className="mt-2 text-sm font-medium text-slate-900">
                   Total: {formatCurrency(payment.totalDue)}
                   {payment.creditHoursUsed > 0 &&
-                    ` (${formatCurrency(
-                      payment.creditDiscount,
-                    )} credit applied)`}
+                    ` (${formatCurrency(payment.creditDiscount)} credit applied)`}
                 </p>
               </div>
 
-              {paymentError && (
-                <p className="text-sm text-red-500">{paymentError}</p>
-              )}
+              {paymentError && <p className="text-sm text-red-500">{paymentError}</p>}
 
               <button
                 type="button"

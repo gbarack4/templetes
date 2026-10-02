@@ -4,8 +4,9 @@ import { headers } from "next/headers";
 import { SiteLoaderGate } from "@/components/SiteLoaderGate";
 import { SchoolProvider } from "@/dashboard/SchoolContext";
 import "./globals.css";
-import { ClerkProvider } from "@clerk/nextjs";
-import { QueryProvider } from "@/shared/providers/QueryProvider";
+import { getSchoolByDomain } from "@/lib/api";
+import { schoolDomainFromHost } from "@/lib/school-domain";
+import { loadStudentAuthConfig } from "@/lib/auth/config.server";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -29,25 +30,34 @@ export const viewport: Viewport = {
 };
 
 async function getSchoolConfig() {
-  try {
-    const headerList = await headers();
-    const host = headerList.get("host") || "";
-    const domain = host.split(".")[0];
-
-    const res = await fetch(
-      `${process.env.NEXT_PUBLIC_API_URL}/public/websites/${domain}`,
-      { cache: "no-store" },
-    );
-    if (!res.ok) return { schoolId: "" };
-    const data = await res.json();
+  const headerList = await headers();
+  const domain = schoolDomainFromHost(
+    headerList.get("host") || "",
+    process.env.NEXT_PUBLIC_BASE_DOMAIN,
+  );
+  if (!domain || domain === "preview")
     return {
-      schoolId: data?.schoolId || "",
-      schoolName: data?.schoolName || "",
-      logoUrl: data?.logoUrl || "",
+      schoolId: "",
+      schoolName: "",
+      logoUrl: "",
+      authConfig: null,
+      authError: null,
     };
-  } catch {
-    return { schoolId: "" };
-  }
+  const site = await getSchoolByDomain(domain);
+  if (!site)
+    return {
+      schoolId: "",
+      schoolName: "",
+      logoUrl: "",
+      authConfig: null,
+      authError: null,
+    };
+  return {
+    schoolId: site.schoolId,
+    schoolName: site.schoolName,
+    logoUrl: site.logoUrl ?? "",
+    ...(await loadStudentAuthConfig(site.schoolId, { domain })),
+  };
 }
 
 export default async function RootLayout({
@@ -58,20 +68,18 @@ export default async function RootLayout({
   const schoolConfig = await getSchoolConfig();
 
   return (
-    <ClerkProvider>
-      <html lang="en" className={`${geistSans.variable} antialiased`}>
-        <body className="flex min-h-dvh flex-col bg-white font-sans text-slate-900">
-          <SchoolProvider
-            schoolId={schoolConfig.schoolId}
-            schoolName={schoolConfig.schoolName}
-            logoUrl={schoolConfig.logoUrl}
-          >
-            <QueryProvider>
-              <SiteLoaderGate>{children}</SiteLoaderGate>
-            </QueryProvider>
-          </SchoolProvider>
-        </body>
-      </html>
-    </ClerkProvider>
+    <html lang="en" className={`${geistSans.variable} antialiased`}>
+      <body className="flex min-h-dvh flex-col bg-white font-sans text-slate-900">
+        <SchoolProvider
+          schoolId={schoolConfig.schoolId}
+          schoolName={schoolConfig.schoolName}
+          logoUrl={schoolConfig.logoUrl}
+          authConfig={schoolConfig.authConfig}
+          authError={schoolConfig.authError}
+        >
+          <SiteLoaderGate>{children}</SiteLoaderGate>
+        </SchoolProvider>
+      </body>
+    </html>
   );
 }

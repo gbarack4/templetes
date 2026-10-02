@@ -27,14 +27,15 @@ async function fetchSchoolConfig(
 }
 
 export function getSchoolByDomain(domain: string): Promise<SiteConfig | null> {
-  return fetchSchoolConfig(`/public/websites/${domain}`, `domain ${domain}`);
+  return fetchSchoolConfig(
+    `/public/websites/${encodeURIComponent(domain)}`,
+    `domain ${encodeURIComponent(domain)}`,
+  );
 }
 
-export function getSchoolByEmbedKey(
-  embedKey: string,
-): Promise<SiteConfig | null> {
+export function getSchoolByEmbedKey(embedKey: string): Promise<SiteConfig | null> {
   return fetchSchoolConfig(
-    `/public/websites/embed/${embedKey}`,
-    `embed key ${embedKey}`,
+    `/public/websites/embed/${encodeURIComponent(embedKey)}`,
+    `embed key ${encodeURIComponent(embedKey)}`,
   );
 }

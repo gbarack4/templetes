@@ -1,6 +1,6 @@
 "use client";
 
-import { useAuth } from "@clerk/nextjs";
+import { useAuth } from "@/lib/auth/AuthProvider";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useSchoolId } from "@/dashboard/SchoolContext";
@@ -45,16 +45,11 @@ async function getErrorMessage(response: Response): Promise<string> {
   return `Request failed (${response.status}).`;
 }
 
-export function useStudentRescheduleSlots(
-  bookingId: string,
-  date: string | null,
-) {
+export function useStudentRescheduleSlots(bookingId: string, date: string | null) {
   const schoolId = useSchoolId();
   const { getToken, isLoaded, isSignedIn } = useAuth();
 
-  const enabled = Boolean(
-    isLoaded && isSignedIn && schoolId && bookingId && date,
-  );
+  const enabled = Boolean(isLoaded && isSignedIn && schoolId && bookingId && date);
 
   const query = useQuery<RescheduleSlot[]>({
     queryKey: ["student-reschedule-slots", schoolId, bookingId, date],
@@ -87,6 +82,7 @@ export function useStudentRescheduleSlots(
         {
           headers: {
             Authorization: `Bearer ${token}`,
+            "x-school-id": schoolId,
           },
           cache: "no-store",
           signal,
@@ -146,6 +142,7 @@ export function useStudentRescheduleBooking() {
           method: "PATCH",
           headers: {
             Authorization: `Bearer ${token}`,
+            "x-school-id": schoolId,
             "Content-Type": "application/json",
           },
           body: JSON.stringify({

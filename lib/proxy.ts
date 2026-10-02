@@ -27,7 +27,9 @@ export default function proxy(req: NextRequest) {
   );
   if (!domain) return NextResponse.next();
   url.pathname =
-    domain === "preview" ? `/preview${url.pathname}` : `/${domain}${url.pathname}`;
+    domain === "preview"
+      ? `/preview${url.pathname}`
+      : `/${domain}${url.pathname}`;
   return NextResponse.rewrite(url);
 }
 

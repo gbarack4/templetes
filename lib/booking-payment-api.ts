@@ -16,6 +16,7 @@ export async function createBooking(
     method: "POST",
     headers: {
       Authorization: `Bearer ${token}`,
+      "x-school-id": schoolId,
       "Content-Type": "application/json",
     },
     body: JSON.stringify(payload),
@@ -35,19 +36,17 @@ export async function createPackagePayment(
   bookingId: string,
   token: string,
 ): Promise<CreatePackagePaymentResponse> {
-  const response = await fetch(
-    `${API_URL}/payments/school/${schoolId}/package`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        bookingId,
-      }),
+  const response = await fetch(`${API_URL}/payments/school/${schoolId}/package`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "x-school-id": schoolId,
+      "Content-Type": "application/json",
     },
-  );
+    body: JSON.stringify({
+      bookingId,
+    }),
+  });
 
   if (!response.ok) {
     const message = await response.text();
@@ -56,28 +55,6 @@ export async function createPackagePayment(
   }
 
   return response.json();
-}
-
-export async function syncStudent(
-  schoolId: string,
-  token: string,
-): Promise<void> {
-  const response = await fetch(`${API_URL}/students/sync`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      schoolId,
-    }),
-  });
-
-  if (!response.ok) {
-    const message = await response.text();
-
-    throw new Error(message || "Failed to sync student");
-  }
 }
 
 export async function getPackagePaymentStatus(
@@ -91,6 +68,7 @@ export async function getPackagePaymentStatus(
       method: "GET",
       headers: {
         Authorization: `Bearer ${token}`,
+        "x-school-id": schoolId,
         "Content-Type": "application/json",
       },
     },

@@ -1,6 +1,6 @@
 "use client";
 
-import { useAuth } from "@clerk/nextjs";
+import { useAuth } from "@/lib/auth/AuthProvider";
 import { useQuery } from "@tanstack/react-query";
 
 import { useSchoolId } from "@/dashboard/SchoolContext";
@@ -38,16 +38,14 @@ export function useStudentCreditBalance() {
         throw new Error("Your session is unavailable. Please sign in again.");
       }
 
-      const response = await fetch(
-        `${apiUrl}/credits/school/${schoolId}/balance`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-          cache: "no-store",
-          signal,
+      const response = await fetch(`${apiUrl}/credits/school/${schoolId}/balance`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "x-school-id": schoolId,
         },
-      );
+        cache: "no-store",
+        signal,
+      });
 
       if (!response.ok) {
         throw new Error(`Unable to load credit balance (${response.status}).`);
@@ -56,9 +54,7 @@ export function useStudentCreditBalance() {
       const data: unknown = await response.json();
 
       const rawMinutes =
-        typeof data === "object" &&
-        data !== null &&
-        "balanceMinutes" in data
+        typeof data === "object" && data !== null && "balanceMinutes" in data
           ? data.balanceMinutes
           : null;
 

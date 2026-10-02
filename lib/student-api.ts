@@ -1,13 +1,11 @@
-export async function fetchStudentProfile(
-  schoolId: string,
-  token: string | null,
-) {
+export async function fetchStudentProfile(schoolId: string, token: string | null) {
   const response = await fetch(
     `${process.env.NEXT_PUBLIC_API_URL}/students/school/${schoolId}/me`,
     {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
+        "x-school-id": schoolId,
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
     },
@@ -36,6 +34,7 @@ export async function updateStudentPersonalInfo(
       method: "PATCH",
       headers: {
         "Content-Type": "application/json",
+        "x-school-id": schoolId,
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
       body: JSON.stringify(data),
@@ -60,6 +59,7 @@ export async function updateStudentAvatar(
       method: "PATCH",
       headers: {
         "Content-Type": "application/json",
+        "x-school-id": schoolId,
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
       body: JSON.stringify({ avatarUrl }),
@@ -93,6 +93,7 @@ export async function updateStudentAddress(
       method: "PATCH",
       headers: {
         "Content-Type": "application/json",
+        "x-school-id": schoolId,
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
       body: JSON.stringify(data),
