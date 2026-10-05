@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist } from "next/font/google";
 import { headers } from "next/headers";
+import { SignInTransition } from "@/components/SignInTransition";
 import { SiteLoaderGate } from "@/components/SiteLoaderGate";
 import { SchoolProvider } from "@/dashboard/SchoolContext";
 import "./globals.css";
@@ -77,7 +78,9 @@ export default async function RootLayout({
           authConfig={schoolConfig.authConfig}
           authError={schoolConfig.authError}
         >
-          <SiteLoaderGate>{children}</SiteLoaderGate>
+          <SiteLoaderGate>
+            <SignInTransition>{children}</SignInTransition>
+          </SiteLoaderGate>
         </SchoolProvider>
       </body>
     </html>

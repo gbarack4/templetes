@@ -15,6 +15,7 @@ export type InstructorOption = {
   avatarUrl: string;
   location: string;
   pricePerHour: number | null;
+  lowestEligiblePrice?: number | null;
   rating?: number | null;
   reviewCount?: number;
   lessonsCompleted?: number;

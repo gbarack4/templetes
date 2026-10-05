@@ -1,7 +1,11 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
+
 import { InstructorProfile } from "@/onboarding/InstructorProfile";
-import { getSuggestedInstructorById } from "@/onboarding/suggested-instructors";
+import {
+  getSuggestedInstructorById,
+  toPublicInstructor,
+} from "@/onboarding/suggested-instructors";
 
 export default async function InstructorProfilePreviewPage({
   params,
@@ -16,8 +20,11 @@ export default async function InstructorProfilePreviewPage({
   }
 
   return (
-    <Suspense>
-      <InstructorProfile instructor={instructor} basePath="/preview/onboarding" />
+    <Suspense fallback={null}>
+      <InstructorProfile
+        instructor={toPublicInstructor(instructor)}
+        basePath="/preview/onboarding"
+      />
     </Suspense>
   );
 }

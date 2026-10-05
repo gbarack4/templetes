@@ -9,6 +9,16 @@ export const AUTH_INPUT =
 export const AUTH_BUTTON =
   "w-full rounded-lg bg-blue-600 py-3 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400";
 
+const SIGN_UP_BUTTON_HOLD_MS = 2000;
+
+function waitRemaining(startedAt: number) {
+  const remaining = SIGN_UP_BUTTON_HOLD_MS - (Date.now() - startedAt);
+  if (remaining <= 0) return Promise.resolve();
+  return new Promise<void>((resolve) => {
+    window.setTimeout(resolve, remaining);
+  });
+}
+
 function submitLabel(
   busy: boolean,
   profileRequired: boolean,
@@ -82,13 +92,15 @@ function CredentialFields({
           Enter the verification code sent to {email}.
         </p>
       )}
-      <Field
-        label="Password"
-        type="password"
-        autoComplete={isSignup ? "new-password" : "current-password"}
-        value={password}
-        onChange={setPassword}
-      />
+      {!verifying && (
+        <Field
+          label="Password"
+          type="password"
+          autoComplete={isSignup ? "new-password" : "current-password"}
+          value={password}
+          onChange={setPassword}
+        />
+      )}
       {isSignup && !verifying && (
         <p className="text-xs text-slate-500">
           Use a strong password with uppercase and lowercase letters, a number and a
@@ -110,9 +122,11 @@ function CredentialFields({
 export function AuthForm({
   mode,
   onComplete,
+  onPendingChange,
 }: Readonly<{
   mode: "sign-in" | "sign-up";
   onComplete: () => void;
+  onPendingChange?: (pending: boolean) => void;
 }>) {
   const auth = useAuth();
   const [email, setEmail] = useState("");
@@ -135,11 +149,10 @@ export function AuthForm({
   };
 
   useEffect(() => {
-    if (auth.isSignedIn && !completed.current) {
-      completed.current = true;
-      onComplete();
-    }
-  }, [auth.isSignedIn, onComplete]);
+    if (!auth.isSignedIn || busy || completed.current) return;
+    completed.current = true;
+    onComplete();
+  }, [auth.isSignedIn, busy, onComplete]);
 
   async function submit(event: React.SyntheticEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -147,6 +160,9 @@ export function AuthForm({
     setBusy(true);
     setError("");
     setNotice("");
+    const startedAt = Date.now();
+    const trackSignIn = !isSignup;
+    let showVerification = false;
     try {
       if (auth.hasSession) {
         await auth.syncProfile(profile);
@@ -155,6 +171,7 @@ export function AuthForm({
           await auth.confirm(email, code);
           setConfirmed(true);
         }
+        if (trackSignIn) onPendingChange?.(true);
         await auth.signIn(email, password, isSignup ? profile : undefined);
         setPassword("");
       } else if (isSignup) {
@@ -162,17 +179,21 @@ export function AuthForm({
         if (alreadyConfirmed) {
           await auth.signIn(email, password, profile);
           setPassword("");
-        } else setVerifying(true);
+        } else showVerification = true;
       } else {
+        onPendingChange?.(true);
         await auth.signIn(email, password);
         setPassword("");
       }
     } catch (err) {
+      if (trackSignIn) onPendingChange?.(false);
       if (errorName(err) === "UserNotConfirmedException") {
         setVerifying(true);
         setNotice("Your email is not verified. Enter your code or request a new one.");
       } else setError(authErrorMessage(err));
     } finally {
+      if (isSignup) await waitRemaining(startedAt);
+      if (showVerification) setVerifying(true);
       setBusy(false);
     }
   }
@@ -224,13 +245,13 @@ export function AuthForm({
         </button>
       </div>
     );
-  if (auth.isSignedIn)
+  if (!isSignup && auth.isSignedIn)
     return (
       <p role="status" className="text-sm text-slate-500">
         Opening your account...
       </p>
     );
-  if (auth.hasSession && !auth.profileRequired)
+  if (!isSignup && auth.hasSession && !auth.profileRequired)
     return (
       <div className="space-y-4">
         <p role="status" className="text-sm text-slate-500">
@@ -258,6 +279,7 @@ export function AuthForm({
     );
 
   const showProfile = auth.profileRequired || (isSignup && !verifying);
+  const buttonBusy = busy || (isSignup && auth.isSignedIn);
   return (
     <form onSubmit={submit} className="space-y-4">
       {(error || auth.error) && (
@@ -315,8 +337,8 @@ export function AuthForm({
           setCode={setCode}
         />
       )}
-      <button type="submit" disabled={busy} className={AUTH_BUTTON}>
-        {submitLabel(busy, auth.profileRequired, verifying, isSignup)}
+      <button type="submit" disabled={buttonBusy} className={AUTH_BUTTON}>
+        {submitLabel(buttonBusy, auth.profileRequired, verifying, isSignup)}
       </button>
       {verifying && !confirmed && (
         <button

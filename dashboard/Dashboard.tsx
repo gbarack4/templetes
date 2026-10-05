@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { ReactNode, useState } from "react";
+import { ReactNode, useEffect, useState } from "react";
 
 import { useStudent } from "@/shared/hooks/useStudent";
 import { useStudentBookings } from "@/shared/hooks/useStudentBookings";
@@ -50,6 +50,40 @@ const emptyLessonMessages: Record<TabKey, string> = {
   completed: "No completed lessons",
   cancelled: "No cancelled lessons",
 };
+function DashboardSkeleton() {
+  return (
+    <main
+      className="flex min-h-0 flex-1 flex-col overflow-hidden px-5 pt-6"
+      aria-busy="true"
+      aria-label="Loading dashboard"
+    >
+      <section className="flex shrink-0 items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="instructor-skeleton h-12 w-12 rounded-full bg-slate-200" />
+          <div className="space-y-2">
+            <div className="instructor-skeleton h-5 w-36 rounded bg-slate-200" />
+            <div className="instructor-skeleton h-3 w-44 rounded bg-slate-200" />
+          </div>
+        </div>
+        <div className="instructor-skeleton h-10 w-10 rounded-lg bg-slate-200" />
+      </section>
+
+      <div className="instructor-skeleton mt-6 h-[4.5rem] shrink-0 rounded-2xl bg-slate-200" />
+
+      <div className="mt-6 flex shrink-0 gap-3 border-b border-slate-100 pb-3">
+        <div className="instructor-skeleton h-4 flex-1 rounded bg-slate-200" />
+        <div className="instructor-skeleton h-4 flex-1 rounded bg-slate-200" />
+        <div className="instructor-skeleton h-4 flex-1 rounded bg-slate-200" />
+      </div>
+
+      <div className="mt-6 space-y-3">
+        <div className="instructor-skeleton h-28 rounded-2xl bg-[#f9f9f9]" />
+        <div className="instructor-skeleton h-28 rounded-2xl bg-[#f9f9f9]" />
+      </div>
+    </main>
+  );
+}
+
 function LessonSection({
   title,
   emptyMessage,
@@ -119,6 +153,16 @@ export function Dashboard({ data = mockDashboardData }: DashboardProps) {
   const [notifications, setNotifications] = useState(data.notifications);
   const [showNotifications, setShowNotifications] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
+
+  useEffect(() => {
+    if (!studentLoading && !isCreditLoading && !bookingsLoading) {
+      setHasLoadedOnce(true);
+    }
+  }, [studentLoading, isCreditLoading, bookingsLoading]);
+
+  const showSkeleton =
+    !hasLoadedOnce && (studentLoading || isCreditLoading || bookingsLoading);
 
   const userName =
     student?.name ||
@@ -177,6 +221,10 @@ export function Dashboard({ data = mockDashboardData }: DashboardProps) {
         onViewAll={() => router.push(`/dashboard/bookings?tab=${activeTab}`)}
       />
     );
+  }
+
+  if (showSkeleton) {
+    return <DashboardSkeleton />;
   }
 
   return (

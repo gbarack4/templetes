@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useSignInTransition } from "@/components/SignInTransition";
 import { useSchool } from "@/dashboard/SchoolContext";
 import { AuthForm } from "@/lib/auth/AuthForm";
 import { safeRedirect } from "@/lib/school-domain";
@@ -18,6 +19,7 @@ export function SignIn({
   const pathname = usePathname();
   const params = useSearchParams();
   const school = useSchool();
+  const { begin, cancel } = useSignInTransition();
   const requested = safeRedirect(params.get("redirect_url"), defaultRedirectUrl);
   const embedBase = /^\/embed\/[^/]+/.exec(pathname)?.[0];
   const redirect =
@@ -41,7 +43,14 @@ export function SignIn({
           Access your lessons, bookings, and account.
         </p>
       </section>
-      <AuthForm mode="sign-in" onComplete={() => router.replace(redirect)} />
+      <AuthForm
+        mode="sign-in"
+        onPendingChange={(pending) => {
+          if (pending) begin(redirect);
+          else cancel();
+        }}
+        onComplete={() => router.replace(redirect)}
+      />
       <Link href={resetHref} className="mt-4 text-sm font-medium text-blue-600">
         Forgot password?
       </Link>

@@ -16,13 +16,56 @@ export type SuggestedInstructor = InstructorOption &
   }>;
 
 export const mockStudentArea: StudentArea = {
-  name: "",
-  fullLabel: "",
-  suburb: "",
-  postcode: "",
+  name: "Bondi",
+  fullLabel: "Bondi, NSW",
+  suburb: "Bondi",
+  postcode: "2026",
 };
 
-export const suggestedInstructorsInArea: SuggestedInstructor[] = [];
+export const suggestedInstructorsInArea: SuggestedInstructor[] = [
+  {
+    id: "sarah-johnson",
+    name: "Sarah Johnson",
+    initials: "SJ",
+    avatarUrl: "/avatars/instructors/sarah-johnson.jpg",
+    location: "Bondi Beach, NSW",
+    rating: 4.9,
+    reviewCount: 128,
+    lessonsCompleted: 840,
+    pricePerHour: 60,
+    suburb: "Bondi",
+    postcode: "2026",
+    availableSlots: 5,
+  },
+  {
+    id: "mike-chen",
+    name: "Mike Chen",
+    initials: "MC",
+    avatarUrl: "/avatars/instructors/mike-chen.jpg",
+    location: "Bondi Junction, NSW",
+    rating: 4.8,
+    reviewCount: 96,
+    lessonsCompleted: 620,
+    pricePerHour: 58,
+    suburb: "Bondi",
+    postcode: "2026",
+    availableSlots: 3,
+  },
+  {
+    id: "emma-williams",
+    name: "Emma Williams",
+    initials: "EW",
+    avatarUrl: "/avatars/instructors/emma-williams.jpg",
+    location: "Bronte, NSW",
+    rating: 5.0,
+    reviewCount: 74,
+    lessonsCompleted: 510,
+    pricePerHour: 62,
+    suburb: "Bronte",
+    postcode: "2024",
+    availableSlots: 7,
+  },
+];
 
 export function getSuggestedInstructorById(
   id: string,
@@ -31,7 +74,11 @@ export function getSuggestedInstructorById(
 }
 
 /** Suburbs each instructor covers beyond their home suburb. */
-const instructorServiceSuburbs: Record<string, readonly string[]> = {};
+const instructorServiceSuburbs: Record<string, readonly string[]> = {
+  "sarah-johnson": ["Bondi", "Bondi Beach", "North Bondi"],
+  "mike-chen": ["Bondi", "Bondi Junction", "Waverley"],
+  "emma-williams": ["Bronte", "Bondi", "Tamarama"],
+};
 
 function normalizeLocationQuery(query: string): string {
   return query.trim().toLowerCase().replace(/\s+/g, " ");
@@ -93,7 +140,47 @@ export type InstructorCar = Readonly<{
 export const instructorProfileDetails: Record<
   string,
   Readonly<{ bio: string; phone: string; car: InstructorCar }>
-> = {};
+> = {
+  "sarah-johnson": {
+    bio: "Calm, patient instructor helping first-time drivers build confidence.",
+    phone: "+61400000001",
+    car: {
+      make: "Toyota",
+      model: "Corolla",
+      year: 2022,
+      transmission: "Automatic",
+      fuel: "Hybrid",
+      color: "Blue",
+      imageUrl: "/cars/toyota-corolla.jpg",
+    },
+  },
+  "mike-chen": {
+    bio: "Structured lessons focused on defensive driving and test prep.",
+    phone: "+61400000002",
+    car: {
+      make: "Honda",
+      model: "Civic",
+      year: 2021,
+      transmission: "Automatic",
+      fuel: "Petrol",
+      color: "Teal",
+      imageUrl: "/cars/toyota-corolla.jpg",
+    },
+  },
+  "emma-williams": {
+    bio: "Friendly instructor with flexible scheduling around work and school.",
+    phone: "+61400000003",
+    car: {
+      make: "Mazda",
+      model: "3",
+      year: 2023,
+      transmission: "Automatic",
+      fuel: "Petrol",
+      color: "Purple",
+      imageUrl: "/cars/toyota-corolla.jpg",
+    },
+  },
+};
 
 type AvailableSlot = {
   instructorId: string;
@@ -136,9 +223,9 @@ export function toPublicInstructor(
     schoolId: "mock-school",
     initials: instructor.initials,
     location: instructor.location,
-    rating: instructor.rating ?? 0,
-    reviewCount: instructor.reviewCount ?? 0,
-    lessonsCompleted: instructor.lessonsCompleted ?? 0,
+    rating: instructor.rating,
+    reviewCount: instructor.reviewCount,
+    lessonsCompleted: instructor.lessonsCompleted,
     availableSlots: [],
     lowestEligiblePrice: instructor.pricePerHour,
     monthlyAvailableSlotCount: instructor.availableSlots,

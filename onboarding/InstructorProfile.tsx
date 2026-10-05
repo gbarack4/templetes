@@ -3,10 +3,13 @@
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 
 import { ButtonSpinner } from "@/components/ButtonSpinner";
 import { FlowPageHeader } from "@/dashboard/components/FlowPageHeader";
 import { ChevronRightIcon, PhoneIcon } from "@/dashboard/components/icons";
+import { formatCurrency } from "@/dashboard/mock-data";
+import { searchPublicInstructors } from "@/lib/public-booking-api";
 import { useInstructorReviewProfile } from "@/shared/hooks/useInstructorReviewProfile";
 
 import { InstructorReviewsModal, ReviewStars } from "./InstructorReviewsModal";
@@ -24,28 +27,6 @@ type InstructorProfileProps = Readonly<{
 
 const BUTTON_LOADING_MS = 2000;
 
-function HeartIcon({
-  className,
-  filled = false,
-}: Readonly<{ className?: string; filled?: boolean }>) {
-  return (
-    <svg
-      className={className}
-      viewBox="0 0 24 24"
-      fill={filled ? "currentColor" : "none"}
-      stroke="currentColor"
-      strokeWidth="2"
-      aria-hidden
-    >
-      <path
-        d="M20.8 5.6a5.2 5.2 0 0 0-7.4 0L12 6.9l-1.4-1.3a5.2 5.2 0 0 0-7.4 7.4l1.4 1.3L12 21l7.4-6.7 1.4-1.3a5.2 5.2 0 0 0 0-7.4z"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
 function CarGlyph({ className }: Readonly<{ className?: string }>) {
   return (
     <svg
@@ -60,9 +41,12 @@ function CarGlyph({ className }: Readonly<{ className?: string }>) {
   );
 }
 
-function formatHourlyRate(amount: number): string {
-  const rounded = Number.isInteger(amount) ? amount : Math.round(amount);
-  return `$${rounded}`;
+function readPrice(value: unknown): number | null {
+  const price = typeof value === "number" ? value : Number(value);
+
+  if (!Number.isFinite(price) || price <= 0) return null;
+
+  return price;
 }
 
 function transmissionLabel(value: string | undefined): string {
@@ -101,7 +85,6 @@ export function InstructorProfile({
   const [isBooking, setIsBooking] = useState(false);
   const [imageError, setImageError] = useState(false);
   const [carImageError, setCarImageError] = useState(false);
-  const [favorited, setFavorited] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
 
   const { profile } = useInstructorReviewProfile({
@@ -109,6 +92,39 @@ export function InstructorProfile({
     schoolId,
     limit: 50,
   });
+
+  const suburb = searchParams.get("suburb")?.trim() ?? "";
+
+  const { data: apiPrice = null } = useQuery({
+    queryKey: ["instructor-lowest-price", schoolId, suburb, instructor.id],
+    enabled: Boolean(schoolId && suburb && instructor.id),
+    staleTime: 60_000,
+    retry: false,
+    queryFn: async () => {
+      const data = await searchPublicInstructors(schoolId, suburb);
+
+      if (!Array.isArray(data)) return null;
+
+      const match = data.find(
+        (item) =>
+          !!item &&
+          typeof item === "object" &&
+          (item as { id?: unknown }).id === instructor.id,
+      );
+
+      if (!match || typeof match !== "object") return null;
+
+      return readPrice(
+        (match as { lowestEligiblePrice?: unknown }).lowestEligiblePrice,
+      );
+    },
+  });
+
+  const lowestEligiblePrice =
+    apiPrice ??
+    readPrice(
+      (instructor as { lowestEligiblePrice?: unknown }).lowestEligiblePrice,
+    );
 
   const details = instructorProfileDetails[instructor.id];
 
@@ -180,19 +196,6 @@ export function InstructorProfile({
                   <CarGlyph className="h-16 w-16" />
                 </div>
               )}
-
-              <button
-                type="button"
-                aria-label={favorited ? "Remove from favorites" : "Favorite"}
-                aria-pressed={favorited}
-                onClick={() => setFavorited((value) => !value)}
-                className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-white text-slate-900 shadow-sm transition hover:bg-[#f9f9f9]"
-              >
-                <HeartIcon
-                  className={`h-4 w-4 ${favorited ? "text-red-500" : ""}`}
-                  filled={favorited}
-                />
-              </button>
             </div>
 
             <div className="relative bg-[#f9f9f9] px-5 pb-5">
@@ -260,11 +263,11 @@ export function InstructorProfile({
                   {gearLabel}
                 </span>
 
-                <p className="text-3xl font-bold tracking-tight text-slate-900">
-                  {instructor.pricePerHour != null ? (
+                <p className="text-right text-3xl font-bold tracking-tight text-slate-900">
+                  {lowestEligiblePrice != null ? (
                     <>
-                      {formatHourlyRate(instructor.pricePerHour)}
-                      <span className="text-xl font-bold">/hr</span>
+                      <span className="text-xl font-bold">From </span>
+                      {formatCurrency(lowestEligiblePrice)}
                     </>
                   ) : (
                     <span className="text-xl">Price on request</span>

@@ -15,6 +15,7 @@ import {
 import { createCreditBooking, CreditApiError } from "@/lib/credit-booking-api";
 import {
   fetchPublicPackages,
+  searchPublicInstructors,
   type PublicPackage,
 } from "@/lib/public-booking-api";
 import { useBookingInstructors } from "@/shared/hooks/useBookingInstructors";
@@ -41,6 +42,26 @@ type FlowStep = "instructor" | "date" | "time" | "summary";
 
 const MAX_CREDIT_BOOKING_HOURS = 3;
 const BOOK_WITH_CREDIT_WAIT_MS = 2000;
+
+function readLowestEligiblePrice(instructor: unknown): number | null {
+  if (!instructor || typeof instructor !== "object") return null;
+
+  const raw = (instructor as { lowestEligiblePrice?: unknown })
+    .lowestEligiblePrice;
+  const price = typeof raw === "number" ? raw : Number(raw);
+
+  if (!Number.isFinite(price) || price <= 0) return null;
+
+  return price;
+}
+
+function readInstructorId(instructor: unknown): string | null {
+  if (!instructor || typeof instructor !== "object") return null;
+
+  const id = (instructor as { id?: unknown }).id;
+
+  return typeof id === "string" && id ? id : null;
+}
 
 function scrollStepIntoView(element: HTMLElement | null) {
   element?.scrollIntoView({
@@ -86,6 +107,32 @@ export function BookLessonFlow() {
     refetch: refetchInstructors,
   } = useBookingInstructors(instructorSearchQuery);
 
+  const { student } = useStudent();
+
+  const pickupSuburb = student?.addressSuburb?.trim() ?? "";
+
+  const { data: publicInstructorPrices } = useQuery({
+    queryKey: ["public-instructor-prices", schoolId, pickupSuburb],
+    enabled: Boolean(schoolId && pickupSuburb),
+    staleTime: 60_000,
+    retry: false,
+    queryFn: async () => {
+      const data = await searchPublicInstructors(schoolId, pickupSuburb);
+      const prices = new Map<string, number>();
+
+      if (!Array.isArray(data)) return prices;
+
+      for (const instructor of data) {
+        const id = readInstructorId(instructor);
+        const price = readLowestEligiblePrice(instructor);
+
+        if (id && price !== null) prices.set(id, price);
+      }
+
+      return prices;
+    },
+  });
+
   const instructors: InstructorOption[] = bookingInstructors.map(
     (instructor) => {
       const pricePerHour =
@@ -105,6 +152,9 @@ export function BookLessonFlow() {
           pricePerHour !== null && Number.isFinite(pricePerHour)
             ? pricePerHour
             : null,
+        lowestEligiblePrice:
+          publicInstructorPrices?.get(instructor.id) ??
+          readLowestEligiblePrice(instructor),
       };
     },
   );
@@ -116,9 +166,6 @@ export function BookLessonFlow() {
     refetch: refetchCreditBalance,
   } = useStudentCreditBalance();
 
-  const { student } = useStudent();
-
-  const pickupSuburb = student?.addressSuburb?.trim() ?? "";
   const pickupPostcode = student?.addressPostcode?.trim() || undefined;
   const pickupAddress = student?.user.address?.trim() ?? "";
   const pickupLatitude = student?.addressLatitude ?? null;

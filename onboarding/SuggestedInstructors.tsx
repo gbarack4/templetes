@@ -23,16 +23,11 @@ import {
   type InstructorFiltersDraft,
 } from "./InstructorFiltersSheet";
 import { withOnboardingQuery } from "./paths";
-import {
-  getInstructorsForSuburb,
-  toPublicInstructor,
-  type PublicInstructor,
-} from "./suggested-instructors";
+import { type PublicInstructor } from "./suggested-instructors";
 
 type SuggestedInstructorsProps = Readonly<{
   schoolId?: string;
   basePath?: string;
-  useMock?: boolean;
 }>;
 
 type SortOption = "price-asc" | "price-desc" | "rating-desc";
@@ -104,14 +99,6 @@ function SuggestedInstructorCard({
           <InstructorProfileSummary instructor={instructor} />
 
           <div className="flex shrink-0 flex-col items-end gap-1.5">
-            {typeof instructor.lowestEligiblePrice === "number" &&
-            instructor.lowestEligiblePrice > 0 &&
-            instructor.lowestEligiblePrice <= 100 ? (
-              <span className="rounded-full bg-blue-600 px-2.5 py-1 text-xs font-medium text-white">
-                From {formatCurrency(instructor.lowestEligiblePrice)}
-              </span>
-            ) : null}
-
             <p className="text-xs text-[#4b5563]">
               {[searchedSuburb, searchedPostcode].filter(Boolean).join(" · ")}
             </p>
@@ -133,11 +120,21 @@ function SuggestedInstructorCard({
           Book now
         </Link>
 
-        {isBestMatch ? (
-          <span className="inline-flex items-center rounded-full bg-green-600 px-2.5 py-1 text-[11px] font-semibold text-white">
-            Best match
-          </span>
-        ) : null}
+        <div className="flex items-center gap-2">
+          {typeof instructor.lowestEligiblePrice === "number" &&
+          instructor.lowestEligiblePrice > 0 &&
+          instructor.lowestEligiblePrice <= 100 ? (
+            <span className="inline-flex rounded-full bg-white px-2.5 py-1 text-xs font-medium text-slate-900">
+              From {formatCurrency(instructor.lowestEligiblePrice)}
+            </span>
+          ) : null}
+
+          {isBestMatch ? (
+            <span className="inline-flex items-center rounded-full bg-green-600 px-2.5 py-1 text-[11px] font-semibold text-white">
+              Best match
+            </span>
+          ) : null}
+        </div>
       </div>
     </article>
   );
@@ -163,7 +160,6 @@ function InstructorCardSkeleton() {
 export function SuggestedInstructors({
   schoolId,
   basePath = "/onboarding",
-  useMock = false,
 }: SuggestedInstructorsProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -184,13 +180,6 @@ export function SuggestedInstructors({
     lessonDurationParam ||
     transmissionParam,
   );
-
-  const activeFilterCount = [
-    preferredDateParam,
-    lessonTimeParam,
-    lessonDurationParam,
-    transmissionParam,
-  ].filter(Boolean).length;
 
   const selectedDateLabel = preferredDateParam
     ? (resolveRescheduleDateFromIso(preferredDateParam)?.label ??
@@ -263,24 +252,6 @@ export function SuggestedInstructors({
       setLoading(true);
 
       try {
-        if (useMock) {
-          const mockInstructors = getInstructorsForSuburb(normalizedQuery).map(
-            toPublicInstructor,
-          );
-
-          // Keep mock searches feeling smooth instead of instant flicker.
-          await new Promise((resolve) => {
-            window.setTimeout(resolve, 280);
-          });
-
-          if (isMounted) {
-            setInstructors(mockInstructors);
-            setListKey((current) => current + 1);
-          }
-
-          return;
-        }
-
         if (!schoolId) {
           if (isMounted) {
             setInstructors([]);
@@ -323,7 +294,6 @@ export function SuggestedInstructors({
     suburbParam,
     transmissionParam,
     preferredDateParam,
-    useMock,
   ]);
 
   const sortedInstructors = useMemo(() => {
@@ -365,9 +335,9 @@ export function SuggestedInstructors({
             >
               <FiltersIcon className="h-4 w-4" />
               <span>Filters</span>
-              {activeFilterCount > 0 ? (
+              {sortedInstructors.length > 0 ? (
                 <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-blue-600 px-1 text-[11px] font-bold text-white">
-                  {activeFilterCount}
+                  {sortedInstructors.length}
                 </span>
               ) : null}
             </button>

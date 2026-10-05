@@ -1,5 +1,11 @@
-import { redirect } from "next/navigation";
+import { Suspense } from "react";
+
+import { SuggestedInstructors } from "@/onboarding/SuggestedInstructors";
 
 export default function OnboardingPreviewPage() {
-  redirect("/preview");
+  return (
+    <Suspense fallback={null}>
+      <SuggestedInstructors basePath="/preview/onboarding" />
+    </Suspense>
+  );
 }

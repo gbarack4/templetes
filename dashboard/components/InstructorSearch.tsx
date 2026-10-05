@@ -123,7 +123,14 @@ function InstructorProfileCard({
   instructor: InstructorOption;
   onSelect: () => void;
 }>) {
+  const lowestEligiblePrice = instructor.lowestEligiblePrice;
   const pricePerHour = instructor.pricePerHour;
+  const priceLabel =
+    typeof lowestEligiblePrice === "number" && lowestEligiblePrice > 0
+      ? `From ${formatCurrency(lowestEligiblePrice)}`
+      : pricePerHour != null && pricePerHour > 0
+        ? `${formatCurrency(pricePerHour)}/hr`
+        : null;
 
   return (
     <button
@@ -134,11 +141,11 @@ function InstructorProfileCard({
       <div className="flex items-start justify-between gap-3">
         <InstructorProfileSummary instructor={instructor} />
 
-        <span className="shrink-0 rounded-full bg-blue-600 px-2.5 py-1 text-xs font-medium text-white">
-          {pricePerHour != null
-            ? `${formatCurrency(pricePerHour)}/hr`
-            : "Price on request"}
-        </span>
+        {priceLabel ? (
+          <span className="shrink-0 rounded-full bg-blue-600 px-2.5 py-1 text-xs font-medium text-white">
+            {priceLabel}
+          </span>
+        ) : null}
       </div>
     </button>
   );
