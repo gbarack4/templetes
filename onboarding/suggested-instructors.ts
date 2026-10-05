@@ -208,6 +208,10 @@ export type PublicInstructor = {
   monthlyAvailableSlotCount: number;
 };
 
+function toRequiredNumber(value: number | null | undefined): number {
+  return typeof value === "number" && Number.isFinite(value) ? value : 0;
+}
+
 export function toPublicInstructor(
   instructor: SuggestedInstructor,
 ): PublicInstructor {
@@ -223,9 +227,9 @@ export function toPublicInstructor(
     schoolId: "mock-school",
     initials: instructor.initials,
     location: instructor.location,
-    rating: instructor.rating,
-    reviewCount: instructor.reviewCount,
-    lessonsCompleted: instructor.lessonsCompleted,
+    rating: toRequiredNumber(instructor.rating),
+    reviewCount: toRequiredNumber(instructor.reviewCount),
+    lessonsCompleted: toRequiredNumber(instructor.lessonsCompleted),
     availableSlots: [],
     lowestEligiblePrice: instructor.pricePerHour,
     monthlyAvailableSlotCount: instructor.availableSlots,
