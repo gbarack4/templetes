@@ -55,10 +55,9 @@ export function SignInTransition({
     setTargetPath(null);
   }, []);
 
-  useEffect(() => {
-    if (!targetPath || auth.isSignedIn || !auth.profileRequired) return;
-    cancel();
-  }, [auth.isSignedIn, auth.profileRequired, cancel, targetPath]);
+if (targetPath !== null && !auth.isSignedIn && auth.profileRequired) {
+  setTargetPath(null);
+}
 
   useEffect(() => {
     if (!targetPath || !auth.isSignedIn || pathname !== targetPath) return;

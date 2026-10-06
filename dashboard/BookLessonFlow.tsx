@@ -40,6 +40,14 @@ import { formatLessonHoursLabel, formatLessonTimeRange } from "./mock-data";
 
 type FlowStep = "instructor" | "date" | "time" | "summary";
 
+type BookingSummary = {
+  instructor: InstructorOption;
+  dateLabel: string;
+  timeLabel: string;
+  lessonHours: number;
+  package: { name: string; hours: number } | null;
+};
+
 const MAX_CREDIT_BOOKING_HOURS = 3;
 const BOOK_WITH_CREDIT_WAIT_MS = 2000;
 
@@ -204,10 +212,9 @@ export function BookLessonFlow() {
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [publishableKey, setPublishableKey] = useState<string | null>(null);
   const [packageBookingId, setPackageBookingId] = useState<string | null>(null);
-
-  const [confirmedBookingMode, setConfirmedBookingMode] = useState<
-    "credit" | "package" | null
-  >(null);
+  const [bookingSummary, setBookingSummary] = useState<BookingSummary | null>(
+    null,
+  );
 
   const instructorStepRef = useRef<HTMLElement>(null);
   const dateStepRef = useRef<HTMLElement>(null);
@@ -564,7 +571,14 @@ export function BookLessonFlow() {
     let input: CreateCreditBookingInput | null = pendingAttempt;
 
     if (!input) {
-      if (!canBook || !selectedInstructor || !selectedSlot || !pickupSuburb) {
+      if (
+        !canBook ||
+        !selectedInstructor ||
+        !selectedDate ||
+        !selectedTime ||
+        !selectedSlot ||
+        !pickupSuburb
+      ) {
         if (!pickupSuburb) {
           setBookingError(
             "Your pickup suburb is unavailable. Please update your address.",
@@ -591,6 +605,14 @@ export function BookLessonFlow() {
         pickupPostcode,
         idempotencyKey: crypto.randomUUID(),
       };
+
+      setBookingSummary({
+        instructor: selectedInstructor,
+        dateLabel: `${selectedDate.month} ${selectedDate.day} · ${selectedDate.weekday}`,
+        timeLabel: formatLessonTimeRange(selectedTime, selectedHours),
+        lessonHours: selectedHours,
+        package: null,
+      });
     }
 
     submissionLock.current = true;
@@ -619,7 +641,6 @@ export function BookLessonFlow() {
       const result = await createCreditBooking(schoolId, token, input);
 
       setConfirmedBalanceMinutes(result.balanceMinutes);
-      setConfirmedBookingMode("credit");
       setIsConfirmed(true);
       setPendingAttempt(null);
 
@@ -669,6 +690,8 @@ export function BookLessonFlow() {
       bookingMode !== "package" ||
       !selectedPackage ||
       !selectedInstructor ||
+      !selectedDate ||
+      !selectedTime ||
       !selectedSlot
     ) {
       return;
@@ -704,6 +727,14 @@ export function BookLessonFlow() {
       let bookingId = packageBookingId;
 
       if (!bookingId) {
+        setBookingSummary({
+          instructor: selectedInstructor,
+          dateLabel: `${selectedDate.month} ${selectedDate.day} · ${selectedDate.weekday}`,
+          timeLabel: formatLessonTimeRange(selectedTime, packageLessonHours),
+          lessonHours: packageLessonHours,
+          package: { name: selectedPackage.name, hours: selectedPackageHours },
+        });
+
         const booking = await createBooking(schoolId, token, {
           instructorId: selectedInstructor.id,
           packageId: selectedPackage.id,
@@ -772,7 +803,6 @@ export function BookLessonFlow() {
         status.bookingStatus === "confirmed"
       ) {
         setShowPayment(false);
-        setConfirmedBookingMode("package");
         setIsConfirmed(true);
 
         const balanceResult = await refetchCreditBalance();
@@ -813,6 +843,7 @@ export function BookLessonFlow() {
 
   if (
     showPayment &&
+    !isConfirmed &&
     bookingMode === "package" &&
     selectedPackage &&
     selectedInstructor &&
@@ -838,7 +869,7 @@ export function BookLessonFlow() {
     );
   }
 
-  if (isConfirmed && selectedInstructor && selectedDate && selectedTime) {
+  if (isConfirmed && bookingSummary) {
     return (
       <main className="absolute inset-0 overflow-hidden bg-white px-5 pb-24 pt-6 text-center">
         <div className="flex flex-col items-center py-6">
@@ -851,45 +882,36 @@ export function BookLessonFlow() {
           </h1>
 
           <p className="mt-2 text-sm text-slate-500">
-            {confirmedBookingMode === "package"
+            {bookingSummary.package
               ? "Payment complete. Your lesson is confirmed."
               : "Your lesson has been booked using your available credit."}
           </p>
 
           <div className="mt-6 w-full rounded-2xl bg-[#f9f9f9] p-4 text-left">
             <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
-              {formatLessonHoursLabel(
-                confirmedBookingMode === "package"
-                  ? packageLessonHours
-                  : selectedHours,
-              )}
+              {formatLessonHoursLabel(bookingSummary.lessonHours)}
             </p>
 
             <p className="mt-2 font-semibold text-slate-900">
-              {selectedDate.month} {selectedDate.day} · {selectedDate.weekday}
+              {bookingSummary.dateLabel}
             </p>
 
             <p className="mt-1 text-sm text-slate-600">
-              {formatLessonTimeRange(
-                selectedTime,
-                confirmedBookingMode === "package"
-                  ? packageLessonHours
-                  : selectedHours,
-              )}
+              {bookingSummary.timeLabel}
             </p>
 
             <div className="mt-4 border-t border-slate-200 pt-4">
-              <InstructorProfileSummary instructor={selectedInstructor} />
+              <InstructorProfileSummary instructor={bookingSummary.instructor} />
             </div>
 
             <div className="mt-4 border-t border-slate-200 pt-4">
-              {confirmedBookingMode === "package" && selectedPackage ? (
+              {bookingSummary.package ? (
                 <>
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-slate-500">Package</span>
 
                     <span className="font-medium text-slate-900">
-                      {selectedPackage.name}
+                      {bookingSummary.package.name}
                     </span>
                   </div>
 
@@ -897,7 +919,7 @@ export function BookLessonFlow() {
                     <span className="text-slate-500">Package hours</span>
 
                     <span className="font-medium text-slate-900">
-                      {formatLessonHoursLabel(selectedPackageHours)}
+                      {formatLessonHoursLabel(bookingSummary.package.hours)}
                     </span>
                   </div>
 
@@ -917,7 +939,7 @@ export function BookLessonFlow() {
                     <span className="text-slate-500">Credit used</span>
 
                     <span className="font-medium text-slate-900">
-                      {formatLessonHoursLabel(selectedHours)}
+                      {formatLessonHoursLabel(bookingSummary.lessonHours)}
                     </span>
                   </div>
 
@@ -1011,6 +1033,15 @@ export function BookLessonFlow() {
             >
               Try again
             </button>
+          </div>
+        )}
+
+        {bookingError && (
+          <div
+            role="alert"
+            className="rounded-xl bg-red-50 p-3 text-sm text-red-600"
+          >
+            {bookingError}
           </div>
         )}
 
@@ -1418,12 +1449,6 @@ export function BookLessonFlow() {
                   </div>
                 </div>
               </div>
-
-              {bookingError && (
-                <div className="rounded-xl bg-red-50 p-3 text-sm text-red-600">
-                  {bookingError}
-                </div>
-              )}
 
               <button
                 type="button"

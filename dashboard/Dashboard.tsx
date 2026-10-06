@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { ReactNode, useEffect, useState } from "react";
+import { ReactNode, useState } from "react";
 
 import { useStudent } from "@/shared/hooks/useStudent";
 import { useStudentBookings } from "@/shared/hooks/useStudentBookings";
@@ -68,7 +68,7 @@ function DashboardSkeleton() {
         <div className="instructor-skeleton h-10 w-10 rounded-lg bg-slate-200" />
       </section>
 
-      <div className="instructor-skeleton mt-6 h-[4.5rem] shrink-0 rounded-2xl bg-slate-200" />
+      <div className="instructor-skeleton mt-6 h-18 shrink-0 rounded-2xl bg-slate-200" />
 
       <div className="mt-6 flex shrink-0 gap-3 border-b border-slate-100 pb-3">
         <div className="instructor-skeleton h-4 flex-1 rounded bg-slate-200" />
@@ -155,14 +155,14 @@ export function Dashboard({ data = mockDashboardData }: DashboardProps) {
   const [imageError, setImageError] = useState(false);
   const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
 
-  useEffect(() => {
-    if (!studentLoading && !isCreditLoading && !bookingsLoading) {
-      setHasLoadedOnce(true);
-    }
-  }, [studentLoading, isCreditLoading, bookingsLoading]);
+const isDashboardLoading =
+  studentLoading || isCreditLoading || bookingsLoading;
 
-  const showSkeleton =
-    !hasLoadedOnce && (studentLoading || isCreditLoading || bookingsLoading);
+if (!hasLoadedOnce && !isDashboardLoading) {
+  setHasLoadedOnce(true);
+}
+
+const showSkeleton = !hasLoadedOnce && isDashboardLoading;
 
   const userName =
     student?.name ||
