@@ -23,6 +23,7 @@ type InstructorProfileProps = Readonly<{
   instructor: InstructorOption;
   basePath?: string;
   bookHref?: string;
+  contact?: Readonly<{ phone: string | null }>;
 }>;
 
 const BUTTON_LOADING_MS = 2000;
@@ -77,6 +78,7 @@ export function InstructorProfile({
   instructor,
   basePath = "/preview/onboarding",
   bookHref,
+  contact,
 }: InstructorProfileProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -138,7 +140,8 @@ export function InstructorProfile({
     })) ?? [];
 
   const showImage = Boolean(instructor.avatarUrl) && !imageError;
-  const isOnboarding = !bookHref;
+  const phone = contact?.phone?.trim().replace(/[\s().-]/g, "") ?? "";
+  const callHref = /^\+?[0-9]{7,15}$/.test(phone) ? `tel:${phone}` : null;
   const carImageUrl = details?.car.imageUrl;
   const showCarImage = Boolean(carImageUrl) && !carImageError;
   const isSvgCar = Boolean(carImageUrl?.endsWith(".svg"));
@@ -275,26 +278,33 @@ export function InstructorProfile({
                 </p>
               </div>
 
-              <button
-                type="button"
-                aria-busy={isBooking}
-                onClick={handleBookLesson}
-                className={`mt-5 inline-flex h-12 w-full items-center justify-center rounded-lg bg-blue-600 text-sm font-bold text-white transition hover:bg-blue-700 ${
-                  isBooking ? "pointer-events-none" : ""
-                }`}
-              >
-                {isBooking ? <ButtonSpinner inverse /> : "Book Now"}
-              </button>
-
-              {!isOnboarding && details?.phone ? (
-                <a
-                  href={`tel:${details.phone}`}
-                  className="mt-3 inline-flex h-11 w-full items-center justify-center gap-2 rounded-full border border-slate-200 bg-white text-sm font-semibold text-slate-900 transition hover:bg-[#f9f9f9]"
+              {contact ? (
+                callHref ? (
+                  <a
+                    href={callHref}
+                    className="mt-5 inline-flex h-12 w-full items-center justify-center gap-2 rounded-lg bg-blue-600 text-sm font-bold text-white transition hover:bg-blue-700"
+                  >
+                    <PhoneIcon className="h-4 w-4" />
+                    Call instructor
+                  </a>
+                ) : (
+                  <p className="mt-5 text-center text-sm text-slate-500">
+                    Instructor phone number is unavailable. Please contact your
+                    school.
+                  </p>
+                )
+              ) : (
+                <button
+                  type="button"
+                  aria-busy={isBooking}
+                  onClick={handleBookLesson}
+                  className={`mt-5 inline-flex h-12 w-full items-center justify-center rounded-lg bg-blue-600 text-sm font-bold text-white transition hover:bg-blue-700 ${
+                    isBooking ? "pointer-events-none" : ""
+                  }`}
                 >
-                  <PhoneIcon className="h-4 w-4" />
-                  Call
-                </a>
-              ) : null}
+                  {isBooking ? <ButtonSpinner inverse /> : "Book Now"}
+                </button>
+              )}
             </div>
           </article>
 

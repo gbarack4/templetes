@@ -20,3 +20,8 @@ export type InstructorOption = {
   reviewCount?: number;
   lessonsCompleted?: number;
 };
+
+export type BookingInstructorProfile = BookingInstructor & {
+  hasActiveBooking: boolean;
+  phone: string | null;
+};

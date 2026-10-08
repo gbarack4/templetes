@@ -1,6 +1,6 @@
 "use client";
 
-import { useBookingInstructors } from "@/shared/hooks/useBookingInstructors";
+import { useBookingInstructorProfile } from "@/shared/hooks/useBookingInstructorProfile";
 import type { InstructorOption } from "@/types/instructor";
 
 import { InstructorProfile } from "@/onboarding/InstructorProfile";
@@ -23,7 +23,11 @@ function getInitials(name: string): string {
 export function DashboardInstructorProfile({
   instructorId,
 }: DashboardInstructorProfileProps) {
-  const { instructors, loading, error } = useBookingInstructors();
+  const {
+    instructor: bookingInstructor,
+    loading,
+    error,
+  } = useBookingInstructorProfile(instructorId);
 
   if (loading) {
     return (
@@ -40,10 +44,6 @@ export function DashboardInstructorProfile({
       </div>
     );
   }
-
-  const bookingInstructor = instructors.find(
-    (instructor) => instructor.id === instructorId,
-  );
 
   if (!bookingInstructor) {
     return (
@@ -68,6 +68,14 @@ export function DashboardInstructorProfile({
   };
 
   return (
-    <InstructorProfile instructor={instructor} bookHref="/dashboard/book" />
+    <InstructorProfile
+      instructor={instructor}
+      bookHref="/dashboard/book"
+      contact={
+        bookingInstructor.hasActiveBooking
+          ? { phone: bookingInstructor.phone }
+          : undefined
+      }
+    />
   );
 }
