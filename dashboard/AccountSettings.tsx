@@ -139,13 +139,19 @@ export function AccountSettings() {
   async function handleSignOut() {
     if (isSigningOut) return;
     setIsSigningOut(true);
+    const startedAt = Date.now();
     try {
       await signOut();
-      router.push("/login");
     } catch (err) {
       console.error("Sign out failed:", err);
-      setIsSigningOut(false);
     }
+    const remaining = 2000 - (Date.now() - startedAt);
+    if (remaining > 0) {
+      await new Promise<void>((resolve) => {
+        window.setTimeout(resolve, remaining);
+      });
+    }
+    router.push("/login");
   }
 
   if (studentLoading) {
