@@ -33,6 +33,15 @@ function Receipt({
     retry: false,
     staleTime: 0,
   });
+
+  let receiptLabel = "View receipt";
+
+  if (receipt.isFetching) {
+    receiptLabel = "Loading receipt...";
+    } else if (receipt.isError) {
+    receiptLabel = "Retry receipt";
+  }
+
   if (receipt.data)
     return (
       <a
@@ -44,6 +53,7 @@ function Receipt({
         Open receipt
       </a>
     );
+
   return (
     <div>
       <button
@@ -54,11 +64,7 @@ function Receipt({
         }
         className="text-xs text-blue-600 underline"
       >
-        {receipt.isFetching
-          ? "Loading receipt..."
-          : receipt.isError
-            ? "Retry receipt"
-            : "View receipt"}
+       {receiptLabel}
       </button>
       {receipt.isError && (
         <p role="alert" className="mt-1 max-w-48 text-xs text-red-600">

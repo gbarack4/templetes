@@ -1,10 +1,17 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  useQuery,
+  useQueryClient,
+  type UseQueryResult,
+} from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth/AuthProvider";
-import { fetchPublicPackages } from "@/lib/public-booking-api";
+import {
+  fetchPublicPackages,
+  type PublicPackage,
+} from "@/lib/public-booking-api";
 import {
   paymentRequest,
   formatPaymentAmount,
@@ -32,20 +39,14 @@ export function BuyHoursFlow() {
   );
 }
 
-function BuyHours({ schoolId, userId }: Readonly<{ schoolId: string; userId: string }>) {
+function BuyHours({
+  schoolId,
+  userId,
+}: Readonly<{ schoolId: string; userId: string }>) {
   const router = useRouter();
   const { getToken } = useAuth();
-  const {
-    student,
-    loading: studentLoading,
-    error: studentError,
-    refetch: reloadStudent,
-  } = useStudent();
-  const {
-    balanceMinutes,
-    loading: balanceLoading,
-    error: balanceError,
-  } = useStudentCreditBalance();
+  const studentState = useStudent();
+  const balance = useStudentCreditBalance();
   const queryClient = useQueryClient();
   const storageKey = `hours-purchase:${schoolId}:${userId}`;
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -56,7 +57,7 @@ function BuyHours({ schoolId, userId }: Readonly<{ schoolId: string; userId: str
   const [error, setError] = useState("");
   const [attempt, setAttempt] = useState<PurchaseAttempt | null>(null);
   const busyRef = useRef(false);
-  const suburb = student?.addressSuburb?.trim() ?? "";
+  const suburb = studentState.student?.addressSuburb?.trim() ?? "";
   const packages = useQuery({
     queryKey: ["public-packages", schoolId, suburb],
     enabled: !!suburb,
@@ -85,22 +86,7 @@ function BuyHours({ schoolId, userId }: Readonly<{ schoolId: string; userId: str
       try {
         const raw = sessionStorage.getItem(storageKey);
         if (!raw) return;
-        const value: unknown = JSON.parse(raw);
-        if (
-          !value ||
-          typeof value !== "object" ||
-          !("packageId" in value) ||
-          !("requestId" in value) ||
-          typeof value.packageId !== "string" ||
-          typeof value.requestId !== "string"
-        )
-          throw new Error(
-            "Unable to restore the previous payment. Please contact the school.",
-          );
-        const attempt = {
-          packageId: value.packageId,
-          requestId: value.requestId,
-        };
+        const attempt = parsePurchaseAttempt(raw);
         setAttempt(attempt);
         const result = await paymentRequest<Payment>(
           schoolId,
@@ -117,9 +103,10 @@ function BuyHours({ schoolId, userId }: Readonly<{ schoolId: string; userId: str
       } catch (cause) {
         if (!cancelled)
           setError(
-            cause instanceof Error
-              ? cause.message
-              : "Unable to restore your payment. Please try again.",
+            errorMessage(
+              cause,
+              "Unable to restore your payment. Please try again.",
+            ),
           );
       } finally {
         if (!cancelled) setRestoring(false);
@@ -132,7 +119,7 @@ function BuyHours({ schoolId, userId }: Readonly<{ schoolId: string; userId: str
   }, [schoolId, storageKey, getToken]);
 
   useEffect(() => {
-    if (!paid) return;    
+    if (!paid) return;
     sessionStorage.removeItem(storageKey);
     void queryClient.invalidateQueries({
       queryKey: ["student-credit-balance", schoolId, userId],
@@ -151,7 +138,7 @@ function BuyHours({ schoolId, userId }: Readonly<{ schoolId: string; userId: str
       const nextAttempt = attempt ?? {
         packageId: selectedId!,
         requestId: crypto.randomUUID(),
-      };      
+      };
       sessionStorage.setItem(storageKey, JSON.stringify(nextAttempt));
       setAttempt(nextAttempt);
       const result = await paymentRequest<Payment>(
@@ -163,9 +150,7 @@ function BuyHours({ schoolId, userId }: Readonly<{ schoolId: string; userId: str
       setPayment(result);
       setProcessing(["succeeded", "processing"].includes(result.intentStatus));
     } catch (cause) {
-      setError(
-        cause instanceof Error ? cause.message : "Unable to start payment.",
-      );
+      setError(errorMessage(cause, "Unable to start payment."));
     } finally {
       busyRef.current = false;
       setBusy(false);
@@ -188,183 +173,56 @@ function BuyHours({ schoolId, userId }: Readonly<{ schoolId: string; userId: str
     setError("");
   }
 
-  if (paid && payment)
-    return (
-      <main className="flex-1 space-y-5 px-5 pb-24 pt-10 text-center">
-        <div className="text-4xl text-green-600" aria-hidden="true">
-          ✓
-        </div>
-        <h1 className="text-xl font-bold text-slate-900">Hours added</h1>
-        <p className="text-sm text-slate-600">
-          {formatLessonHoursLabel(payment.purchasedMinutes / 60)} have been
-          added to your credit.
-        </p>
-        <div className="rounded-2xl bg-slate-50 p-4">
-          <p className="font-semibold">{payment.packageName}</p>
-          <p>{formatPaymentAmount(payment.amount, payment.currency)}</p>
-        </div>
-        <button
-          type="button"
-          onClick={() => router.push("/dashboard")}
-          className="w-full rounded-lg bg-blue-600 py-3 text-white"
-        >
-          Back to Dashboard
-        </button>
-      </main>
+  function goToDashboard() {
+    router.push("/dashboard");
+  }
+
+  function cancelAttempt() {
+    void cancelPayment().catch((cause: unknown) =>
+      setError(errorMessage(cause, "Unable to cancel payment.")),
     );
+  }
+
+  if (paid && payment) {
+    return <PurchaseConfirmation payment={payment} onBack={goToDashboard} />;
+  }
+
+  let content: ReactNode;
+  if (restoring) {
+    content = <p>Loading...</p>;
+  } else if (payment) {
+    content = (
+      <PaymentStep
+        payment={payment}
+        waiting={processing && status.data?.paymentStatus !== "failed"}
+        statusError={status.isError}
+        onCheckStatus={() => void status.refetch()}
+        onProcessing={() => setProcessing(true)}
+        onCancel={cancelPayment}
+      />
+    );
+  } else {
+    content = (
+      <PackageSelection
+        balance={balance}
+        student={studentState}
+        suburb={suburb}
+        packages={packages}
+        selectedId={selectedId}
+        busy={busy}
+        hasAttempt={!!attempt}
+        onSelect={setSelectedId}
+        onStart={() => void start()}
+        onCancel={cancelAttempt}
+      />
+    );
+  }
 
   return (
     <>
-      <FlowPageHeader
-        title="Buy more hours"
-        onBack={() => router.push("/dashboard")}
-      />
+      <FlowPageHeader title="Buy more hours" onBack={goToDashboard} />
       <main className="flex-1 space-y-6 px-5 pb-24 pt-6">
-        {restoring ? (
-          <p>Loading...</p>
-        ) : payment ? (
-          <>
-            <section className="rounded-2xl bg-slate-50 p-4">
-              <h2 className="font-semibold">{payment.packageName}</h2>
-              <p className="mt-1 text-sm">
-                {formatLessonHoursLabel(payment.purchasedMinutes / 60)} ·{" "}
-                {formatPaymentAmount(payment.amount, payment.currency)}
-              </p>
-              <p className="mt-2 text-sm text-slate-500">
-                All hours will be added to your credit. Book your lessons later.
-              </p>
-            </section>
-            {processing && status.data?.paymentStatus !== "failed" ? (
-              <section className="space-y-3" aria-live="polite">
-                <h2 className="font-semibold">Confirming your payment</h2>
-                <p className="text-sm text-slate-600">
-                  We are waiting for payment confirmation. Your hours will
-                  appear once it is complete. You can return to your dashboard
-                  while we process it.
-                </p>
-                <button
-                  type="button"
-                  className="text-blue-600 underline"
-                  onClick={() => void status.refetch()}
-                >
-                  Check payment status
-                </button>
-              </section>
-            ) : (
-              <HoursPayment
-                payment={payment}
-                onProcessing={() => setProcessing(true)}
-                onCancel={cancelPayment}
-              />
-            )}
-            {status.isError && (
-              <p role="alert" className="text-sm text-red-600">
-                Unable to check payment status. We will retry; please do not pay
-                again.
-              </p>
-            )}
-          </>
-        ) : (
-          <>
-            <section className="rounded-2xl bg-slate-50 p-4">
-              <p className="text-sm text-slate-600">Current balance</p>
-              <p className="font-bold">
-                {balanceLoading
-                  ? "Loading..."
-                  : balanceMinutes === null
-                    ? "Unavailable"
-                    : formatLessonHoursLabel(balanceMinutes / 60)}
-              </p>
-            </section>
-            {balanceError && (
-              <p role="alert" className="text-sm text-red-600">
-                {balanceError}
-              </p>
-            )}
-            {studentLoading ? (
-              <p>Loading your location...</p>
-            ) : studentError ? (
-              <div role="alert">
-                <p>{studentError}</p>
-                <button onClick={() => void reloadStudent()}>Try again</button>
-              </div>
-            ) : !suburb ? (
-              <p>Add your address in your profile to see available packages.</p>
-            ) : (
-              <>
-                <h2 className="text-sm font-semibold">Packages for {suburb}</h2>
-                {packages.isPending ? (
-                  <p>Loading packages...</p>
-                ) : packages.isError ? (
-                  <div role="alert">
-                    <p>Unable to load packages.</p>
-                    <button
-                      className="text-blue-600 underline"
-                      onClick={() => void packages.refetch()}
-                    >
-                      Try again
-                    </button>
-                  </div>
-                ) : packages.data?.length ? (
-                  <div className="space-y-3">
-                    {packages.data.map((pkg) => (
-                      <button
-                        key={pkg.id}
-                        type="button"
-                        disabled={busy || !!attempt}
-                        onClick={() => setSelectedId(pkg.id)}
-                        aria-pressed={selectedId === pkg.id}
-                        className={`cursor-pointer w-full rounded-2xl p-4 text-left ${selectedId === pkg.id ? "bg-blue-50 ring-2 ring-blue-600" : "bg-slate-50"}`}
-                      >
-                        <p className="font-semibold">{pkg.name}</p>
-                        <p className="text-sm text-slate-600">
-                          {formatLessonHoursLabel(pkg.durationMinutes / 60)}
-                        </p>
-                        <p className="mt-2 text-xl font-bold">
-                          {formatPaymentAmount(pkg.price)}
-                        </p>
-                      </button>
-                    ))}
-                  </div>
-                ) : (
-                  <p>No lesson packages are available for this location.</p>
-                )}
-              </>
-            )}
-            {(selectedId || attempt) && (
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => void start()}
-                className="w-full rounded-lg bg-blue-600 py-3 text-white disabled:opacity-50"
-              >
-                {busy
-                  ? "Please wait..."
-                  : attempt
-                    ? "Resume payment"
-                    : "Continue to payment"}
-              </button>
-            )}
-            {attempt && (
-              <button
-                type="button"
-                disabled={busy}
-                className="w-full text-sm text-slate-600"
-                onClick={() => {
-                  void cancelPayment().catch((cause: unknown) =>
-                    setError(
-                      cause instanceof Error
-                        ? cause.message
-                        : "Unable to cancel payment.",
-                    ),
-                  );
-                }}
-              >
-                Cancel payment attempt
-              </button>
-            )}
-          </>
-        )}
+        {content}
         {error && (
           <p role="alert" className="text-sm text-red-600">
             {error}
@@ -372,5 +230,278 @@ function BuyHours({ schoolId, userId }: Readonly<{ schoolId: string; userId: str
         )}
       </main>
     </>
+  );
+}
+
+function errorMessage(cause: unknown, fallback: string): string {
+  return cause instanceof Error ? cause.message : fallback;
+}
+
+function parsePurchaseAttempt(raw: string): PurchaseAttempt {
+  const value: unknown = JSON.parse(raw);
+  if (
+    !value ||
+    typeof value !== "object" ||
+    !("packageId" in value) ||
+    !("requestId" in value) ||
+    typeof value.packageId !== "string" ||
+    typeof value.requestId !== "string"
+  ) {
+    throw new Error(
+      "Unable to restore the previous payment. Please contact the school.",
+    );
+  }
+  return { packageId: value.packageId, requestId: value.requestId };
+}
+
+function PurchaseConfirmation({
+  payment,
+  onBack,
+}: Readonly<{
+  payment: Payment;
+  onBack: () => void;
+}>) {
+  return (
+    <main className="flex-1 space-y-5 px-5 pb-24 pt-10 text-center">
+      <div className="text-4xl text-green-600" aria-hidden="true">
+        ✓
+      </div>
+      <h1 className="text-xl font-bold text-slate-900">Hours added</h1>
+      <p className="text-sm text-slate-600">
+        {formatLessonHoursLabel(payment.purchasedMinutes / 60)} have been added
+        to your credit.
+      </p>
+      <div className="rounded-2xl bg-slate-50 p-4">
+        <p className="font-semibold">{payment.packageName}</p>
+        <p>{formatPaymentAmount(payment.amount, payment.currency)}</p>
+      </div>
+      <button
+        type="button"
+        onClick={onBack}
+        className="w-full rounded-lg bg-blue-600 py-3 text-white"
+      >
+        Back to Dashboard
+      </button>
+    </main>
+  );
+}
+
+type PaymentStepProps = Readonly<{
+  payment: Payment;
+  waiting: boolean;
+  statusError: boolean;
+  onCheckStatus: () => void;
+  onProcessing: () => void;
+  onCancel: () => Promise<void>;
+}>;
+
+function PaymentStep({
+  payment,
+  waiting,
+  statusError,
+  onCheckStatus,
+  onProcessing,
+  onCancel,
+}: PaymentStepProps) {
+  let paymentContent: ReactNode;
+  if (waiting) {
+    paymentContent = (
+      <section className="space-y-3" aria-live="polite">
+        <h2 className="font-semibold">Confirming your payment</h2>
+        <p className="text-sm text-slate-600">
+          We are waiting for payment confirmation. Your hours will appear once
+          it is complete. You can return to your dashboard while we process it.
+        </p>
+        <button
+          type="button"
+          className="text-blue-600 underline"
+          onClick={onCheckStatus}
+        >
+          Check payment status
+        </button>
+      </section>
+    );
+  } else {
+    paymentContent = (
+      <HoursPayment
+        payment={payment}
+        onProcessing={onProcessing}
+        onCancel={onCancel}
+      />
+    );
+  }
+  return (
+    <>
+      <section className="rounded-2xl bg-slate-50 p-4">
+        <h2 className="font-semibold">{payment.packageName}</h2>
+        <p className="mt-1 text-sm">
+          {formatLessonHoursLabel(payment.purchasedMinutes / 60)} ·{" "}
+          {formatPaymentAmount(payment.amount, payment.currency)}
+        </p>
+        <p className="mt-2 text-sm text-slate-500">
+          All hours will be added to your credit. Book your lessons later.
+        </p>
+      </section>
+      {paymentContent}
+      {statusError && (
+        <p role="alert" className="text-sm text-red-600">
+          Unable to check payment status. We will retry; please do not pay
+          again.
+        </p>
+      )}
+    </>
+  );
+}
+
+type PackageSelectionProps = Readonly<{
+  balance: ReturnType<typeof useStudentCreditBalance>;
+  student: ReturnType<typeof useStudent>;
+  suburb: string;
+  packages: UseQueryResult<PublicPackage[], Error>;
+  selectedId: string | null;
+  busy: boolean;
+  hasAttempt: boolean;
+  onSelect: (id: string) => void;
+  onStart: () => void;
+  onCancel: () => void;
+}>;
+
+function balanceLabel(loading: boolean, minutes: number | null): string {
+  if (loading) return "Loading...";
+  if (minutes === null) return "Unavailable";
+  return formatLessonHoursLabel(minutes / 60);
+}
+
+function continueLabel(busy: boolean, hasAttempt: boolean): string {
+  if (busy) return "Please wait...";
+  if (hasAttempt) return "Resume payment";
+  return "Continue to payment";
+}
+
+function PackageSelection(props: PackageSelectionProps) {
+  const { balance, selectedId, busy, hasAttempt, onStart, onCancel } = props;
+  return (
+    <>
+      <section className="rounded-2xl bg-slate-50 p-4">
+        <p className="text-sm text-slate-600">Current balance</p>
+        <p className="font-bold">
+          {balanceLabel(balance.loading, balance.balanceMinutes)}
+        </p>
+      </section>
+      {balance.error && (
+        <p role="alert" className="text-sm text-red-600">
+          {balance.error}
+        </p>
+      )}
+      <LocationPackages
+        student={props.student}
+        suburb={props.suburb}
+        packages={props.packages}
+        selectedId={selectedId}
+        disabled={busy || hasAttempt}
+        onSelect={props.onSelect}
+      />
+      {(selectedId || hasAttempt) && (
+        <button
+          type="button"
+          disabled={busy}
+          onClick={onStart}
+          className="w-full rounded-lg bg-blue-600 py-3 text-white disabled:opacity-50"
+        >
+          {continueLabel(busy, hasAttempt)}
+        </button>
+      )}
+      {hasAttempt && (
+        <button
+          type="button"
+          disabled={busy}
+          className="w-full text-sm text-slate-600"
+          onClick={onCancel}
+        >
+          Cancel payment attempt
+        </button>
+      )}
+    </>
+  );
+}
+
+type PackageListProps = Readonly<{
+  packages: UseQueryResult<PublicPackage[], Error>;
+  selectedId: string | null;
+  disabled: boolean;
+  onSelect: (id: string) => void;
+}>;
+
+type LocationPackagesProps = PackageListProps &
+  Readonly<{
+    student: ReturnType<typeof useStudent>;
+    suburb: string;
+  }>;
+
+function LocationPackages({
+  student,
+  suburb,
+  ...listProps
+}: LocationPackagesProps) {
+  if (student.loading) return <p>Loading your location...</p>;
+  if (student.error)
+    return (
+      <div role="alert">
+        <p>{student.error}</p>
+        <button onClick={() => void student.refetch()}>Try again</button>
+      </div>
+    );
+  if (!suburb)
+    return <p>Add your address in your profile to see available packages.</p>;
+  return (
+    <>
+      <h2 className="text-sm font-semibold">Packages for {suburb}</h2>
+      <PackageList {...listProps} />
+    </>
+  );
+}
+
+function PackageList({
+  packages,
+  selectedId,
+  disabled,
+  onSelect,
+}: PackageListProps) {
+  if (packages.isPending) return <p>Loading packages...</p>;
+  if (packages.isError)
+    return (
+      <div role="alert">
+        <p>Unable to load packages.</p>
+        <button
+          className="text-blue-600 underline"
+          onClick={() => void packages.refetch()}
+        >
+          Try again
+        </button>
+      </div>
+    );
+  if (!packages.data?.length)
+    return <p>No lesson packages are available for this location.</p>;
+  return (
+    <div className="space-y-3">
+      {packages.data.map((pkg) => (
+        <button
+          key={pkg.id}
+          type="button"
+          disabled={disabled}
+          onClick={() => onSelect(pkg.id)}
+          aria-pressed={selectedId === pkg.id}
+          className={`cursor-pointer w-full rounded-2xl p-4 text-left ${selectedId === pkg.id ? "bg-blue-50 ring-2 ring-blue-600" : "bg-slate-50"}`}
+        >
+          <p className="font-semibold">{pkg.name}</p>
+          <p className="text-sm text-slate-600">
+            {formatLessonHoursLabel(pkg.durationMinutes / 60)}
+          </p>
+          <p className="mt-2 text-xl font-bold">
+            {formatPaymentAmount(pkg.price)}
+          </p>
+        </button>
+      ))}
+    </div>
   );
 }

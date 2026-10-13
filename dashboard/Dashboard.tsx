@@ -227,6 +227,15 @@ const showSkeleton = !hasLoadedOnce && isDashboardLoading;
     return <DashboardSkeleton />;
   }
 
+  let creditLabel = "Loading...";
+
+  if (!isCreditLoading) {
+  creditLabel =
+    availableCreditHours === null
+      ? "Unavailable"
+      : `${Number(availableCreditHours.toFixed(2))} Hours`;
+}
+
   return (
     <>
       <main className="flex min-h-0 flex-1 flex-col overflow-hidden px-5 pt-6">
@@ -284,11 +293,7 @@ const showSkeleton = !hasLoadedOnce && isDashboardLoading;
             <p className="text-sm text-slate-600">You have</p>
 
             <p className="text-base font-bold text-slate-900">
-              {isCreditLoading
-                ? "Loading..."
-                : availableCreditHours === null
-                  ? "Unavailable"
-                  : `${Number(availableCreditHours.toFixed(2))} Hours`}
+               {creditLabel}
             </p>
 
             <p className="text-sm text-slate-600">available credit</p>
