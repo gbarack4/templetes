@@ -297,7 +297,7 @@ const showSkeleton = !hasLoadedOnce && isDashboardLoading;
           <button
             type="button"
             onClick={() => router.push("/dashboard/buy-hours")}
-            className="shrink-0 text-sm font-medium text-blue-600"
+            className="cursor-pointer shrink-0 text-sm font-medium text-blue-600"
           >
             Buy More Hours
           </button>

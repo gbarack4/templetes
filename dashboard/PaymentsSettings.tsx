@@ -1,189 +1,163 @@
 "use client";
 
 import { useState } from "react";
-import { formatCurrency, mockRecentPayments } from "./mock-data";
-import { getCardBrand, isCardFormValid } from "./card-utils";
-import { CreditCardFields } from "./components/CreditCardFields";
-import { CreditCardIcon } from "./components/icons";
-import { useSavedPaymentMethod } from "./useSavedPaymentMethod";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import { useAuth } from "@/lib/auth/AuthProvider";
+import {
+  formatPaymentAmount,
+  formatPaymentDate,
+  paymentRequest,
+  type PaymentHistory,
+} from "@/lib/hours-payment-api";
+import { useSchoolId } from "./SchoolContext";
+import { formatLessonHoursLabel } from "./mock-data";
+
+function Receipt({
+  schoolId,
+  paymentId,
+}: Readonly<{
+  schoolId: string;
+  paymentId: string;
+}>) {
+  const { getToken, userId } = useAuth();
+  const [requested, setRequested] = useState(false);
+  const receipt = useQuery({
+    queryKey: ["payment-receipt", schoolId, userId, paymentId],
+    enabled: requested,
+    queryFn: async () =>
+      paymentRequest<{ url: string }>(
+        schoolId,
+        await getToken(),
+        `history/${paymentId}/receipt`,
+      ),
+    retry: false,
+    staleTime: 0,
+  });
+  if (receipt.data)
+    return (
+      <a
+        href={receipt.data.url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-xs text-blue-600 underline"
+      >
+        Open receipt
+      </a>
+    );
+  return (
+    <div>
+      <button
+        type="button"
+        disabled={receipt.isFetching}
+        onClick={() =>
+          requested ? void receipt.refetch() : setRequested(true)
+        }
+        className="text-xs text-blue-600 underline"
+      >
+        {receipt.isFetching
+          ? "Loading receipt..."
+          : receipt.isError
+            ? "Retry receipt"
+            : "View receipt"}
+      </button>
+      {receipt.isError && (
+        <p role="alert" className="mt-1 max-w-48 text-xs text-red-600">
+          {receipt.error.message}
+        </p>
+      )}
+    </div>
+  );
+}
 
 export function PaymentsSettings() {
-  const [savedMethod, setSavedMethod] = useSavedPaymentMethod();
-  const [isEditing, setIsEditing] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const [showSavedMessage, setShowSavedMessage] = useState(false);
-  const [cardholderName, setCardholderName] = useState(savedMethod.cardholderName);
-  const [cardNumber, setCardNumber] = useState("");
-  const [expiry, setExpiry] = useState("");
-  const [cvc, setCvc] = useState("");
-
-  const canSave = isCardFormValid(cardNumber, expiry, cvc, cardholderName);
-
-  function openEditor() {
-    setCardholderName(savedMethod.cardholderName);
-    setCardNumber("");
-    setExpiry("");
-    setCvc("");
-    setShowSavedMessage(false);
-    setIsEditing(true);
-  }
-
-  function closeEditor() {
-    setIsEditing(false);
-    setCardNumber("");
-    setExpiry("");
-    setCvc("");
-  }
-
-  async function handleSave() {
-    if (!canSave) return;
-
-    setIsSaving(true);
-    await new Promise((resolve) => setTimeout(resolve, 900));
-
-    const digits = cardNumber.replace(/\D/g, "");
-    setSavedMethod({
-      cardholderName: cardholderName.trim(),
-      last4: digits.slice(-4),
-      expiry,
-      brand: getCardBrand(cardNumber),
-    });
-
-    setIsSaving(false);
-    setIsEditing(false);
-    setCardNumber("");
-    setExpiry("");
-    setCvc("");
-    setShowSavedMessage(true);
-  }
-
+  const schoolId = useSchoolId();
+  const { getToken, userId, isSignedIn } = useAuth();
+  const history = useInfiniteQuery({
+    queryKey: ["student-payments", schoolId, userId],
+    enabled: isSignedIn && !!userId,
+    initialPageParam: 0,
+    queryFn: async ({ pageParam }) =>
+      paymentRequest<PaymentHistory>(
+        schoolId,
+        await getToken(),
+        `history?offset=${pageParam}`,
+      ),
+    getNextPageParam: (last) => last.nextOffset,
+    staleTime: 0,
+    refetchOnWindowFocus: true,
+  });
+  const payments = history.data?.pages.flatMap((page) => page.payments) ?? [];
   return (
-    <main className="flex-1 space-y-6 px-5 pb-4 pt-6">
+    <main className="flex-1 space-y-6 px-5 pb-24 pt-6">
       <section>
         <h1 className="text-xl font-bold text-slate-900">Payments</h1>
-        <p className="mt-0.5 text-xs text-slate-500">
-          Manage your saved card for lesson bookings and hour packages.
+        <p className="mt-1 text-sm text-slate-500">
+          Your lesson and hour package payments and receipts.
         </p>
       </section>
-
-      {showSavedMessage && !isEditing && (
-        <p className="rounded-lg bg-green-50 px-3 py-2 text-sm text-green-700">
-          Your card has been updated.
-        </p>
-      )}
-
-      <section className="rounded-2xl bg-slate-50 p-4">
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white text-blue-600">
-              <CreditCardIcon className="h-5 w-5" />
+      {history.isPending ? (
+        <p>Loading payments...</p>
+      ) : (
+        <>
+          {history.isError && (
+            <div role="alert" className="text-sm text-red-600">
+              <p>{history.error.message}</p>
+              <button
+                onClick={() => void history.refetch()}
+                className="underline"
+              >
+                Try again
+              </button>
             </div>
-            <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
-                Saved card
-              </p>
-              <p className="mt-1 text-sm font-semibold text-slate-900">
-                {savedMethod.brand} ·•••• {savedMethod.last4}
-              </p>
-              <p className="mt-0.5 text-sm text-slate-500">
-                Expires {savedMethod.expiry} · {savedMethod.cardholderName}
-              </p>
-            </div>
+          )}
+          {!history.isError && payments.length === 0 && (
+            <p className="text-sm text-slate-500">No payments yet.</p>
+          )}
+          <div className="divide-y divide-slate-100 rounded-2xl bg-slate-50">
+            {payments.map((payment) => (
+              <article
+                key={payment.id}
+                className="flex justify-between gap-3 p-4"
+              >
+                <div>
+                  <h2 className="text-sm font-semibold">
+                    {payment.packageName}
+                  </h2>
+                  <p className="text-xs text-slate-500">
+                    {formatLessonHoursLabel(payment.purchasedMinutes / 60)}
+                  </p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    {formatPaymentDate(payment.paidAt ?? payment.createdAt)}
+                  </p>
+                </div>
+                <div className="space-y-1 text-right">
+                  <p className="text-sm font-semibold">
+                    {formatPaymentAmount(payment.amount, payment.currency)}
+                  </p>
+                  <p
+                    className={`text-xs capitalize ${payment.status === "paid" ? "text-green-700" : "text-slate-600"}`}
+                  >
+                    {payment.status}
+                  </p>
+                  {payment.status === "paid" && (
+                    <Receipt schoolId={schoolId} paymentId={payment.id} />
+                  )}
+                </div>
+              </article>
+            ))}
           </div>
-        </div>
-
-        {!isEditing && (
-          <button
-            type="button"
-            onClick={openEditor}
-            className="mt-4 w-full rounded-lg border border-slate-200 bg-white py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
-          >
-            Update card
-          </button>
-        )}
-      </section>
-
-      {isEditing && (
-        <section className="space-y-4 rounded-2xl bg-slate-50 p-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-slate-900">Update card details</h2>
+          {history.hasNextPage && (
             <button
               type="button"
-              onClick={closeEditor}
-              className="text-sm font-medium text-slate-500 transition hover:text-slate-700"
+              disabled={history.isFetchingNextPage}
+              onClick={() => void history.fetchNextPage()}
+              className="w-full rounded-lg border border-slate-200 py-3 text-sm"
             >
-              Cancel
+              {history.isFetchingNextPage ? "Loading..." : "Load more"}
             </button>
-          </div>
-
-          <CreditCardFields
-            idPrefix="payments"
-            cardholderName={cardholderName}
-            onCardholderNameChange={setCardholderName}
-            cardNumber={cardNumber}
-            expiry={expiry}
-            cvc={cvc}
-            onCardNumberChange={setCardNumber}
-            onExpiryChange={setExpiry}
-            onCvcChange={setCvc}
-          />
-
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={!canSave || isSaving}
-            className="w-full rounded-lg bg-blue-600 py-3 text-sm font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
-          >
-            {isSaving ? "Saving..." : "Save card"}
-          </button>
-        </section>
-      )}
-
-      <section className="space-y-3">
-        <h2 className="text-sm font-semibold text-slate-900">Recent payments</h2>
-        <div className="overflow-hidden rounded-2xl bg-slate-50">
-          {mockRecentPayments.length === 0 ? (
-            <p className="px-4 py-3.5 text-sm text-slate-500">
-              No recent payments yet.
-            </p>
-          ) : (
-            mockRecentPayments.map((payment, index) => (
-            <article
-              key={payment.id}
-              className={`flex items-start justify-between gap-3 px-4 py-3.5 ${
-                index < mockRecentPayments.length - 1
-                  ? "border-b border-slate-100"
-                  : ""
-              }`}
-            >
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium text-slate-900">
-                  {payment.title}
-                </p>
-                <p className="mt-0.5 truncate text-xs text-slate-500">
-                  {payment.description}
-                </p>
-                <p className="mt-1 text-xs text-slate-400">{payment.dateLabel}</p>
-              </div>
-              <div className="shrink-0 text-right">
-                <p className="text-sm font-semibold text-slate-900">
-                  {formatCurrency(payment.amount)}
-                </p>
-                <p
-                  className={`mt-1 text-xs font-medium ${
-                    payment.status === "refunded"
-                      ? "text-amber-600"
-                      : "text-green-600"
-                  }`}
-                >
-                  {payment.status === "refunded" ? "Refunded" : "Paid"}
-                </p>
-              </div>
-            </article>
-          ))
           )}
-        </div>
-      </section>
+        </>
+      )}
     </main>
   );
 }

@@ -1,237 +1,374 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { ButtonSpinner } from "@/components/ButtonSpinner";
-import { useStudentCreditBalance } from "@/shared/hooks/useStudentCreditBalance";
+import { useAuth } from "@/lib/auth/AuthProvider";
+import { fetchPublicPackages } from "@/lib/public-booking-api";
 import {
-  formatCurrency,
-  formatLessonHoursLabel,
-  mockHourPackages,
-} from "./mock-data";
-import { CardPaymentForm } from "./components/CardPaymentForm";
+  paymentRequest,
+  formatPaymentAmount,
+  type HoursPayment as Payment,
+  type PurchaseAttempt,
+} from "@/lib/hours-payment-api";
+import { useStudent } from "@/shared/hooks/useStudent";
+import { useStudentCreditBalance } from "@/shared/hooks/useStudentCreditBalance";
+import { useSchoolId } from "./SchoolContext";
+import { formatLessonHoursLabel } from "./mock-data";
 import { FlowPageHeader } from "./components/FlowPageHeader";
-import { CalendarIcon } from "./components/icons";
-
-const BUTTON_LOADING_MS = 2000;
+import { HoursPayment } from "./components/HoursPayment";
 
 export function BuyHoursFlow() {
+  const schoolId = useSchoolId();
+  const { userId, isSignedIn } = useAuth();
+  if (!isSignedIn || !userId)
+    return <p className="p-5">Please sign in to buy hours.</p>;
+  return (
+    <BuyHours
+      key={`${schoolId}:${userId}`}
+      schoolId={schoolId}
+      userId={userId}
+    />
+  );
+}
+
+function BuyHours({ schoolId, userId }: Readonly<{ schoolId: string; userId: string }>) {
   const router = useRouter();
+  const { getToken } = useAuth();
+  const {
+    student,
+    loading: studentLoading,
+    error: studentError,
+    refetch: reloadStudent,
+  } = useStudent();
   const {
     balanceMinutes,
-    loading: isBalanceLoading,
+    loading: balanceLoading,
     error: balanceError,
-    refetch: refetchCreditBalance,
   } = useStudentCreditBalance();
+  const queryClient = useQueryClient();
+  const storageKey = `hours-purchase:${schoolId}:${userId}`;
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [payment, setPayment] = useState<Payment | null>(null);
+  const [processing, setProcessing] = useState(false);
+  const [restoring, setRestoring] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [attempt, setAttempt] = useState<PurchaseAttempt | null>(null);
+  const busyRef = useRef(false);
+  const suburb = student?.addressSuburb?.trim() ?? "";
+  const packages = useQuery({
+    queryKey: ["public-packages", schoolId, suburb],
+    enabled: !!suburb,
+    staleTime: 0,
+    queryFn: () => fetchPublicPackages(schoolId, suburb),
+  });
+  const status = useQuery({
+    queryKey: ["hours-payment-status", schoolId, userId, payment?.purchaseId],
+    enabled: !!payment,
+    queryFn: async () =>
+      paymentRequest<{ status: string; paymentStatus: string | null }>(
+        schoolId,
+        await getToken(),
+        `hours/${payment!.purchaseId}/status`,
+      ),
+    refetchInterval: (query) =>
+      query.state.data?.status === "paid" ? false : 2000,
+    staleTime: 0,
+  });
+  const paid =
+    payment?.purchaseStatus === "paid" || status.data?.status === "paid";
 
-  const currentCreditHours =
-    balanceMinutes === null ? null : balanceMinutes / 60;
+  useEffect(() => {
+    let cancelled = false;
+    async function restore() {
+      try {
+        const raw = sessionStorage.getItem(storageKey);
+        if (!raw) return;
+        const value: unknown = JSON.parse(raw);
+        if (
+          !value ||
+          typeof value !== "object" ||
+          !("packageId" in value) ||
+          !("requestId" in value) ||
+          typeof value.packageId !== "string" ||
+          typeof value.requestId !== "string"
+        )
+          throw new Error(
+            "Unable to restore the previous payment. Please contact the school.",
+          );
+        const attempt = {
+          packageId: value.packageId,
+          requestId: value.requestId,
+        };
+        setAttempt(attempt);
+        const result = await paymentRequest<Payment>(
+          schoolId,
+          await getToken(),
+          "hours",
+          attempt,
+        );
+        if (!cancelled) {
+          setPayment(result);
+          setProcessing(
+            ["succeeded", "processing"].includes(result.intentStatus),
+          );
+        }
+      } catch (cause) {
+        if (!cancelled)
+          setError(
+            cause instanceof Error
+              ? cause.message
+              : "Unable to restore your payment. Please try again.",
+          );
+      } finally {
+        if (!cancelled) setRestoring(false);
+      }
+    }
+    void restore();
+    return () => {
+      cancelled = true;
+    };
+  }, [schoolId, storageKey, getToken]);
 
-  const [selectedPackageId, setSelectedPackageId] = useState<string | null>(
-    null,
-  );
-  const [showPayment, setShowPayment] = useState(false);
-  const [isConfirmed, setIsConfirmed] = useState(false);
-  const [isContinuingToPayment, setIsContinuingToPayment] = useState(false);
+  useEffect(() => {
+    if (!paid) return;    
+    sessionStorage.removeItem(storageKey);
+    void queryClient.invalidateQueries({
+      queryKey: ["student-credit-balance", schoolId, userId],
+    });
+    void queryClient.invalidateQueries({
+      queryKey: ["student-payments", schoolId, userId],
+    });
+  }, [paid, queryClient, schoolId, storageKey, userId]);
 
-  const selectedPackage = mockHourPackages.find(
-    (pkg) => pkg.id === selectedPackageId,
-  );
-
-  function goToDashboard() {
-    router.push("/dashboard");
+  async function start() {
+    if (busyRef.current || (!selectedId && !attempt)) return;
+    busyRef.current = true;
+    setBusy(true);
+    setError("");
+    try {
+      const nextAttempt = attempt ?? {
+        packageId: selectedId!,
+        requestId: crypto.randomUUID(),
+      };      
+      sessionStorage.setItem(storageKey, JSON.stringify(nextAttempt));
+      setAttempt(nextAttempt);
+      const result = await paymentRequest<Payment>(
+        schoolId,
+        await getToken(),
+        "hours",
+        nextAttempt,
+      );
+      setPayment(result);
+      setProcessing(["succeeded", "processing"].includes(result.intentStatus));
+    } catch (cause) {
+      setError(
+        cause instanceof Error ? cause.message : "Unable to start payment.",
+      );
+    } finally {
+      busyRef.current = false;
+      setBusy(false);
+    }
   }
 
-  async function handlePurchaseComplete() {
-    if (!selectedPackage) return;
-    await refetchCreditBalance();
-    setIsConfirmed(true);
+  async function cancelPayment() {
+    if (!attempt) return;
+    await paymentRequest(
+      schoolId,
+      await getToken(),
+      `hours/attempt/${attempt.requestId}/cancel`,
+      {},
+    );
+    sessionStorage.removeItem(storageKey);
+    setAttempt(null);
+    setPayment(null);
+    setSelectedId(null);
+    setProcessing(false);
+    setError("");
   }
 
-  if (isConfirmed && selectedPackage) {
+  if (paid && payment)
     return (
-      <main className="absolute inset-0 overflow-hidden bg-white px-5 pb-24 pt-6 text-center">
-        <div className="flex flex-col items-center py-6">
-          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-green-50 text-2xl text-green-600">
-            ✓
-          </div>
-          <h1 className="mt-6 text-xl font-bold text-slate-900">Hours added</h1>
-          <p className="mt-2 text-sm text-slate-500">
-            {formatLessonHoursLabel(selectedPackage.hours)} have been added to
-            your account.
-          </p>
-          <div className="mt-6 w-full rounded-2xl bg-slate-50 p-4 text-left">
-            <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
-              Package purchased
-            </p>
-            <p className="mt-2 text-lg font-bold text-slate-900">
-              {selectedPackage.label}
-            </p>
-            <p className="mt-1 text-sm text-slate-600">
-              {formatCurrency(selectedPackage.price)} paid
-            </p>
-            <p className="mt-3 text-sm text-slate-500">
-              New balance:{" "}
-              <span className="font-semibold text-slate-900">
-                {currentCreditHours === null
-                  ? "Unavailable"
-                  : formatLessonHoursLabel(currentCreditHours)}
-              </span>
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={goToDashboard}
-            className="mt-8 w-full rounded-lg bg-blue-600 py-3 text-sm font-medium text-white transition hover:bg-blue-700"
-          >
-            Back to Dashboard
-          </button>
+      <main className="flex-1 space-y-5 px-5 pb-24 pt-10 text-center">
+        <div className="text-4xl text-green-600" aria-hidden="true">
+          ✓
         </div>
+        <h1 className="text-xl font-bold text-slate-900">Hours added</h1>
+        <p className="text-sm text-slate-600">
+          {formatLessonHoursLabel(payment.purchasedMinutes / 60)} have been
+          added to your credit.
+        </p>
+        <div className="rounded-2xl bg-slate-50 p-4">
+          <p className="font-semibold">{payment.packageName}</p>
+          <p>{formatPaymentAmount(payment.amount, payment.currency)}</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => router.push("/dashboard")}
+          className="w-full rounded-lg bg-blue-600 py-3 text-white"
+        >
+          Back to Dashboard
+        </button>
       </main>
     );
-  }
-
-  if (showPayment && selectedPackage) {
-    return (
-      <>
-        <FlowPageHeader title="Payment" onBack={() => setShowPayment(false)} />
-        <main className="flex-1 space-y-6 px-5 pb-24 pt-6">
-          <section className="rounded-2xl bg-slate-50 p-4">
-            <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
-              Package summary
-            </p>
-            <p className="mt-2 text-lg font-bold text-slate-900">
-              {selectedPackage.label}
-            </p>
-            <p className="mt-1 text-sm text-slate-600">
-              {formatCurrency(selectedPackage.pricePerHour)}/hour
-              {selectedPackage.savingsLabel &&
-                ` · ${selectedPackage.savingsLabel}`}
-            </p>
-            <div className="mt-4 flex items-center justify-between border-t border-slate-200 pt-4 text-base font-bold text-slate-900">
-              <span>Total due</span>
-              <span>{formatCurrency(selectedPackage.price)}</span>
-            </div>
-          </section>
-
-          <CardPaymentForm
-            amount={selectedPackage.price}
-            onBack={() => setShowPayment(false)}
-            backLabel="Back to packages"
-            onComplete={handlePurchaseComplete}
-          />
-        </main>
-      </>
-    );
-  }
 
   return (
     <>
-      <FlowPageHeader title="Buy hours" onBack={goToDashboard} />
+      <FlowPageHeader
+        title="Buy more hours"
+        onBack={() => router.push("/dashboard")}
+      />
       <main className="flex-1 space-y-6 px-5 pb-24 pt-6">
-        <section className="flex items-center gap-3 rounded-2xl bg-slate-50 px-4 py-4">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-blue-600">
-            <CalendarIcon className="h-5 w-5" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-sm text-slate-600">Current balance</p>
-            <p className="text-base font-bold text-slate-900">
-              {isBalanceLoading
-                ? "Loading..."
-                : currentCreditHours === null
-                  ? "Unavailable"
-                  : formatLessonHoursLabel(currentCreditHours)}
-            </p>
-          </div>
-        </section>
-
-        {balanceError && (
-          <div
-            role="alert"
-            className="rounded-xl bg-red-50 p-3 text-sm text-red-600"
-          >
-            <p>{balanceError}</p>
-            <button
-              type="button"
-              onClick={() => void refetchCreditBalance()}
-              className="mt-2 font-medium underline"
-            >
-              Try again
-            </button>
-          </div>
-        )}
-
-        <section className="space-y-3">
-          <h2 className="text-sm font-semibold text-slate-900">
-            Choose a package
-          </h2>
-          {mockHourPackages.length === 0 ? (
-            <p className="text-sm text-slate-500">
-              No hour packages are available right now.
-            </p>
-          ) : (
-            <div className="space-y-3">
-              {mockHourPackages.map((pkg) => {
-                const isSelected = selectedPackageId === pkg.id;
-
-                return (
-                  <button
-                    key={pkg.id}
-                    type="button"
-                    onClick={() => setSelectedPackageId(pkg.id)}
-                    className={`relative w-full rounded-2xl p-4 text-left transition ${
-                      isSelected
-                        ? "bg-blue-50 ring-2 ring-blue-600"
-                        : "bg-slate-50 hover:bg-slate-100"
-                    }`}
-                  >
-                    {pkg.badge && (
-                      <span className="absolute right-4 top-4 rounded-full bg-blue-600 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
-                        {pkg.badge}
-                      </span>
-                    )}
-                    <p className="text-sm font-medium text-slate-600">
-                      {pkg.label}
-                    </p>
-                    <p className="mt-1 text-2xl font-bold text-slate-900">
-                      {formatCurrency(pkg.price)}
-                    </p>
-                    <p className="mt-1 text-sm text-slate-500">
-                      {formatCurrency(pkg.pricePerHour)}/hour
-                      {pkg.savingsLabel && (
-                        <span className="ml-1 font-medium text-green-600">
-                          · {pkg.savingsLabel}
-                        </span>
-                      )}
-                    </p>
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </section>
-
-        {selectedPackage && (
-          <button
-            type="button"
-            aria-busy={isContinuingToPayment}
-            onClick={() => {
-              if (isContinuingToPayment) return;
-              setIsContinuingToPayment(true);
-              window.setTimeout(() => {
-                setShowPayment(true);
-              }, BUTTON_LOADING_MS);
-            }}
-            className={`inline-flex h-11 w-full items-center justify-center rounded-lg bg-blue-600 text-sm font-medium text-white transition hover:bg-blue-700 ${
-              isContinuingToPayment ? "pointer-events-none" : ""
-            }`}
-          >
-            {isContinuingToPayment ? (
-              <ButtonSpinner inverse />
+        {restoring ? (
+          <p>Loading...</p>
+        ) : payment ? (
+          <>
+            <section className="rounded-2xl bg-slate-50 p-4">
+              <h2 className="font-semibold">{payment.packageName}</h2>
+              <p className="mt-1 text-sm">
+                {formatLessonHoursLabel(payment.purchasedMinutes / 60)} ·{" "}
+                {formatPaymentAmount(payment.amount, payment.currency)}
+              </p>
+              <p className="mt-2 text-sm text-slate-500">
+                All hours will be added to your credit. Book your lessons later.
+              </p>
+            </section>
+            {processing && status.data?.paymentStatus !== "failed" ? (
+              <section className="space-y-3" aria-live="polite">
+                <h2 className="font-semibold">Confirming your payment</h2>
+                <p className="text-sm text-slate-600">
+                  We are waiting for payment confirmation. Your hours will
+                  appear once it is complete. You can return to your dashboard
+                  while we process it.
+                </p>
+                <button
+                  type="button"
+                  className="text-blue-600 underline"
+                  onClick={() => void status.refetch()}
+                >
+                  Check payment status
+                </button>
+              </section>
             ) : (
-              <>Continue to payment · {formatCurrency(selectedPackage.price)}</>
+              <HoursPayment
+                payment={payment}
+                onProcessing={() => setProcessing(true)}
+                onCancel={cancelPayment}
+              />
             )}
-          </button>
+            {status.isError && (
+              <p role="alert" className="text-sm text-red-600">
+                Unable to check payment status. We will retry; please do not pay
+                again.
+              </p>
+            )}
+          </>
+        ) : (
+          <>
+            <section className="rounded-2xl bg-slate-50 p-4">
+              <p className="text-sm text-slate-600">Current balance</p>
+              <p className="font-bold">
+                {balanceLoading
+                  ? "Loading..."
+                  : balanceMinutes === null
+                    ? "Unavailable"
+                    : formatLessonHoursLabel(balanceMinutes / 60)}
+              </p>
+            </section>
+            {balanceError && (
+              <p role="alert" className="text-sm text-red-600">
+                {balanceError}
+              </p>
+            )}
+            {studentLoading ? (
+              <p>Loading your location...</p>
+            ) : studentError ? (
+              <div role="alert">
+                <p>{studentError}</p>
+                <button onClick={() => void reloadStudent()}>Try again</button>
+              </div>
+            ) : !suburb ? (
+              <p>Add your address in your profile to see available packages.</p>
+            ) : (
+              <>
+                <h2 className="text-sm font-semibold">Packages for {suburb}</h2>
+                {packages.isPending ? (
+                  <p>Loading packages...</p>
+                ) : packages.isError ? (
+                  <div role="alert">
+                    <p>Unable to load packages.</p>
+                    <button
+                      className="text-blue-600 underline"
+                      onClick={() => void packages.refetch()}
+                    >
+                      Try again
+                    </button>
+                  </div>
+                ) : packages.data?.length ? (
+                  <div className="space-y-3">
+                    {packages.data.map((pkg) => (
+                      <button
+                        key={pkg.id}
+                        type="button"
+                        disabled={busy || !!attempt}
+                        onClick={() => setSelectedId(pkg.id)}
+                        aria-pressed={selectedId === pkg.id}
+                        className={`cursor-pointer w-full rounded-2xl p-4 text-left ${selectedId === pkg.id ? "bg-blue-50 ring-2 ring-blue-600" : "bg-slate-50"}`}
+                      >
+                        <p className="font-semibold">{pkg.name}</p>
+                        <p className="text-sm text-slate-600">
+                          {formatLessonHoursLabel(pkg.durationMinutes / 60)}
+                        </p>
+                        <p className="mt-2 text-xl font-bold">
+                          {formatPaymentAmount(pkg.price)}
+                        </p>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <p>No lesson packages are available for this location.</p>
+                )}
+              </>
+            )}
+            {(selectedId || attempt) && (
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => void start()}
+                className="w-full rounded-lg bg-blue-600 py-3 text-white disabled:opacity-50"
+              >
+                {busy
+                  ? "Please wait..."
+                  : attempt
+                    ? "Resume payment"
+                    : "Continue to payment"}
+              </button>
+            )}
+            {attempt && (
+              <button
+                type="button"
+                disabled={busy}
+                className="w-full text-sm text-slate-600"
+                onClick={() => {
+                  void cancelPayment().catch((cause: unknown) =>
+                    setError(
+                      cause instanceof Error
+                        ? cause.message
+                        : "Unable to cancel payment.",
+                    ),
+                  );
+                }}
+              >
+                Cancel payment attempt
+              </button>
+            )}
+          </>
+        )}
+        {error && (
+          <p role="alert" className="text-sm text-red-600">
+            {error}
+          </p>
         )}
       </main>
     </>
