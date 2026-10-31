@@ -1,3 +1,4 @@
+import { WebsiteIntegrations } from "@/components/WebsiteIntegrations";
 import { loadStudentAuthConfig } from "@/lib/auth/config.server";
 import { notFound } from "next/navigation";
 
@@ -27,6 +28,7 @@ export default async function EmbedLayout({ children, params }: Props) {
       schoolName={school.schoolName}
       logoUrl={school.logoUrl ?? ""}
     >
+      <WebsiteIntegrations schoolId={school.schoolId} config={school.integrations} />
       {children}
     </SchoolProvider>
   );

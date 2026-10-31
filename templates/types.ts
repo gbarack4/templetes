@@ -1,3 +1,5 @@
+import type { WebsiteIntegrations } from "@/lib/tracking/types";
+
 export interface NavLink {
   label: string;
   href: string;
@@ -9,6 +11,7 @@ export interface LessonPackageOption {
 }
 
 export interface SiteConfig {
+  integrations?: WebsiteIntegrations;
   schoolId: string;
   schoolName: string;
   templateName: string;

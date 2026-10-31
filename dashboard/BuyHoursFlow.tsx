@@ -1,5 +1,7 @@
 "use client";
 
+import { trackPackagePurchase } from "@/lib/tracking/runtime";
+
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   useQuery,
@@ -128,6 +130,13 @@ function BuyHours({
       queryKey: ["student-payments", schoolId, userId],
     });
   }, [paid, queryClient, schoolId, storageKey, userId]);
+
+  useEffect(() => {
+    if (!paid || !payment) return;
+    trackPackagePurchase(
+      schoolId, payment.purchaseId, payment.amount, payment.currency,
+    );
+  }, [paid, payment, schoolId]);
 
   async function start() {
     if (busyRef.current || (!selectedId && !attempt)) return;

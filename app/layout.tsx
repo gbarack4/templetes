@@ -1,3 +1,4 @@
+import { WebsiteIntegrations } from "@/components/WebsiteIntegrations";
 import type { Metadata, Viewport } from "next";
 import { Geist } from "next/font/google";
 import { headers } from "next/headers";
@@ -43,6 +44,7 @@ async function getSchoolConfig() {
       logoUrl: "",
       authConfig: null,
       authError: null,
+      integrations: undefined,
     };
   const site = await getSchoolByDomain(domain);
   if (!site)
@@ -52,9 +54,11 @@ async function getSchoolConfig() {
       logoUrl: "",
       authConfig: null,
       authError: null,
+      integrations: undefined,
     };
   return {
     schoolId: site.schoolId,
+    integrations: site.integrations,
     schoolName: site.schoolName,
     logoUrl: site.logoUrl ?? "",
     ...(await loadStudentAuthConfig(site.schoolId, { domain })),
@@ -71,6 +75,11 @@ export default async function RootLayout({
   return (
     <html lang="en" className={`${geistSans.variable} antialiased`}>
       <body className="flex min-h-dvh flex-col bg-white font-sans text-slate-900">
+        <WebsiteIntegrations
+          schoolId={schoolConfig.schoolId}
+          config={schoolConfig.integrations}
+          hostScope
+        />
         <SchoolProvider
           schoolId={schoolConfig.schoolId}
           schoolName={schoolConfig.schoolName}

@@ -1,5 +1,7 @@
 "use client";
 
+import { trackConfirmedBooking } from "@/lib/tracking/runtime";
+
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
@@ -105,6 +107,10 @@ export function BookInstructorFlow({
   initialDate = null,
   initialTime = null,
 }: BookInstructorFlowProps) {
+  const trackingPurchase = useRef<{
+    bookingId: string;
+    purchaseId: string;
+  } | null>(null);
   const router = useRouter();
   const { getToken, isLoaded: isAuthLoaded, isSignedIn } = useAuth();
 
@@ -559,6 +565,11 @@ export function BookInstructorFlow({
         booking.id,
         token,
       );
+      trackingPurchase.current = {
+        bookingId: booking.id,
+        purchaseId: paymentResult.packagePurchaseId,
+      };
+
       if (!paymentResult.clientSecret) {
         throw new Error("Stripe client secret was not returned");
       }
@@ -595,6 +606,10 @@ export function BookInstructorFlow({
       const status = await getPackagePaymentStatus(instructor.schoolId, bookingId, token);
 
       if (status.paymentStatus === "paid" && status.bookingStatus === "confirmed") {
+        const purchaseId = trackingPurchase.current?.bookingId === bookingId
+          ? trackingPurchase.current.purchaseId
+          : undefined;
+        trackConfirmedBooking(instructor.schoolId, bookingId, purchaseId);
         clearFirstBookingDraft();
 
         setShowPayment(false);

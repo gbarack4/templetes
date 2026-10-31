@@ -1,5 +1,7 @@
 "use client";
 
+import { trackConfirmedBooking } from "@/lib/tracking/runtime";
+
 import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -95,6 +97,10 @@ function getStepRef(
 }
 
 export function BookLessonFlow() {
+  const trackingPurchase = useRef<{
+    bookingId: string;
+    purchaseId: string;
+  } | null>(null);
   const router = useRouter();
   const schoolId = useSchoolId();
   const queryClient = useQueryClient();
@@ -640,6 +646,7 @@ export function BookLessonFlow() {
 
       const result = await createCreditBooking(schoolId, token, input);
 
+      trackConfirmedBooking(schoolId, result.booking.id);
       setConfirmedBalanceMinutes(result.balanceMinutes);
       setIsConfirmed(true);
       setPendingAttempt(null);
@@ -762,6 +769,11 @@ export function BookLessonFlow() {
         token,
       );
 
+      trackingPurchase.current = {
+        bookingId,
+        purchaseId: paymentResult.packagePurchaseId,
+      };
+
       if (!paymentResult.clientSecret) {
         throw new Error("Stripe client secret was not returned");
       }
@@ -802,6 +814,10 @@ export function BookLessonFlow() {
         status.paymentStatus === "paid" &&
         status.bookingStatus === "confirmed"
       ) {
+        const purchaseId = trackingPurchase.current?.bookingId === packageBookingId
+          ? trackingPurchase.current.purchaseId
+          : undefined;
+        trackConfirmedBooking(schoolId, packageBookingId, purchaseId);
         setShowPayment(false);
         setIsConfirmed(true);
 
