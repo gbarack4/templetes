@@ -10,6 +10,12 @@ export type StudentProfileInput = Readonly<{
   firstName: string;
   lastName: string;
   phoneNumber: string;
+  address?: string;
+  addressSuburb?: string;
+  addressPostcode?: string;
+  latitude?: number;
+  longitude?: number;
+  googlePlaceId?: string;
 }>;
 
 export type SessionTokens = Readonly<{

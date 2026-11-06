@@ -1,7 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+
 import { useAuth } from "./AuthProvider";
+import {
+  GoogleAddressAutocomplete,
+  type AddressSelectionDetails,
+} from "@/components/GoogleAddressAutocomplete";
 import { authErrorMessage, errorName } from "./errors";
 
 export const AUTH_INPUT =
@@ -196,6 +201,8 @@ export function AuthForm({
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
+  const [address, setAddress] = useState("");
+  const [addressDetails, setAddressDetails] = useState<AddressSelectionDetails | null>(null);
   const [code, setCode] = useState("");
   const [verifying, setVerifying] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
@@ -208,6 +215,12 @@ export function AuthForm({
     firstName: firstName.trim(),
     lastName: lastName.trim(),
     phoneNumber: phoneNumber.trim(),
+    address: address.trim(),
+    addressSuburb: addressDetails?.suburb || "",
+    addressPostcode: addressDetails?.postcode || "",
+    latitude: addressDetails?.latitude,
+    longitude: addressDetails?.longitude,
+    googlePlaceId: addressDetails?.googlePlaceId,
   };
 
   useEffect(() => {
@@ -288,9 +301,9 @@ export function AuthForm({
 
   if (!auth.isLoaded)
     return (
-      <p role="status" className="text-sm text-slate-500">
+      <output className="text-sm text-slate-500">
         Restoring your session...
-      </p>
+      </output>
     );
   if (auth.configError)
     return (
@@ -309,16 +322,16 @@ export function AuthForm({
     );
   if (!isSignup && auth.isSignedIn)
     return (
-      <p role="status" className="text-sm text-slate-500">
+      <output className="text-sm text-slate-500">
         Opening your account...
-      </p>
+      </output>
     );
   if (!isSignup && auth.hasSession && !auth.profileRequired)
     return (
       <div className="space-y-4">
-        <p role="status" className="text-sm text-slate-500">
+        <output className="text-sm text-slate-500">
           Completing your student account...
-        </p>
+        </output>
         {(error || auth.error) && (
           <p role="alert" className="text-sm text-red-600">
             {error || auth.error}
@@ -350,9 +363,9 @@ export function AuthForm({
         </p>
       )}
       {notice && (
-        <p role="status" className="text-sm text-slate-600">
+        <output className="text-sm text-slate-600">
           {notice}
-        </p>
+        </output>
       )}
       {auth.profileRequired && (
         <p className="text-sm text-slate-600">
@@ -384,6 +397,25 @@ export function AuthForm({
             value={phoneNumber}
             onChange={setPhoneNumber}
           />
+          <label htmlFor="Address" className="block space-y-1.5 text-sm font-medium">
+           {"Address"}
+            <span className="relative block">
+              <GoogleAddressAutocomplete
+                value={address}
+                onChange={(val) => {
+                  setAddress(val);
+                  setAddressDetails(null);
+                }}
+                onSelect={(val, details) => {
+                  setAddress(val);
+                  setAddressDetails(details);
+                }}
+                placeholder="Enter your home address"
+                mode="address"
+                inputClassName={AUTH_INPUT}
+              />
+            </span>
+          </label>
         </>
       )}
       {!auth.hasSession && (
