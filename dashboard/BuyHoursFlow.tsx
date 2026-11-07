@@ -3,11 +3,7 @@
 import { trackPackagePurchase } from "@/lib/tracking/runtime";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import {
-  useQuery,
-  useQueryClient,
-  type UseQueryResult,
-} from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import {
@@ -138,14 +134,14 @@ function BuyHours({
     );
   }, [paid, payment, schoolId]);
 
-  async function start() {
-    if (busyRef.current || (!selectedId && !attempt)) return;
+  async function start(packageId = selectedId) {
+    if (busyRef.current || (!packageId && !attempt)) return;
     busyRef.current = true;
     setBusy(true);
     setError("");
     try {
       const nextAttempt = attempt ?? {
-        packageId: selectedId!,
+        packageId: packageId!,
         requestId: crypto.randomUUID(),
       };
       sessionStorage.setItem(storageKey, JSON.stringify(nextAttempt));
@@ -221,7 +217,7 @@ function BuyHours({
         busy={busy}
         hasAttempt={!!attempt}
         onSelect={setSelectedId}
-        onStart={() => void start()}
+        onStart={(packageId) => void start(packageId)}
         onCancel={cancelAttempt}
       />
     );
@@ -362,16 +358,23 @@ function PaymentStep({
   );
 }
 
+type PackagesState = Readonly<{
+  data?: PublicPackage[];
+  isPending: boolean;
+  isError: boolean;
+  refetch: () => unknown;
+}>;
+
 type PackageSelectionProps = Readonly<{
   balance: ReturnType<typeof useStudentCreditBalance>;
   student: ReturnType<typeof useStudent>;
   suburb: string;
-  packages: UseQueryResult<PublicPackage[], Error>;
+  packages: PackagesState;
   selectedId: string | null;
   busy: boolean;
   hasAttempt: boolean;
   onSelect: (id: string) => void;
-  onStart: () => void;
+  onStart: (packageId?: string) => void;
   onCancel: () => void;
 }>;
 
@@ -381,21 +384,62 @@ function balanceLabel(loading: boolean, minutes: number | null): string {
   return formatLessonHoursLabel(minutes / 60);
 }
 
-function continueLabel(busy: boolean, hasAttempt: boolean): string {
-  if (busy) return "Please wait...";
-  if (hasAttempt) return "Resume payment";
-  return "Continue to payment";
+function formatPackagePrice(price: string): string {
+  const amount = Number(price);
+
+  if (!Number.isFinite(amount)) {
+    return formatPaymentAmount(price);
+  }
+
+  return `AUD $${amount.toLocaleString("en-AU", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+}
+
+function ClockIcon({ className }: Readonly<{ className?: string }>) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      aria-hidden
+    >
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="M12 8v4.5l3 1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
 }
 
 function PackageSelection(props: PackageSelectionProps) {
-  const { balance, selectedId, busy, hasAttempt, onStart, onCancel } = props;
+  const { balance, selectedId, busy, hasAttempt, onSelect, onStart, onCancel } =
+    props;
+  const [showConfirm, setShowConfirm] = useState(false);
+  const selectedPackage =
+    props.packages.data?.find((pkg) => pkg.id === selectedId) ?? null;
+
+  function handleChoose(packageId: string) {
+    onSelect(packageId);
+    setShowConfirm(true);
+  }
+
   return (
     <>
-      <section className="rounded-2xl bg-slate-50 p-4">
-        <p className="text-sm text-slate-600">Current balance</p>
-        <p className="font-bold">
-          {balanceLabel(balance.loading, balance.balanceMinutes)}
-        </p>
+      <section className="flex overflow-hidden rounded-2xl bg-[#f9f9f9]">
+        <div className="flex items-center justify-center px-4">
+          <ClockIcon className="h-7 w-7 text-blue-600" />
+        </div>
+
+        <div className="my-3 w-px self-stretch bg-slate-200" />
+
+        <div className="flex-1 px-4 py-3">
+          <p className="text-xs font-medium text-slate-500">Current balance</p>
+          <p className="text-lg font-bold leading-tight text-slate-900">
+            {balanceLabel(balance.loading, balance.balanceMinutes)}
+          </p>
+        </div>
       </section>
       {balance.error && (
         <p role="alert" className="text-sm text-red-600">
@@ -408,18 +452,20 @@ function PackageSelection(props: PackageSelectionProps) {
         packages={props.packages}
         selectedId={selectedId}
         disabled={busy || hasAttempt}
-        onSelect={props.onSelect}
+        onSelect={onSelect}
+        onChoose={handleChoose}
       />
-      {(selectedId || hasAttempt) && (
-        <button
-          type="button"
-          disabled={busy}
-          onClick={onStart}
-          className="w-full rounded-lg bg-blue-600 py-3 text-white disabled:opacity-50"
-        >
-          {continueLabel(busy, hasAttempt)}
-        </button>
-      )}
+      {showConfirm && selectedPackage ? (
+        <ContinueToPaymentModal
+          pkg={selectedPackage}
+          busy={busy}
+          onClose={() => setShowConfirm(false)}
+          onContinue={() => {
+            onStart(selectedPackage.id);
+            setShowConfirm(false);
+          }}
+        />
+      ) : null}
       {hasAttempt && (
         <button
           type="button"
@@ -435,10 +481,11 @@ function PackageSelection(props: PackageSelectionProps) {
 }
 
 type PackageListProps = Readonly<{
-  packages: UseQueryResult<PublicPackage[], Error>;
+  packages: PackagesState;
   selectedId: string | null;
   disabled: boolean;
   onSelect: (id: string) => void;
+  onChoose: (id: string) => void;
 }>;
 
 type LocationPackagesProps = PackageListProps &
@@ -463,10 +510,12 @@ function LocationPackages({
   if (!suburb)
     return <p>Add your address in your profile to see available packages.</p>;
   return (
-    <>
-      <h2 className="text-sm font-semibold">Packages for {suburb}</h2>
+    <div className="space-y-3">
+      <h2 className="text-base font-bold text-slate-900">
+        Packages for {suburb}
+      </h2>
       <PackageList {...listProps} />
-    </>
+    </div>
   );
 }
 
@@ -474,7 +523,7 @@ function PackageList({
   packages,
   selectedId,
   disabled,
-  onSelect,
+  onChoose,
 }: PackageListProps) {
   if (packages.isPending) return <p>Loading packages...</p>;
   if (packages.isError)
@@ -492,25 +541,127 @@ function PackageList({
   if (!packages.data?.length)
     return <p>No lesson packages are available for this location.</p>;
   return (
-    <div className="space-y-3">
-      {packages.data.map((pkg) => (
+    <div className="space-y-2">
+      {packages.data.map((pkg) => {
+        const hours = pkg.durationMinutes / 60;
+        const isPopular = hours === 5;
+        const isSelected = selectedId === pkg.id;
+
+        return (
+          <button
+            key={pkg.id}
+            type="button"
+            disabled={disabled}
+            onClick={() => onChoose(pkg.id)}
+            aria-pressed={isSelected}
+            className={`w-full rounded-xl border bg-white px-3 py-2.5 text-left shadow-sm transition ${
+              isSelected ? "border-blue-600" : "border-slate-100"
+            }`}
+          >
+            <div className="flex items-start justify-between gap-2">
+              <h3 className="text-sm font-bold text-slate-900">{pkg.name}</h3>
+
+              {isPopular ? (
+                <span className="shrink-0 rounded-full bg-[#F5C400] px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-[#1A2744]">
+                  Popular
+                </span>
+              ) : null}
+            </div>
+
+            <p className="mt-0.5 flex items-center gap-1 text-xs text-slate-500">
+              <ClockIcon className="h-3.5 w-3.5" />
+              {formatLessonHoursLabel(hours)}
+            </p>
+
+            <p className="mt-1.5 text-base font-bold text-slate-900">
+              {formatPackagePrice(pkg.price)}
+            </p>
+
+            <span className="mt-2 flex w-full items-center justify-center rounded-lg bg-blue-600 py-2 text-xs font-bold text-white">
+              Choose package
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function ContinueToPaymentModal({
+  pkg,
+  busy,
+  onClose,
+  onContinue,
+}: Readonly<{
+  pkg: PublicPackage;
+  busy: boolean;
+  onClose: () => void;
+  onContinue: () => void;
+}>) {
+  const [isVisible, setIsVisible] = useState(false);
+  const hours = pkg.durationMinutes / 60;
+
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") onClose();
+    }
+
+    document.addEventListener("keydown", handleKeyDown);
+    document.body.style.overflow = "hidden";
+    const frameId = window.requestAnimationFrame(() => setIsVisible(true));
+
+    return () => {
+      window.cancelAnimationFrame(frameId);
+      document.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = "";
+    };
+  }, [onClose]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center">
+      <button
+        type="button"
+        aria-label="Close package confirmation"
+        onClick={onClose}
+        className={`absolute inset-0 bg-slate-900/30 backdrop-blur-[2px] transition-opacity duration-300 ease-out ${
+          isVisible ? "opacity-100" : "opacity-0"
+        }`}
+      />
+
+      <dialog
+        open
+        aria-modal="true"
+        aria-label="Continue to payment"
+        className={`relative z-10 flex w-full max-w-md flex-col rounded-t-[1.75rem] bg-white px-5 pb-6 pt-3 shadow-xl transition-transform duration-300 ease-out ${
+          isVisible ? "translate-y-0" : "translate-y-full"
+        }`}
+      >
+        <div className="mx-auto mb-4 h-1 w-10 shrink-0 rounded-full bg-slate-200" />
+
+        <h2 className="text-lg font-bold text-slate-900">{pkg.name}</h2>
+
+        <p className="mt-1 flex items-center gap-1 text-sm text-slate-500">
+          <ClockIcon className="h-4 w-4" />
+          {formatLessonHoursLabel(hours)}
+        </p>
+
+        <p className="mt-3 text-xl font-bold text-slate-900">
+          {formatPackagePrice(pkg.price)}
+        </p>
+
+        <p className="mt-2 text-sm text-slate-500">
+          All hours will be added to your credit. Book your lessons later.
+        </p>
+
         <button
-          key={pkg.id}
           type="button"
-          disabled={disabled}
-          onClick={() => onSelect(pkg.id)}
-          aria-pressed={selectedId === pkg.id}
-          className={`cursor-pointer w-full rounded-2xl p-4 text-left ${selectedId === pkg.id ? "bg-blue-50 ring-2 ring-blue-600" : "bg-slate-50"}`}
+          disabled={busy}
+          onClick={onContinue}
+          className="mt-5 w-full rounded-lg bg-blue-600 py-3 text-sm font-bold text-white transition hover:bg-blue-700 disabled:opacity-50"
         >
-          <p className="font-semibold">{pkg.name}</p>
-          <p className="text-sm text-slate-600">
-            {formatLessonHoursLabel(pkg.durationMinutes / 60)}
-          </p>
-          <p className="mt-2 text-xl font-bold">
-            {formatPaymentAmount(pkg.price)}
-          </p>
+          Continue to payment
         </button>
-      ))}
+      </dialog>
     </div>
   );
 }

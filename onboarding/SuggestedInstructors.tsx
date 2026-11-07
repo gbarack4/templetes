@@ -460,7 +460,7 @@ export function SuggestedInstructors({
                     queryString={searchParams}
                     searchedSuburb={suburbParam.trim()}
                     searchedPostcode={postcodeParam}
-                    isBestMatch={(instructor.availableSlots?.length ?? 0) > 0}
+                    isBestMatch={instructor.monthlyAvailableSlotCount > 0}
                   />
                 </div>
               ))
