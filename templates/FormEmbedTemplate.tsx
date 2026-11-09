@@ -58,6 +58,7 @@ export function FormEmbedTemplate({ data }: Readonly<TemplateProps>) {
 
   const [suburb, setSuburb] = useState("");
   const [postcode, setPostcode] = useState("");
+  const [isSuburbSelected, setIsSuburbSelected] = useState(false);
   const [transmission, setTransmission] = useState(
     transmissionOptions[0] ?? "Auto",
   );
@@ -69,11 +70,12 @@ export function FormEmbedTemplate({ data }: Readonly<TemplateProps>) {
 
   const futureDates = useMemo(() => buildFutureDates(), []);
   const selectedTestDate = getSelectedRescheduleDate(futureDates, testDateId);
-  const canSearch = suburb.trim().length > 0;
+  const canSearch = isSuburbSelected && suburb.trim().length > 0;
 
   function handleSuburbChange(value: string) {
     setSuburb(value);
     setPostcode("");
+    setIsSuburbSelected(false);
   }
 
   function handleSuburbSelect(
@@ -82,6 +84,7 @@ export function FormEmbedTemplate({ data }: Readonly<TemplateProps>) {
   ) {
     setSuburb(value);
     setPostcode(details.postcode ?? "");
+    setIsSuburbSelected(true);
   }
 
   async function handleSearch(event: React.SyntheticEvent<HTMLFormElement>) {
@@ -146,6 +149,11 @@ export function FormEmbedTemplate({ data }: Readonly<TemplateProps>) {
                 <ChevronDownIcon className="h-4 w-4 shrink-0 text-slate-300" />
               }
             />
+            {suburb.trim().length > 0 && !isSuburbSelected && (
+              <p className="text-xs text-slate-500">
+                Select a suburb from the suggestions to search.
+              </p>
+            )}
           </div>
 
           <div className="space-y-2">

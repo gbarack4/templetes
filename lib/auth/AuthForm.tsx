@@ -190,10 +190,14 @@ export function AuthForm({
   mode,
   onComplete,
   onPendingChange,
+  initialAddress = "",
+  initialAddressDetails = null,
 }: Readonly<{
   mode: "sign-in" | "sign-up";
   onComplete: () => void;
   onPendingChange?: (pending: boolean) => void;
+  initialAddress?: string;
+  initialAddressDetails?: AddressSelectionDetails | null;
 }>) {
   const auth = useAuth();
   const [email, setEmail] = useState("");
@@ -201,8 +205,9 @@ export function AuthForm({
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
-  const [address, setAddress] = useState("");
-  const [addressDetails, setAddressDetails] = useState<AddressSelectionDetails | null>(null);
+  const [address, setAddress] = useState(initialAddress);
+  const [addressDetails, setAddressDetails] =
+    useState<AddressSelectionDetails | null>(initialAddressDetails);
   const [code, setCode] = useState("");
   const [verifying, setVerifying] = useState(false);
   const [confirmed, setConfirmed] = useState(false);

@@ -3,16 +3,21 @@
 import { usePathname, useRouter } from "next/navigation";
 import { FlowPageHeader } from "@/dashboard/components/FlowPageHeader";
 import { AuthForm } from "@/lib/auth/AuthForm";
+import type { AddressSelectionDetails } from "@/components/GoogleAddressAutocomplete";
 
 export function BookingSignUp({
   onBack,
   onComplete,
   onSignIn,
+  initialAddress,
+  initialAddressDetails,
   description = "Create an account to finish booking your lesson.",
 }: Readonly<{
   onBack: () => void;
   onComplete: () => void;
   onSignIn?: () => void;
+  initialAddress?: string;
+  initialAddressDetails?: AddressSelectionDetails | null;
   description?: string;
 }>) {
   const router = useRouter();
@@ -32,7 +37,12 @@ export function BookingSignUp({
       <FlowPageHeader title="Create account" onBack={onBack} />
       <main className="flex min-h-0 flex-1 flex-col overflow-y-auto px-5 pb-8 pt-6">
         <p className="mb-4 text-sm text-slate-600">{description}</p>
-        <AuthForm mode="sign-up" onComplete={onComplete} />
+        <AuthForm
+          mode="sign-up"
+          onComplete={onComplete}
+          initialAddress={initialAddress}
+          initialAddressDetails={initialAddressDetails}
+        />
         <p className="mt-8 text-center text-sm text-slate-500">
           Already have an account?{" "}
           <button

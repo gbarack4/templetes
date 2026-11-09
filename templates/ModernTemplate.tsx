@@ -244,6 +244,7 @@ export function ModernTemplate({ data }: Readonly<TemplateProps>) {
 
   const [suburb, setSuburb] = useState("");
   const [postcode, setPostcode] = useState("");
+  const [isSuburbSelected, setIsSuburbSelected] = useState(false);
 
   const [transmission, setTransmission] = useState(
     site.transmissionOptions[0] ?? "Auto",
@@ -258,13 +259,15 @@ export function ModernTemplate({ data }: Readonly<TemplateProps>) {
   const [showTimePicker, setShowTimePicker] = useState(false);
 
   const selectedDate = getSelectedRescheduleDate(availableDates, lessonDateId);
-  const canSearch = suburb.trim().length > 0 && selectedDate && selectedTime;
+  const canSearch =
+    isSuburbSelected && suburb.trim().length > 0 && selectedDate && selectedTime;
   const brandColorStyle = { color: site.primaryColor };
   const brandBgStyle = { backgroundColor: site.primaryColor };
 
   function handleSuburbChange(value: string) {
     setSuburb(value);
     setPostcode("");
+    setIsSuburbSelected(false);
   }
 
   function handleSuburbSelect(
@@ -273,6 +276,7 @@ export function ModernTemplate({ data }: Readonly<TemplateProps>) {
   ) {
     setSuburb(value);
     setPostcode(details.postcode ?? "");
+    setIsSuburbSelected(true);
   }
 
   function handleSearch(event: React.SyntheticEvent<HTMLFormElement>) {
@@ -385,7 +389,11 @@ export function ModernTemplate({ data }: Readonly<TemplateProps>) {
                     <ChevronRightIcon className="h-4 w-4 shrink-0 text-slate-300" />
                   }
                 />
-                <p className="text-xs text-slate-400">{site.pickupHint}</p>
+                <p className="text-xs text-slate-500">
+                  {suburb.trim().length > 0 && !isSuburbSelected
+                    ? "Select a suburb from the suggestions to search."
+                    : site.pickupHint}
+                </p>
               </div>
 
               <div className="space-y-2">

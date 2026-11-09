@@ -688,6 +688,8 @@ export function BookInstructorFlow({
   if (showSignUp && canConfirm && selectedDate && selectedTime && trimmedPickupAddress) {
     return (
       <BookingSignUp
+        initialAddress={trimmedPickupAddress}
+        initialAddressDetails={pickupAddressDetails}
         onBack={() => setShowSignUp(false)}
         onComplete={() => {
           setHasRegistered(true);

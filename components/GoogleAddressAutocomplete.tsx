@@ -49,6 +49,8 @@ type GoogleGeocoderResult = {
   place_id: string;
   formatted_address?: string;
   postcode_localities?: string[];
+  types: string[];
+  partial_match?: boolean;
   address_components: GoogleAddressComponent[];
   geometry?: {
     location: {
@@ -71,6 +73,8 @@ type GoogleGeocoderRequest =
   | {
       address: string;
       componentRestrictions: {
+        postalCode?: string;
+        administrativeArea?: string;
         country: string;
       };
     };
@@ -274,53 +278,123 @@ async function fetchAddressDetailsForPlace(
   }
 }
 
-function findPostcode(
-  results: readonly GoogleGeocoderResult[],
-): string | undefined {
-  for (const result of results) {
-    const postcode = getPostcode(result.address_components);
+const SUBURB_TYPES = ["locality", "postal_town", "sublocality", "sublocality_level_1"];
 
-    if (postcode) {
-      return postcode;
-    }
-  }
-
-  return undefined;
+function isSuburbResult(result: GoogleGeocoderResult): boolean {
+  return result.types.some((type) => SUBURB_TYPES.includes(type));
 }
 
-async function fetchPostcodeForPlace(
+function toSuburbSuggestion(
+  result: GoogleGeocoderResult,
+  expectedPostcode?: string,
+  allowPostalResult = false,
+): AddressSuggestion | null {
+  const isAllowedPostalResult =
+    allowPostalResult &&
+    result.types.includes("postal_code") &&
+    !result.postcode_localities?.length;
+
+  if (
+    (!isSuburbResult(result) && !isAllowedPostalResult) ||
+    result.partial_match
+  ) {
+    return null;
+  }
+
+  const components = result.address_components;
+  const country = getAddressComponent(components, "country")?.short_name;
+  if (country !== "AU") return null;
+
+  const postcode = getPostcode(components);
+  if (expectedPostcode && postcode && postcode !== expectedPostcode) return null;
+
+  const locality = SUBURB_TYPES
+    .map((type) => getAddressComponent(components, type))
+    .find((component) => component !== undefined);
+  const name = locality?.short_name?.trim() || locality?.long_name?.trim();
+  if (!name || /^\d+$/.test(name)) return null;
+
+  const state = getAddressComponent(components, "administrative_area_level_1")?.short_name;
+  const resolvedPostcode = postcode ?? expectedPostcode;
+  const secondaryText = [state, resolvedPostcode].filter(Boolean).join(" ");
+
+  return {
+    id: result.place_id,
+    mainText: name,
+    secondaryText,
+    description: [name, secondaryText].filter(Boolean).join(", "),
+    suburb: name,
+    postcode: resolvedPostcode,
+    latitude: result.geometry?.location.lat(),
+    longitude: result.geometry?.location.lng(),
+  };
+}
+
+// Share lookups during typing; keep only a bounded, short-lived memory cache.
+const suburbLookups = new Map<
+  string,
+  { expiresAt: number; promise: Promise<AddressSuggestion | null> }
+>();
+
+async function resolveSuburbSuggestion(
   placeId: string,
-  description: string,
-): Promise<string | undefined> {
+): Promise<AddressSuggestion | null> {
+  const cached = suburbLookups.get(placeId);
+  if (cached && cached.expiresAt > Date.now()) return cached.promise;
+
+  const promise = (async () => {
+    try {
+      const library = await getGeocodingLibrary();
+      if (!library) return null;
+      const { results } = await new library.Geocoder().geocode({ placeId });
+      const result = results.find((item) => item.place_id === placeId);
+      return result ? toSuburbSuggestion(result) : null;
+    } catch {
+      return null;
+    }
+  })();
+
+  if (suburbLookups.size >= 100) {
+    const oldestKey = suburbLookups.keys().next().value;
+    if (oldestKey !== undefined) suburbLookups.delete(oldestKey);
+  }
+  suburbLookups.set(placeId, { expiresAt: Date.now() + 60_000, promise });
+  const result = await promise;
+  if (!result && suburbLookups.get(placeId)?.promise === promise) {
+    suburbLookups.delete(placeId);
+  }
+  return result;
+}
+
+async function resolvePostcodeLocality(
+  geocoder: GoogleGeocoder,
+  locality: string,
+  postcode: string,
+  state: string,
+): Promise<AddressSuggestion | null> {
   try {
-    const library = await getGeocodingLibrary();
-
-    if (!library) {
-      return undefined;
-    }
-
-    const geocoder = new library.Geocoder();
-
-    const placeResult = await geocoder.geocode({
-      placeId,
-    });
-
-    const postcodeFromPlace = findPostcode(placeResult.results);
-
-    if (postcodeFromPlace) {
-      return postcodeFromPlace;
-    }
-
-    const addressResult = await geocoder.geocode({
-      address: description,
+    const { results } = await geocoder.geocode({
+      address: locality,
       componentRestrictions: {
         country: "AU",
+        postalCode: postcode,
+        ...(state ? { administrativeArea: state } : {}),
       },
     });
+    const candidates = results.filter((result) => toSuburbSuggestion(result, postcode));
+    const ids = [...new Set(candidates.map((result) => result.place_id))];
+    // Never silently choose one locality from an ambiguous response.
+    if (ids.length !== 1) return null;
 
-    return findPostcode(addressResult.results);
+    const suggestion = await resolveSuburbSuggestion(ids[0]);
+    if (!suggestion || (suggestion.postcode && suggestion.postcode !== postcode)) return null;
+    return {
+      ...suggestion,
+      postcode,
+      secondaryText: [state, postcode].filter(Boolean).join(" "),
+    };
   } catch {
-    return undefined;
+    return null;
   }
 }
 
@@ -343,11 +417,16 @@ async function fetchAustralianPostcodeSuggestions(
   });
 
   const postcodeResult = results.find(
-    (result) => (result.postcode_localities?.length ?? 0) > 0,
+    (result) => getPostcode(result.address_components) === postcode,
   );
 
-  if (!postcodeResult?.postcode_localities?.length) {
+  if (!postcodeResult) {
     return [];
+  }
+
+  if (!postcodeResult.postcode_localities?.length) {
+    const suggestion = toSuburbSuggestion(postcodeResult, postcode, true);
+    return suggestion ? [suggestion] : [];
   }
 
   const state =
@@ -356,17 +435,67 @@ async function fetchAustralianPostcodeSuggestions(
       "administrative_area_level_1",
     )?.short_name ?? "";
 
-  const localities = [...new Set(postcodeResult.postcode_localities)];
+  const suburb = getSuburb(postcodeResult.address_components);
+  let localityNames = postcodeResult.postcode_localities ?? [];
 
-  return localities.map((locality) => ({
-    id: `${postcode}-${locality}`,
-    mainText: locality,
-    secondaryText: [state, postcode].filter(Boolean).join(" "),
-    description: [locality, [state, postcode].filter(Boolean).join(" ")]
-      .filter(Boolean)
-      .join(", "),
-    postcode,
-  }));
+  if (localityNames.length === 0 && suburb) {
+    localityNames = [suburb];
+  }
+
+  const localities = [...new Set(localityNames)];
+
+  const suggestions = await Promise.all(
+    localities.map((locality) =>
+      resolvePostcodeLocality(geocoder, locality, postcode, state),
+    ),
+  );
+
+  const unique = new Map<string, AddressSuggestion>();
+  for (const suggestion of suggestions) {
+    if (suggestion) unique.set(suggestion.id, suggestion);
+  }
+  return [...unique.values()];
+}
+
+async function expandPostcodeSuggestions(
+  suggestions: readonly AddressSuggestion[],
+): Promise<AddressSuggestion[]> {
+  const postcodeRequests = new Map<string, Promise<AddressSuggestion[]>>();
+
+  const groups = await Promise.all(
+    suggestions.map((suggestion) => {
+      const postcode = suggestion.mainText.trim();
+
+      if (!/^\d{4}$/.test(postcode)) {
+        return resolveSuburbSuggestion(suggestion.id).then((resolved) =>
+          resolved ? [resolved] : [],
+        );
+      }
+
+      let request = postcodeRequests.get(postcode);
+
+      if (!request) {
+        // A postcode can contain several suburbs. Never select one arbitrarily
+        // or pass the postcode itself to the suburb availability search.
+        request = fetchAustralianPostcodeSuggestions(postcode).catch(() => []);
+        postcodeRequests.set(postcode, request);
+      }
+
+      return request;
+    }),
+  );
+
+  const unique = new Map<string, AddressSuggestion>();
+
+  for (const suggestion of groups.flat()) {
+    const key = suggestion.id;
+
+    if (!unique.has(key)) {
+      unique.set(key, suggestion);
+    }
+  }
+
+  return [...unique.values()];
 }
 
 async function fetchGoogleSuggestions(
@@ -393,7 +522,7 @@ async function fetchGoogleSuggestions(
 
   const service = new places.AutocompleteService();
 
-  return new Promise((resolve) => {
+  const suggestions = await new Promise<AddressSuggestion[]>((resolve) => {
     service.getPlacePredictions(
       {
         input: normalizedQuery,
@@ -425,6 +554,12 @@ async function fetchGoogleSuggestions(
       },
     );
   });
+
+  if (mode === "suburb") {
+    return expandPostcodeSuggestions(suggestions);
+  }
+
+  return suggestions;
 }
 
 export function GoogleAddressAutocomplete({
@@ -481,7 +616,10 @@ export function GoogleAddressAutocomplete({
         });
     }, 250);
 
-    return () => window.clearTimeout(timeoutId);
+    return () => {
+      window.clearTimeout(timeoutId);
+      if (requestId === requestIdRef.current) requestIdRef.current += 1;
+    };
   }, [mode, open, value]);
 
   useEffect(() => {
@@ -516,20 +654,13 @@ export function GoogleAddressAutocomplete({
 
     const selectedValue = suggestion.mainText;
 
-    let details: AddressSelectionDetails = {
+    const details: AddressSelectionDetails = {
       postcode: suggestion.postcode,
+      suburb: selectedValue,
+      latitude: suggestion.latitude,
+      longitude: suggestion.longitude,
+      googlePlaceId: suggestion.id,
     };
-
-    if (!suggestion.postcode) {
-      const postcode = await fetchPostcodeForPlace(
-        suggestion.id,
-        suggestion.description,
-      );
-
-      details = {
-        postcode,
-      };
-    }
 
     onChange(selectedValue);
     onSelect?.(selectedValue, details);
@@ -557,7 +688,6 @@ export function GoogleAddressAutocomplete({
           showOverlay ? `${listId}-option-${highlightIndex}` : undefined
         }
         value={value}
-        autoFocus={isSheet}
         autoComplete="off"
         placeholder={placeholder}
         onChange={(event) => {
@@ -634,6 +764,17 @@ export function GoogleAddressAutocomplete({
         >
           {suggestions.map((suggestion, index) => {
             const isActive = index === highlightIndex;
+            let backgroundClass: string;
+
+            if (isSheet) {
+              backgroundClass = isActive
+                ? "bg-white"
+                : "bg-transparent hover:bg-white";
+            } else {
+              backgroundClass = isActive
+                ? "bg-slate-100"
+                : "bg-white hover:bg-slate-50";
+            }
 
             return (
               <li key={suggestion.id} role="presentation">
@@ -645,15 +786,7 @@ export function GoogleAddressAutocomplete({
                   onMouseEnter={() => setHighlightIndex(index)}
                   onMouseDown={(event) => event.preventDefault()}
                   onClick={() => void selectAddress(suggestion)}
-                  className={`flex w-full items-start gap-3 px-3 py-3 text-left transition ${
-                    isSheet
-                      ? isActive
-                        ? "bg-white"
-                        : "bg-transparent hover:bg-white"
-                      : isActive
-                        ? "bg-slate-100"
-                        : "bg-white hover:bg-slate-50"
-                  }`}
+                  className={`flex w-full items-start gap-3 px-3 py-3 text-left transition ${backgroundClass}`}
                 >
                   <PinIcon className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
 

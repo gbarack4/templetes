@@ -86,6 +86,7 @@ export function ClassicTemplate({ data }: Readonly<TemplateProps>) {
 
   const [suburb, setSuburb] = useState("");
   const [postcode, setPostcode] = useState("");
+  const [isSuburbSelected, setIsSuburbSelected] = useState(false);
   const [transmission, setTransmission] = useState("Auto");
   const [preferredDateId, setPreferredDateId] = useState<string | null>(null);
   const [calendarMonth, setCalendarMonth] = useState(getCurrentMonth);
@@ -104,6 +105,7 @@ export function ClassicTemplate({ data }: Readonly<TemplateProps>) {
   };
 
   const canSearch =
+    isSuburbSelected &&
     suburb.trim().length > 0 &&
     transmission.length > 0 &&
     selectedDate !== null;
@@ -134,6 +136,7 @@ export function ClassicTemplate({ data }: Readonly<TemplateProps>) {
   function handleSuburbChange(value: string) {
     setSuburb(value);
     setPostcode("");
+    setIsSuburbSelected(false);
   }
 
   function handleSuburbSelect(
@@ -142,6 +145,7 @@ export function ClassicTemplate({ data }: Readonly<TemplateProps>) {
   ) {
     setSuburb(value);
     setPostcode(details.postcode ?? "");
+    setIsSuburbSelected(true);
   }
 
   return (
@@ -213,6 +217,11 @@ export function ClassicTemplate({ data }: Readonly<TemplateProps>) {
                   <SearchIcon className="pointer-events-none absolute top-1/2 left-4 z-10 h-4 w-4 -translate-y-1/2 text-slate-400" />
                 }
               />
+              {suburb.trim().length > 0 && !isSuburbSelected && (
+                <p className="text-xs text-slate-500">
+                  Select a suburb from the suggestions to search.
+                </p>
+              )}
             </div>
 
             <div className="space-y-2">
